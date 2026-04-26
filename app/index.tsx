@@ -1,15 +1,12 @@
-import { Text, View } from "react-native";
+import { Redirect } from "expo-router";
+import useAuthStore from "../store/useAuthStore";
 
 export default function Index() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-    </View>
-  );
+  const token = useAuthStore(state => state.token);
+
+  if (!token) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }
