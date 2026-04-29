@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Path, G, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '../constants/Colors';
+import useThemeStore from '../store/useThemeStore';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
 
@@ -21,13 +21,13 @@ interface Props {
 }
 
 export const MascotBlob: React.FC<Props> = ({ mood = 'neutral' }) => {
-  // Shared values for asymmetrical corner morphing
+  const { currentTheme } = useThemeStore();
+  // ... (rest of shared values and useEffect)
   const radiusTL = useSharedValue(60);
   const radiusTR = useSharedValue(55);
   const radiusBL = useSharedValue(50);
   const radiusBR = useSharedValue(65);
   
-  // Transform values
   const scaleX = useSharedValue(1);
   const scaleY = useSharedValue(1);
   const floatY = useSharedValue(0);
@@ -35,59 +35,22 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral' }) => {
   const blink = useSharedValue(1);
 
   useEffect(() => {
-    // 1. Quad-Corner Asymmetrical Morphing
-    // Each corner moves with a different speed and amplitude
-    radiusTL.value = withRepeat(
-      withTiming(85, { duration: 5100, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
-    radiusTR.value = withRepeat(
-      withTiming(40, { duration: 6300, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
-    radiusBL.value = withRepeat(
-      withTiming(75, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
-    radiusBR.value = withRepeat(
-      withTiming(45, { duration: 5700, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
-
-    // 2. Breathing (Scaling)
-    scaleX.value = withRepeat(
-      withTiming(1.05, { duration: 7500, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
-    scaleY.value = withRepeat(
-      withTiming(1.08, { duration: 6200, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
-
-    // 3. Subtle Float & Glow
-    floatY.value = withRepeat(
-      withTiming(-8, { duration: 8000, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
-    glowOpacity.value = withRepeat(
-      withTiming(0.28, { duration: 6200, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
+    radiusTL.value = withRepeat(withTiming(85, { duration: 5100, easing: Easing.inOut(Easing.sin) }), -1, true);
+    radiusTR.value = withRepeat(withTiming(40, { duration: 6300, easing: Easing.inOut(Easing.sin) }), -1, true);
+    radiusBL.value = withRepeat(withTiming(75, { duration: 4400, easing: Easing.inOut(Easing.sin) }), -1, true);
+    radiusBR.value = withRepeat(withTiming(45, { duration: 5700, easing: Easing.inOut(Easing.sin) }), -1, true);
+    scaleX.value = withRepeat(withTiming(1.05, { duration: 7500, easing: Easing.inOut(Easing.sin) }), -1, true);
+    scaleY.value = withRepeat(withTiming(1.08, { duration: 6200, easing: Easing.inOut(Easing.sin) }), -1, true);
+    floatY.value = withRepeat(withTiming(-8, { duration: 8000, easing: Easing.inOut(Easing.sin) }), -1, true);
+    glowOpacity.value = withRepeat(withTiming(0.28, { duration: 6200, easing: Easing.inOut(Easing.sin) }), -1, true);
     
-    // 4. Blinking
     let timeoutId: any;
     const triggerBlink = () => {
-      blink.value = withSequence(
-        withTiming(0, { duration: 120 }),
-        withTiming(1, { duration: 120 })
-      );
+      blink.value = withSequence(withTiming(0, { duration: 120 }), withTiming(1, { duration: 120 }));
       timeoutId = setTimeout(triggerBlink, 4000 + Math.random() * 6000);
     };
     triggerBlink();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    return () => { if (timeoutId) clearTimeout(timeoutId); };
   }, []);
 
   const morphStyle = useAnimatedStyle(() => ({
@@ -95,18 +58,14 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral' }) => {
     borderTopRightRadius: radiusTR.value,
     borderBottomLeftRadius: radiusBL.value,
     borderBottomRightRadius: radiusBR.value,
-    transform: [
-      { translateY: floatY.value },
-      { scaleX: scaleX.value },
-      { scaleY: scaleY.value },
-    ],
+    transform: [{ translateY: floatY.value }, { scaleX: scaleX.value }, { scaleY: scaleY.value }],
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
-    transform: [
-        { scale: interpolate(glowOpacity.value, [0.15, 0.28], [1, 1.15]) }
-    ]
+    transform: [{ scale: interpolate(glowOpacity.value, [0.15, 0.28], [1, 1.15]) }],
+    backgroundColor: currentTheme.colors.mascot.glow,
+    shadowColor: currentTheme.colors.mascot.glow,
   }));
 
   const eyeProps = useAnimatedProps(() => ({
@@ -115,20 +74,17 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral' }) => {
 
   return (
     <View style={styles.container}>
-      {/* Dynamic Glow Layers */}
       <Animated.View style={[styles.outerGlow, styles.glowLarge, glowStyle]} />
       <Animated.View style={[styles.outerGlow, styles.glowMedium, glowStyle]} />
       
-      {/* Morphing Liquid Blob */}
       <Animated.View style={[styles.blob, morphStyle]}>
         <LinearGradient
-          colors={[Colors.secondary, Colors.primary]}
+          colors={[currentTheme.colors.mascot.start, currentTheme.colors.mascot.end]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
         
-        {/* Face UI (on top of morphing view) */}
         <View style={styles.faceContainer}>
           <Svg height="100" width="100" viewBox="0 0 100 100">
             <G x="50" y="45">
@@ -184,8 +140,6 @@ const styles = StyleSheet.create({
   outerGlow: {
     position: 'absolute',
     borderRadius: 180,
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
   },

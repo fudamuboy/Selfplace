@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors } from '../constants/Colors';
+import useThemeStore from '../store/useThemeStore';
 import { CustomButton } from './CustomButton';
 
 interface Props {
@@ -20,6 +20,8 @@ export const CustomModal: React.FC<Props> = ({
   onConfirm,
   confirmText = "Tamam"
 }) => {
+  const { currentTheme } = useThemeStore();
+
   return (
     <Modal
       transparent
@@ -27,9 +29,9 @@ export const CustomModal: React.FC<Props> = ({
       animationType="fade"
     >
       <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+        <View style={[styles.modal, { backgroundColor: currentTheme.colors.background[1], borderColor: currentTheme.colors.glow }]}>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{title}</Text>
+          <Text style={[styles.message, { color: currentTheme.colors.text.secondary }]}>{message}</Text>
           
           <CustomButton 
             title={confirmText} 
@@ -39,7 +41,7 @@ export const CustomModal: React.FC<Props> = ({
           
           {onConfirm && (
             <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
-              <Text style={styles.cancelText}>Vazgeç</Text>
+              <Text style={[styles.cancelText, { color: currentTheme.colors.text.secondary }]}>Vazgeç</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -57,23 +59,19 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modal: {
-    backgroundColor: Colors.background.end,
     borderRadius: 24,
     padding: 24,
     width: '100%',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.text.primary,
     marginBottom: 12,
   },
   message: {
     fontSize: 16,
-    color: Colors.text.secondary,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
@@ -82,7 +80,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   cancelText: {
-    color: Colors.text.secondary,
     fontSize: 14,
   },
 });

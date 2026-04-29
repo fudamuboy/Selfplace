@@ -7,6 +7,8 @@ const authRoutes = require('./src/routes/authRoutes');
 const checkInRoutes = require('./src/routes/checkInRoutes');
 const cardRoutes = require('./src/routes/cardRoutes');
 const insightRoutes = require('./src/routes/insightRoutes');
+const reflectionRoutes = require('./src/routes/reflectionRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -21,6 +23,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/check-ins', checkInRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/insights', insightRoutes);
+app.use('/api/reflections', reflectionRoutes);
+app.use('/api/user', userRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

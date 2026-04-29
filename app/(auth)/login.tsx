@@ -25,7 +25,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const response = await client.post('/auth/login', { email, password });
-      setAuth(response.data.token, response.data.user);
+      await setAuth(response.data.token, response.data.user);
       router.replace('/(tabs)');
     } catch (error: any) {
       setModal({ 

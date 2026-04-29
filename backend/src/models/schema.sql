@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS check_ins (
 );
 
 -- Invitation Cards table
-CREATE TABLE IF NOT EXISTS cards (
+CREATE TABLE IF NOT EXISTS invitation_cards (
   id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
@@ -35,11 +35,28 @@ CREATE TABLE IF NOT EXISTS cards (
 -- Card Responses table for personalization
 CREATE TABLE IF NOT EXISTS card_responses (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id),
-  card_id INTEGER REFERENCES cards(id),
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  card_id INTEGER REFERENCES invitation_cards(id) ON DELETE CASCADE,
   response VARCHAR(50) NOT NULL, -- 'Deneyeceğim', 'Daha sonra', 'Bana göre değil'
-  category VARCHAR(100) NOT NULL,
+  category VARCHAR(100),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Daily Reflections table
+CREATE TABLE IF NOT EXISTS daily_reflections (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  created_at DATE DEFAULT CURRENT_DATE,
+  UNIQUE (user_id, created_at)
+);
+
+-- Weekly Insights table
+CREATE TABLE IF NOT EXISTS weekly_insights (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Seeding Reflection Questions
@@ -55,7 +72,7 @@ INSERT INTO reflection_questions (text) VALUES
 ON CONFLICT DO NOTHING;
 
 -- Seeding Invitation Cards
-INSERT INTO cards (title, content, category) VALUES
+INSERT INTO invitation_cards (title, content, category) VALUES
 -- Self-Love
 ('Küçük Bir Nezaket', 'Bugün kendin için küçük ve nazik bir şey yap.', 'Öz-Şefkat'),
 ('İç Sesin', 'İç sesinle biraz daha yumuşak konuşmayı dene.', 'Öz-Şefkat'),

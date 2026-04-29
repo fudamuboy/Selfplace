@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '../constants/Colors';
+import useThemeStore from '../store/useThemeStore';
 
 interface Props {
   children: React.ReactNode;
@@ -9,11 +9,14 @@ interface Props {
 }
 
 export const GradientBackground: React.FC<Props> = ({ children, style }) => {
+  const { currentTheme } = useThemeStore();
+  
   return (
     <LinearGradient
-      colors={[Colors.background.start, Colors.background.end]}
+      colors={currentTheme.colors.background}
       style={[styles.container, style]}
     >
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]} />
       {children}
     </LinearGradient>
   );
@@ -24,3 +27,4 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+

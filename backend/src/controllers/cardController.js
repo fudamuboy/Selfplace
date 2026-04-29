@@ -1,6 +1,17 @@
 const db = require('../config/db');
 
+exports.getAllCards = async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM invitation_cards');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Kartlar getirilemedi.' });
+  }
+};
+
 exports.getRandomCard = async (req, res) => {
+
   const userId = req.user.id;
 
   try {
@@ -18,7 +29,7 @@ exports.getRandomCard = async (req, res) => {
     let excludedCategories = preferences.filter(p => p.score <= -4).map(p => p.category);
 
     // 2. Fetch a random card, avoiding excluded categories and recently seen cards
-    let query = 'SELECT * FROM cards';
+    let query = 'SELECT * FROM invitation_cards';
     let params = [];
 
     if (excludedCategories.length > 0) {
@@ -32,7 +43,7 @@ exports.getRandomCard = async (req, res) => {
     
     if (cardResult.rows.length === 0) {
       // Fallback if all categories are excluded (should be rare)
-      const fallback = await db.query('SELECT * FROM cards ORDER BY RANDOM() LIMIT 1');
+      const fallback = await db.query('SELECT * FROM invitation_cards ORDER BY RANDOM() LIMIT 1');
       return res.json(fallback.rows[0]);
     }
 
@@ -43,14 +54,14 @@ exports.getRandomCard = async (req, res) => {
   }
 };
 
-exports.submitResponse = async (req, res) => {
+exports.respondToCard = async (req, res) => {
   const { id } = req.params;
   const { response } = req.body;
   const userId = req.user.id;
 
   try {
     // Get card category first
-    const cardInfo = await db.query('SELECT category FROM cards WHERE id = $1', [id]);
+    const cardInfo = await db.query('SELECT category FROM invitation_cards WHERE id = $1', [id]);
     if (cardInfo.rows.length === 0) {
       return res.status(404).json({ message: 'Kart bulunamadı.' });
     }

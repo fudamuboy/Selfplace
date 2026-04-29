@@ -4,8 +4,8 @@ import { useRouter } from 'expo-router';
 import { GradientBackground } from '../components/GradientBackground';
 import { CustomButton } from '../components/CustomButton';
 import { CustomModal } from '../components/CustomModal';
-import { Colors } from '../constants/Colors';
 import client from '../api/client';
+import useThemeStore from '../store/useThemeStore';
 
 interface Card {
   id: number;
@@ -20,6 +20,7 @@ export default function CardsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
+  const { currentTheme } = useThemeStore();
 
   const fetchCard = async () => {
     setLoading(true);
@@ -27,6 +28,7 @@ export default function CardsScreen() {
       const response = await client.get('/cards/random');
       setCard(response.data);
     } catch (error) {
+      console.error('[CardsScreen] Fetch Error:', error);
       setModal({ visible: true, title: 'Hata', message: 'Kart yüklenirken bir hata oluştu.' });
     } finally {
       setLoading(false);
@@ -54,25 +56,25 @@ export default function CardsScreen() {
   if (loading) {
     return (
       <GradientBackground style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={currentTheme.colors.primary} />
       </GradientBackground>
     );
   }
 
   return (
     <GradientBackground style={styles.container}>
-      <Text style={styles.headerTitle}>Davet Kartın</Text>
+      <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>Davet Kartın</Text>
       
       {card ? (
-        <View style={styles.card}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{card.category}</Text>
+        <View style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+          <View style={[styles.categoryBadge, { backgroundColor: currentTheme.colors.glow }]}>
+            <Text style={[styles.categoryText, { color: currentTheme.colors.primary }]}>{card.category}</Text>
           </View>
-          <Text style={styles.cardTitle}>{card.title}</Text>
-          <Text style={styles.cardContent}>{card.content}</Text>
+          <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>{card.title}</Text>
+          <Text style={[styles.cardContent, { color: currentTheme.colors.text.secondary }]}>{card.content}</Text>
         </View>
       ) : (
-        <Text style={styles.errorText}>Kart bulunamadı.</Text>
+        <Text style={[styles.errorText, { color: currentTheme.colors.text.secondary }]}>Henüz davet kartı bulunmuyor.</Text>
       )}
 
       <View style={styles.actions}>
@@ -88,7 +90,7 @@ export default function CardsScreen() {
           loading={submitting}
         />
         <TouchableOpacity onPress={() => router.back()} style={styles.laterButton}>
-          <Text style={styles.laterText}>Daha sonra</Text>
+          <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Daha sonra</Text>
         </TouchableOpacity>
       </View>
 
@@ -118,11 +120,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text.primary,
     marginBottom: 40,
   },
   card: {
-    backgroundColor: Colors.card,
     width: '100%',
     padding: 30,
     borderRadius: 30,
@@ -130,17 +130,14 @@ const styles = StyleSheet.create({
     minHeight: 300,
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   categoryBadge: {
-    backgroundColor: 'rgba(129, 140, 248, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     marginBottom: 20,
   },
   categoryText: {
-    color: Colors.primary,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -148,18 +145,15 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: 20,
   },
   cardContent: {
     fontSize: 18,
-    color: Colors.text.secondary,
     textAlign: 'center',
     lineHeight: 28,
   },
   errorText: {
-    color: Colors.text.secondary,
     fontSize: 16,
     marginVertical: 40,
   },
@@ -172,7 +166,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   laterText: {
-    color: Colors.text.secondary,
     fontSize: 16,
   },
 });

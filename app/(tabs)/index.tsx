@@ -4,24 +4,25 @@ import { useRouter } from 'expo-router';
 import { GradientBackground } from '../../components/GradientBackground';
 import { MascotBlob } from '../../components/MascotBlob';
 import { CustomButton } from '../../components/CustomButton';
-import { Colors } from '../../constants/Colors';
 import useAuthStore from '../../store/useAuthStore';
+import useThemeStore from '../../store/useThemeStore';
 
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore(state => state.user);
+  const { currentTheme } = useThemeStore();
 
   return (
     <GradientBackground>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Merhaba {user?.username},</Text>
-          <Text style={styles.subtitle}>Bugün kendin için bir şeyler yapmaya ne dersin?</Text>
+          <Text style={[styles.greeting, { color: currentTheme.colors.text.primary }]}>Merhaba {user?.username},</Text>
+          <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>Bugün kendin için bir şeyler yapmaya ne dersin?</Text>
         </View>
 
         <View style={styles.mascotContainer}>
           <MascotBlob mood="neutral" />
-          <Text style={styles.mascotText}>"Buradayım, seni dinliyorum."</Text>
+          <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>"Buradayım, seni dinliyorum."</Text>
         </View>
 
         <View style={styles.actions}>
@@ -53,11 +54,9 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: Colors.text.primary,
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.text.secondary,
     marginTop: 8,
   },
   mascotContainer: {
@@ -65,7 +64,6 @@ const styles = StyleSheet.create({
     marginVertical: 40,
   },
   mascotText: {
-    color: Colors.text.secondary,
     fontStyle: 'italic',
     marginTop: 20,
     fontSize: 16,

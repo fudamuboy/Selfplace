@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import useThemeStore from '../store/useThemeStore';
 
 interface Props {
   title: string;
@@ -17,18 +18,24 @@ export const CustomButton: React.FC<Props> = ({
   variant = 'primary',
   style 
 }) => {
+  const { currentTheme } = useThemeStore();
+
   const getButtonStyle = () => {
     switch (variant) {
-      case 'secondary': return styles.secondary;
-      case 'outline': return styles.outline;
-      default: return styles.primary;
+      case 'secondary': return { backgroundColor: currentTheme.colors.button.secondary };
+      case 'outline': return { 
+        backgroundColor: 'transparent', 
+        borderWidth: 1, 
+        borderColor: currentTheme.colors.button.primary 
+      };
+      default: return { backgroundColor: currentTheme.colors.button.primary };
     }
   };
 
   const getTextStyle = () => {
     switch (variant) {
-      case 'outline': return styles.outlineText;
-      default: return styles.text;
+      case 'outline': return { color: currentTheme.colors.button.primary };
+      default: return { color: currentTheme.colors.button.text };
     }
   };
 
@@ -39,7 +46,7 @@ export const CustomButton: React.FC<Props> = ({
       disabled={loading}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? Colors.primary : '#fff'} />
+        <ActivityIndicator color={variant === 'outline' ? currentTheme.colors.button.primary : currentTheme.colors.button.text} />
       ) : (
         <Text style={[styles.text, getTextStyle()]}>{title}</Text>
       )}
@@ -51,29 +58,18 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 16,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 8,
     width: '100%',
-  },
-  primary: {
-    backgroundColor: Colors.primary,
-  },
-  secondary: {
-    backgroundColor: Colors.secondary,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   text: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  outlineText: {
-    color: Colors.primary,
   },
 });

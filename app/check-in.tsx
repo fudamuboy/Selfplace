@@ -1,13 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { GradientBackground } from '../components/GradientBackground';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, interpolate, withTiming } from 'react-native-reanimated';
+import client from '../api/client';
 import { CustomButton } from '../components/CustomButton';
 import { CustomModal } from '../components/CustomModal';
-import { Colors } from '../constants/Colors';
-import client from '../api/client';
+import { GradientBackground } from '../components/GradientBackground';
+import useThemeStore from '../store/useThemeStore';
 
-const MOODS = ['Mutlu', 'Sakin', 'Yorgun', 'Üzgün', 'Kaygılı'];
+const MOOD_DATA = [
+  { id: 'Mutlu', label: 'Mutlu', image: require('../assets/images/stickers/mutlu.png') },
+  { id: 'Sakin', label: 'Sakin', image: require('../assets/images/stickers/sakin.png') },
+  { id: 'Yorgun', label: 'Yorgun', image: require('../assets/images/stickers/yorgun.png') },
+  { id: 'Üzgün', label: 'Üzgün', image: require('../assets/images/stickers/uzgun.png') },
+  { id: 'Kaygılı', label: 'Kaygılı', image: require('../assets/images/stickers/kaygili.png') },
+];
+
+function MoodCard({ mood, isSelected, onSelect, theme }: { mood: any, isSelected: boolean, onSelect: () => void, theme: any }) {
+  const scale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    glowOpacity.value = withTiming(isSelected ? 1 : 0, { duration: 300 });
+  }, [isSelected]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: withSpring(isSelected ? 1.05 : scale.value) }],
+      backgroundColor: isSelected ? theme.colors.glow : 'transparent',
+      borderColor: withSpring(isSelected ? theme.colors.primary : theme.colors.cardBorder),
+      borderWidth: 1.5,
+      shadowColor: theme.colors.primary,
+      shadowOpacity: interpolate(glowOpacity.value, [0, 1], [0, 0.2]),
+      shadowRadius: 15,
+      elevation: interpolate(glowOpacity.value, [0, 1], [0, 5]),
+    };
+  });
+
+  const handlePressIn = () => {
+    scale.value = 0.94;
+  };
+
+  const handlePressOut = () => {
+    scale.value = 1;
+  };
+
+  const handleSelect = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSelect();
+  };
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handleSelect}
+      style={styles.moodCardWrapper}
+    >
+      <Animated.View style={[styles.moodCard, animatedStyle]}>
+        <Image 
+          source={mood.image} 
+          style={styles.sticker} 
+          contentFit="contain"
+          transition={200}
+        />
+        <Text style={[
+          styles.moodLabel, 
+          { color: isSelected ? theme.colors.text.primary : theme.colors.text.secondary },
+          isSelected && { fontWeight: '700' }
+        ]}>{mood.label}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export default function CheckInScreen() {
   const [selectedMood, setSelectedMood] = useState('');
@@ -17,6 +84,7 @@ export default function CheckInScreen() {
   const [fetchingQuestion, setFetchingQuestion] = useState(true);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
+  const { currentTheme } = useThemeStore();
 
   useEffect(() => {
     fetchQuestion();
@@ -28,7 +96,7 @@ export default function CheckInScreen() {
       const response = await client.get('/check-ins/question');
       setQuestion(response.data.text);
     } catch (error) {
-      setQuestion('Bugün kendine nasıl davrandın?'); // Fallback
+      setQuestion('Bugün seni en çok ne etkiledi?');
     } finally {
       setFetchingQuestion(false);
     }
@@ -57,44 +125,59 @@ export default function CheckInScreen() {
 
   return (
     <GradientBackground>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Nasıl Hissediyorsun?</Text>
-        
-        <View style={styles.moodContainer}>
-          {MOODS.map((mood) => (
-            <CustomButton
-              key={mood}
-              title={mood}
-              onPress={() => setSelectedMood(mood)}
-              variant={selectedMood === mood ? 'primary' : 'outline'}
-              style={styles.moodButton}
-            />
-          ))}
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Bugün nasıl hissediyorsun?</Text>
+
+        <View style={styles.gridContainer}>
+          <View style={styles.row}>
+            {MOOD_DATA.slice(0, 3).map((mood) => (
+              <MoodCard
+                key={mood.id}
+                mood={mood}
+                isSelected={selectedMood === mood.id}
+                onSelect={() => setSelectedMood(mood.id)}
+                theme={currentTheme}
+              />
+            ))}
+          </View>
+          <View style={[styles.row, { paddingHorizontal: 40 }]}>
+            {MOOD_DATA.slice(3).map((mood) => (
+              <MoodCard
+                key={mood.id}
+                mood={mood}
+                isSelected={selectedMood === mood.id}
+                onSelect={() => setSelectedMood(mood.id)}
+                theme={currentTheme}
+              />
+            ))}
+          </View>
         </View>
 
         <View style={styles.questionSection}>
-          <Text style={styles.sectionLabel}>Günlük Farkındalık</Text>
-          {fetchingQuestion ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
-          ) : (
-            <Text style={styles.questionText}>{question}</Text>
-          )}
-          <TextInput
-            style={styles.input}
-            placeholder="Kısaca not alabilirsin..."
-            placeholderTextColor={Colors.text.secondary}
-            multiline
-            value={note}
-            onChangeText={setNote}
-          />
+          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.primary }]}>{question}</Text>
+          <View style={[styles.inputContainer, { backgroundColor: currentTheme.colors.input.background, borderColor: currentTheme.colors.input.border }]}>
+            <TextInput
+              style={[styles.input, { color: currentTheme.colors.input.text }]}
+              placeholder="Neler hissettiğini buraya dökebilirsin..."
+              placeholderTextColor={currentTheme.colors.input.placeholder}
+              multiline
+              value={note}
+              onChangeText={setNote}
+            />
+          </View>
         </View>
 
-        <CustomButton 
-          title="Tamamla" 
-          onPress={handleSubmit} 
-          loading={loading}
-          style={styles.submitButton}
-        />
+        <View style={styles.actions}>
+          <CustomButton
+            title="Tamamla"
+            onPress={handleSubmit}
+            loading={loading}
+            style={styles.submitButton}
+          />
+          <Pressable onPress={() => router.back()} style={styles.laterButton}>
+            <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Daha sonra</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <CustomModal
@@ -114,51 +197,75 @@ const styles = StyleSheet.create({
   container: {
     padding: 24,
     paddingTop: 80,
+    paddingBottom: 60,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
+    fontSize: 22,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 40,
   },
-  moodContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 40,
+  gridContainer: {
+    gap: 16,
+    marginBottom: 48,
   },
-  moodButton: {
-    width: '48%',
-    marginBottom: 12,
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  moodCardWrapper: {
+    width: 100,
+    aspectRatio: 0.85,
+  },
+  moodCard: {
+    flex: 1,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+  },
+  sticker: {
+    width: 70,
+    height: 70,
+    marginBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  moodLabel: {
+    fontSize: 13,
+    textAlign: 'center',
   },
   questionSection: {
-    backgroundColor: Colors.card,
-    padding: 24,
-    borderRadius: 24,
     marginBottom: 40,
   },
   sectionLabel: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  questionText: {
-    color: Colors.text.primary,
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 20,
-    lineHeight: 26,
+    marginBottom: 16,
+  },
+  inputContainer: {
+    borderRadius: 24,
+    padding: 20,
+    minHeight: 140,
+    borderWidth: 1,
   },
   input: {
-    color: Colors.text.primary,
     fontSize: 16,
-    minHeight: 100,
+    lineHeight: 24,
     textAlignVertical: 'top',
   },
+  actions: {
+    gap: 20,
+  },
   submitButton: {
-    marginBottom: 40,
+    borderRadius: 24,
+    height: 60,
+  },
+  laterButton: {
+    alignItems: 'center',
+    padding: 8,
+  },
+  laterText: {
+    fontSize: 16,
   },
 });

@@ -1,21 +1,24 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import useThemeStore from '../../store/useThemeStore';
 
 export default function TabLayout() {
+  const { currentTheme } = useThemeStore();
+
   return (
     <Tabs screenOptions={{
       headerShown: false,
       tabBarStyle: {
-        backgroundColor: Colors.background.end,
-        borderTopWidth: 0,
+        backgroundColor: currentTheme.colors.tabBar.background,
+        borderTopWidth: 1,
+        borderTopColor: currentTheme.colors.tabBar.border,
         elevation: 0,
         height: 60,
         paddingBottom: 10,
       },
-      tabBarActiveTintColor: Colors.primary,
-      tabBarInactiveTintColor: Colors.text.secondary,
+      tabBarActiveTintColor: currentTheme.colors.tabBar.active,
+      tabBarInactiveTintColor: currentTheme.colors.tabBar.inactive,
     }}>
       <Tabs.Screen
         name="index"
@@ -27,8 +30,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Geçmiş',
-          tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
+          title: 'Hikayen',
+          tabBarIcon: ({ color, size }) => <Ionicons name="book" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
