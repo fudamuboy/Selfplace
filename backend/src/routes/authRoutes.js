@@ -6,5 +6,8 @@ const authenticateToken = require('../middleware/auth');
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/me', authenticateToken, authController.getMe);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+router.post('/test-email', authController.testEmail);
 
 module.exports = router;

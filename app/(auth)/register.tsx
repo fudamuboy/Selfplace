@@ -93,7 +93,7 @@ export default function RegisterScreen() {
         message={modal.message}
         onClose={() => {
           setModal({ ...modal, visible: false });
-          if (modal.success) router.replace('/login');
+          if (modal.success) router.replace('/(auth)/login');
         }}
       />
     </GradientBackground>

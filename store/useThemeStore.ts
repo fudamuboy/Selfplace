@@ -4,7 +4,7 @@ import { themeModes, ThemeMode } from '../constants/themeModes';
 
 interface ThemeState {
   currentTheme: ThemeMode;
-  setTheme: (themeId: 'sakin' | 'minimal' | 'sicak') => Promise<void>;
+  setTheme: (themeId: ThemeMode['id']) => Promise<void>;
   loadTheme: () => Promise<void>;
 }
 

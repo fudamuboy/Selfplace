@@ -7,9 +7,8 @@ import useAuthStore from "../store/useAuthStore";
 
 export default function RootLayout() {
   const { loadTheme, currentTheme } = useThemeStore();
-  const { token, setAuth } = useAuthStore();
+  const { token, setAuth, onboardingCompleted, setOnboardingCompleted, postAuthOnboardingCompleted, setPostAuthOnboardingCompleted } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   
   const segments = useSegments();
   const router = useRouter();
@@ -21,8 +20,11 @@ export default function RootLayout() {
       
       // Check onboarding status
       const onboardingValue = await AsyncStorage.getItem('onboardingCompleted');
-      const isCompleted = onboardingValue === 'true';
-      setOnboardingCompleted(isCompleted);
+      await setOnboardingCompleted(onboardingValue === 'true');
+
+      // Check post-auth onboarding status
+      const postAuthValue = await AsyncStorage.getItem('postAuthOnboardingCompleted');
+      await setPostAuthOnboardingCompleted(postAuthValue === 'true');
       
       // Check for existing token
       const storedToken = await AsyncStorage.getItem('token');
@@ -42,6 +44,7 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
     const onOnboarding = segments[0] === 'onboarding';
+    const onPostAuthOnboarding = segments[0] === 'post-auth-onboarding';
 
     if (!onboardingCompleted) {
       if (!onOnboarding) {
@@ -52,11 +55,15 @@ export default function RootLayout() {
         router.replace('/(auth)/login');
       }
     } else if (token) {
-      if (inAuthGroup || onOnboarding || !inTabsGroup) {
+      if (!postAuthOnboardingCompleted) {
+        if (!onPostAuthOnboarding) {
+          router.replace('/post-auth-onboarding');
+        }
+      } else if (inAuthGroup || onOnboarding || onPostAuthOnboarding) {
         router.replace('/(tabs)');
       }
     }
-  }, [isReady, onboardingCompleted, token, segments]);
+  }, [isReady, onboardingCompleted, token, postAuthOnboardingCompleted, segments]);
 
   if (!isReady || onboardingCompleted === null) {
     return (
@@ -69,12 +76,18 @@ export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="onboarding" />
+      <Stack.Screen name="post-auth-onboarding" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="check-in" />
       <Stack.Screen name="cards" />
       <Stack.Screen name="theme-selection" />
       <Stack.Screen name="privacy-data" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="faq" />
+      <Stack.Screen name="terms" />
+      <Stack.Screen name="privacy-policy" />
+      <Stack.Screen name="reset-password" />
     </Stack>
   );
 }

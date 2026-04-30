@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const bcrypt = require('bcrypt');
 
 // ---------------------------------------------------------------------------
 // GET /api/user/export-data
@@ -58,5 +59,36 @@ exports.deleteAccount = async (req, res) => {
   } catch (err) {
     console.error('[userController] deleteAccount error:', err.message);
     res.status(500).json({ message: 'Hesap silinirken bir hata oluştu.' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// PUT /api/user/change-password
+// ---------------------------------------------------------------------------
+exports.changePassword = async (req, res) => {
+  const userId = req.user.id;
+  const { currentPassword, newPassword } = req.body;
+
+  try {
+    // Get user
+    const userRes = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, userRes.rows[0].password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mevcut şifre hatalı.' });
+    }
+
+    const saltRounds = 10;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedNewPassword, userId]);
+
+    res.json({ message: 'Şifreniz başarıyla değiştirildi.' });
+  } catch (err) {
+    console.error('[userController] changePassword error:', err.message);
+    res.status(500).json({ message: 'Şifre değiştirilirken bir hata oluştu.' });
   }
 };

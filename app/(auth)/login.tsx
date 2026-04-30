@@ -38,6 +38,37 @@ export default function LoginScreen() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setModal({ visible: true, title: 'Hata', message: 'Lütfen e-posta adresinizi girin.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await client.post('/auth/forgot-password', { email });
+      setModal({ 
+        visible: true, 
+        title: 'Kod Gönderildi', 
+        message: '6 haneli sıfırlama kodu e-posta adresine gönderildi.' 
+      });
+      setTimeout(() => {
+        router.push('/reset-password');
+      }, 1500);
+    } catch (error: any) {
+      if (__DEV__) {
+        console.log('[Login ForgotPassword] Error:', error.response?.data || error.message);
+      }
+      setModal({ 
+        visible: true, 
+        title: 'Hata', 
+        message: 'Bağlantı gönderilirken bir sorun oluştu.' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <GradientBackground style={styles.container}>
       <View style={styles.content}>
@@ -63,6 +94,14 @@ export default function LoginScreen() {
           secureTextEntry
         />
 
+        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
+          <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/reset-password')} style={styles.resetCodeContainer}>
+          <Text style={styles.resetCodeText}>Kod ile Şifre Sıfırla</Text>
+        </TouchableOpacity>
+
         <CustomButton 
           title="Giriş Yap" 
           onPress={handleLogin} 
@@ -72,6 +111,16 @@ export default function LoginScreen() {
 
         <TouchableOpacity onPress={() => router.push('/register')}>
           <Text style={styles.linkText}>Hesabın yok mu? Kayıt Ol</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.devResetButton} 
+          onPress={async () => {
+            await useAuthStore.getState().resetAll();
+            router.replace('/onboarding');
+          }}
+        >
+          <Text style={styles.devResetText}>[ DEV RESET ]</Text>
         </TouchableOpacity>
       </View>
 
@@ -113,9 +162,39 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     marginBottom: 16,
   },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+    marginRight: 4,
+  },
+  forgotPasswordText: {
+    color: Colors.text.secondary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  resetCodeContainer: {
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+    marginRight: 4,
+  },
+  resetCodeText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   linkText: {
     color: Colors.primary,
     marginTop: 20,
     fontSize: 14,
+  },
+  devResetButton: {
+    marginTop: 60,
+    opacity: 0.5,
+  },
+  devResetText: {
+    color: '#FF4B4B',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
 });

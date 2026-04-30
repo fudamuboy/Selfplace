@@ -119,7 +119,7 @@ export default function ProfileScreen() {
 
         {/* Menu */}
         <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-          {renderMenuItem('settings-outline', 'Ayarlar')}
+          {renderMenuItem('settings-outline', 'Ayarlar', () => router.push('/settings'))}
           {renderMenuItem('notifications-outline', 'Günlük Hatırlatıcı')}
           {renderMenuItem('color-palette-outline', 'Uygulama Hissi', () => router.push('/theme-selection'))}
           {renderMenuItem('shield-checkmark-outline', 'Gizlilik ve Veriler', () => router.push('/privacy-data'))}

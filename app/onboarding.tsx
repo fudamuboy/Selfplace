@@ -1,35 +1,106 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View, Switch, Platform } from 'react-native';
-import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { 
+  FadeIn, 
+  FadeOut, 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withRepeat, 
+  withTiming, 
+  Easing,
+  withDelay,
+  withSpring,
+  interpolate
+} from 'react-native-reanimated';
 import { CustomButton } from '../components/CustomButton';
 import { GradientBackground } from '../components/GradientBackground';
 import { MascotBlob } from '../components/MascotBlob';
 import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
 
+const MOOD_DATA = [
+  { id: 'Mutlu', label: 'Mutlu', image: require('../assets/images/stickers/mutlu.png'), response: 'Işığın her yeri aydınlatıyor.' },
+  { id: 'Sakin', label: 'Sakin', image: require('../assets/images/stickers/sakin.png'), response: 'Huzurun tadını çıkar.' },
+  { id: 'Yorgun', label: 'Yorgun', image: require('../assets/images/stickers/yorgun.png'), response: 'Dinlenmek en büyük hakkın.' },
+  { id: 'Üzgün', label: 'Üzgün', image: require('../assets/images/stickers/uzgun.png'), response: 'Bu hisle yalnız değilsin.' },
+  { id: 'Kaygılı', label: 'Kaygılı', image: require('../assets/images/stickers/kaygili.png'), response: 'Yavaşla, her şey geçecek.' },
+];
+
+function OnboardingMoodCard({ mood, isSelected, onSelect, theme }: { mood: any, isSelected: boolean, onSelect: () => void, theme: any }) {
+  const scale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    glowOpacity.value = withTiming(isSelected ? 1 : 0, { duration: 300 });
+  }, [isSelected]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: withSpring(isSelected ? 1.05 : scale.value) }],
+      backgroundColor: isSelected ? theme.colors.glow : 'transparent',
+      borderColor: withSpring(isSelected ? theme.colors.primary : theme.colors.cardBorder),
+      borderWidth: 1.5,
+      shadowColor: theme.colors.primary,
+      shadowOpacity: interpolate(glowOpacity.value, [0, 1], [0, 0.2]),
+      shadowRadius: 15,
+      elevation: interpolate(glowOpacity.value, [0, 1], [0, 5]),
+    };
+  });
+
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onSelect();
+      }}
+      style={styles.moodCardWrapper}
+    >
+      <Animated.View style={[styles.moodCard, animatedStyle]}>
+        <Image 
+          source={mood.image} 
+          style={styles.sticker} 
+          contentFit="contain"
+          transition={200}
+        />
+        <Text style={[
+          styles.moodLabel, 
+          { color: isSelected ? theme.colors.text.primary : theme.colors.text.secondary },
+          isSelected && { fontWeight: '700' }
+        ]}>{mood.label}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export default function OnboardingScreen() {
   const [step, setStep] = useState(1);
-  const [remindersEnabled, setRemindersEnabled] = useState(true);
-  const [reminderTime, setReminderTime] = useState(new Date(new Date().setHours(21, 0, 0, 0)));
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [dailyGoal, setDailyGoal] = useState(10);
+  const [showText1, setShowText1] = useState(false);
+  const [showText2, setShowText2] = useState(false);
+  const [showButton, setShowButton] = useState(false);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  
   const router = useRouter();
   const { currentTheme } = useThemeStore();
-  const { token } = useAuthStore();
+  const { setOnboardingCompleted } = useAuthStore();
 
   const mascotScale = useSharedValue(1);
 
   useEffect(() => {
+    // Step 1: Slow breathing mascot
+    mascotScale.value = withRepeat(
+      withTiming(1.02, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+
     if (step === 1) {
-      mascotScale.value = withRepeat(
-        withTiming(1.05, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
-        -1,
-        true
-      );
+      setTimeout(() => setShowText1(true), 2000);
+      setTimeout(() => setShowText2(true), 4000);
+      setTimeout(() => setShowButton(true), 5500);
     }
   }, [step]);
 
@@ -37,138 +108,123 @@ export default function OnboardingScreen() {
     transform: [{ scale: mascotScale.value }],
   }));
 
-  const handleNext = async () => {
-    if (step < 3) {
-      setStep(step + 1);
-    } else {
-      await finishOnboarding();
-    }
-  };
-
-  const finishOnboarding = async () => {
+  const handleFinish = async () => {
     try {
-      await AsyncStorage.setItem('onboardingCompleted', 'true');
-      await AsyncStorage.setItem('userPreferences', JSON.stringify({
-        remindersEnabled,
-        reminderTime: reminderTime.toISOString(),
-        dailyGoal,
-      }));
-      
-      if (token) {
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/(auth)/login');
-      }
+      await setOnboardingCompleted(true);
+      router.replace('/(auth)/register');
     } catch (error) {
-      console.error('Onboarding Error:', error);
-      router.replace('/(auth)/login');
+      router.replace('/(auth)/register');
     }
-  };
-
-  const requestNotificationPermission = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    await handleNext();
   };
 
   const renderStep = () => {
     switch (step) {
       case 1:
         return (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepContainer}>
+          <View style={styles.stepContainer}>
             <Animated.View style={[styles.mascotWrapper, animatedMascotStyle]}>
-              <MascotBlob />
+              <MascotBlob mood="calm" />
             </Animated.View>
-            <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>
-              Kendinle küçük anlar yarat
-            </Text>
-            <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-              Her gün birkaç dakika ayırarak kendini daha iyi anlayabilirsin.
-            </Text>
-            <CustomButton title="Devam Et" onPress={handleNext} style={styles.button} />
-          </Animated.View>
+            
+            <View style={styles.textContainer}>
+              {showText1 && (
+                <Animated.Text entering={FadeIn.duration(1000)} style={[styles.softText, { color: currentTheme.colors.text.primary }]}>
+                  Buradayım.
+                </Animated.Text>
+              )}
+              {showText2 && (
+                <Animated.Text entering={FadeIn.duration(1000)} style={[styles.softText, { color: currentTheme.colors.text.primary, marginTop: 12 }]}>
+                  Seni dinliyorum.
+                </Animated.Text>
+              )}
+            </View>
+
+            {showButton && (
+              <Animated.View entering={FadeIn.duration(800)} style={styles.buttonWrapper}>
+                <CustomButton 
+                  title="Devam Et" 
+                  onPress={() => setStep(2)} 
+                  style={styles.button}
+                />
+              </Animated.View>
+            )}
+          </View>
         );
 
       case 2:
         return (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepContainer}>
-            <Text style={[styles.title, { color: currentTheme.colors.text.primary, marginBottom: 40 }]}>
-              Sana göre şekillensin
+          <Animated.View entering={FadeIn.duration(1000)} style={styles.stepContainer}>
+            <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>
+              Bugün nasılsın?
             </Text>
             
-            <View style={styles.optionRow}>
-              <Text style={[styles.optionLabel, { color: currentTheme.colors.text.primary }]}>Günlük hatırlatıcı açık mı?</Text>
-              <Switch
-                value={remindersEnabled}
-                onValueChange={setRemindersEnabled}
-                trackColor={{ false: '#767577', true: currentTheme.colors.primary }}
-                thumbColor={remindersEnabled ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-
-            {remindersEnabled && (
-              <Pressable 
-                style={[styles.timeSelector, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
-                onPress={() => setShowTimePicker(true)}
-              >
-                <Text style={[styles.timeLabel, { color: currentTheme.colors.text.secondary }]}>Hatırlatma saati</Text>
-                <Text style={[styles.timeValue, { color: currentTheme.colors.text.primary }]}>
-                  {reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </Pressable>
-            )}
-
-            {showTimePicker && (
-              <DateTimePicker
-                value={reminderTime}
-                mode="time"
-                is24Hour={true}
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowTimePicker(Platform.OS === 'ios');
-                  if (selectedDate) setReminderTime(selectedDate);
-                }}
-              />
-            )}
-
-            <View style={styles.goalSection}>
-              <Text style={[styles.goalLabel, { color: currentTheme.colors.text.secondary }]}>
-                Günde kaç dakika ayırmak istersin?
-              </Text>
-              <View style={styles.goalOptions}>
-                {[5, 10, 15].map((mins) => (
-                  <Pressable
-                    key={mins}
-                    style={[
-                      styles.goalOption,
-                      { backgroundColor: currentTheme.colors.card, borderColor: dailyGoal === mins ? currentTheme.colors.primary : currentTheme.colors.cardBorder }
-                    ]}
-                    onPress={() => setDailyGoal(mins)}
-                  >
-                    <Text style={[styles.goalOptionText, { color: dailyGoal === mins ? currentTheme.colors.primary : currentTheme.colors.text.primary }]}>
-                      {mins} dk
-                    </Text>
-                  </Pressable>
+            <View style={styles.gridContainer}>
+              <View style={styles.row}>
+                {MOOD_DATA.slice(0, 3).map((mood) => (
+                  <OnboardingMoodCard
+                    key={mood.id}
+                    mood={mood}
+                    isSelected={selectedMood === mood.id}
+                    onSelect={() => setSelectedMood(mood.id)}
+                    theme={currentTheme}
+                  />
+                ))}
+              </View>
+              <View style={[styles.row, { paddingHorizontal: 40 }]}>
+                {MOOD_DATA.slice(3).map((mood) => (
+                  <OnboardingMoodCard
+                    key={mood.id}
+                    mood={mood}
+                    isSelected={selectedMood === mood.id}
+                    onSelect={() => setSelectedMood(mood.id)}
+                    theme={currentTheme}
+                  />
                 ))}
               </View>
             </View>
 
-            <CustomButton title="Devam Et" onPress={handleNext} style={styles.button} />
+            {selectedMood && (
+              <Animated.Text entering={FadeIn} style={[styles.moodResponse, { color: currentTheme.colors.primary }]}>
+                {MOOD_DATA.find(m => m.id === selectedMood)?.response}
+              </Animated.Text>
+            )}
+
+            <View style={[styles.buttonWrapper, { marginTop: 40 }]}>
+              <CustomButton 
+                title="Devam Et" 
+                onPress={() => setStep(3)} 
+                style={styles.button}
+                disabled={!selectedMood}
+              />
+            </View>
           </Animated.View>
         );
 
       case 3:
         return (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepContainer}>
-            <View style={styles.permissionIconContainer}>
-              <Text style={styles.permissionIcon}>🔔</Text>
+          <Animated.View entering={FadeIn.duration(1000)} style={styles.stepContainer}>
+            <View style={styles.finalMascot}>
+              <MascotBlob mood="happy" />
             </View>
-            <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>
-              Sana nazikçe hatırlatalım
-            </Text>
-            <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-              Sadece istediğin zaman, seni rahatsız etmeden.
-            </Text>
-            <CustomButton title="Başla" onPress={requestNotificationPermission} style={styles.button} />
+            <View style={styles.finalTextContainer}>
+              <Text style={[styles.finalText, { color: currentTheme.colors.text.primary }]}>
+                Bu alan senin.
+              </Text>
+              <Text style={[styles.finalText, { color: currentTheme.colors.text.primary }]}>
+                Zorunda değilsin.
+              </Text>
+              <Text style={[styles.finalText, { color: currentTheme.colors.text.primary }]}>
+                Sadece kendin ol.
+              </Text>
+            </View>
+
+            <View style={styles.finalActions}>
+              <CustomButton 
+                title="Başla" 
+                onPress={handleFinish} 
+                style={styles.button}
+              />
+            </View>
           </Animated.View>
         );
     }
@@ -177,11 +233,6 @@ export default function OnboardingScreen() {
   return (
     <GradientBackground>
       <View style={styles.container}>
-        {step < 3 && (
-          <Pressable style={styles.skipButton} onPress={finishOnboarding}>
-            <Text style={[styles.skipText, { color: currentTheme.colors.text.secondary }]}>Atla</Text>
-          </Pressable>
-        )}
         {renderStep()}
       </View>
     </GradientBackground>
@@ -194,107 +245,94 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
   },
-  skipButton: {
-    position: 'absolute',
-    top: 60,
-    right: 24,
-    padding: 8,
-    zIndex: 10,
-  },
-  skipText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
   stepContainer: {
     alignItems: 'center',
     width: '100%',
   },
   mascotWrapper: {
-    marginBottom: 20,
+    marginBottom: 40,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 16,
+  textContainer: {
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  subtitle: {
-    fontSize: 16,
+  softText: {
+    fontSize: 20,
+    fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 48,
-    paddingHorizontal: 20,
+    letterSpacing: 0.5,
+  },
+  buttonWrapper: {
+    width: '100%',
+    marginTop: 60,
   },
   button: {
     width: '100%',
     height: 60,
     borderRadius: 30,
   },
-  optionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    paddingVertical: 20,
-    marginBottom: 20,
-  },
-  optionLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  timeSelector: {
-    width: '100%',
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  timeLabel: {
-    fontSize: 15,
-  },
-  timeValue: {
-    fontSize: 18,
+  title: {
+    fontSize: 26,
     fontWeight: '700',
-  },
-  goalSection: {
-    width: '100%',
-    marginBottom: 50,
-  },
-  goalLabel: {
-    fontSize: 15,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 48,
   },
-  goalOptions: {
+  gridContainer: {
+    gap: 16,
+    marginBottom: 32,
+  },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 16,
   },
-  goalOption: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    alignItems: 'center',
-  },
-  goalOptionText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  permissionIconContainer: {
+  moodCardWrapper: {
     width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    aspectRatio: 0.85,
+  },
+  moodCard: {
+    flex: 1,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30,
+    padding: 12,
   },
-  permissionIcon: {
-    fontSize: 40,
+  sticker: {
+    width: 65,
+    height: 65,
+    marginBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  moodLabel: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  moodResponse: {
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 20,
+    height: 24,
+  },
+  finalMascot: {
+    marginBottom: 40,
+    transform: [{ scale: 0.8 }],
+  },
+  finalTextContainer: {
+    marginBottom: 60,
+    alignItems: 'center',
+  },
+  finalText: {
+    fontSize: 22,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 32,
+  },
+  finalActions: {
+    width: '100%',
+    gap: 20,
   },
 });
 
