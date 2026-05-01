@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GradientBackground } from '../../components/GradientBackground';
 import useAuthStore from '../../store/useAuthStore';
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { LinearGradient } from 'expo-linear-gradient';
 import useThemeStore from '../../store/useThemeStore';
+import { CustomButton } from '../../components/CustomButton';
 
 interface Stats {
   checkInCount: number;
@@ -18,6 +19,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const { currentTheme } = useThemeStore();
 
   useEffect(() => {
@@ -74,18 +76,24 @@ export default function ProfileScreen() {
           style={[styles.profileCard, { borderColor: currentTheme.colors.cardBorder }]}
         >
           <View style={styles.profileHeader}>
-            <LinearGradient
-              colors={[currentTheme.colors.mascot.start, currentTheme.colors.mascot.end]}
-              style={styles.avatarGlow}
+            <TouchableOpacity 
+              activeOpacity={0.8}
+              onPress={() => setIsModalVisible(true)}
             >
-              <View style={[styles.avatar, { backgroundColor: currentTheme.colors.background[1] }]}>
-                <Ionicons name="person" size={32} color="#FFF" />
-              </View>
-            </LinearGradient>
+              <LinearGradient
+                colors={[currentTheme.colors.mascot.start, currentTheme.colors.mascot.end]}
+                style={styles.avatarGlow}
+              >
+                <View style={[styles.avatar, { backgroundColor: currentTheme.colors.background[1] }]}>
+                  <Text style={styles.avatarLetter}>
+                    {user?.username?.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
             <View style={styles.profileInfo}>
               <Text style={[styles.welcomeText, { color: currentTheme.colors.text.primary }]}>Merhaba, {user?.username} 🌿</Text>
               <Text style={[styles.subWelcomeText, { color: currentTheme.colors.text.secondary }]}>Kendine ayırdığın küçük anlar burada başlar.</Text>
-              <Text style={[styles.emailText, { color: currentTheme.colors.text.muted }]}>{user?.email}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -131,9 +139,60 @@ export default function ProfileScreen() {
           <Text style={[styles.footerText, { color: currentTheme.colors.text.muted }]}>Kendini tanıma yolculuğun küçük adımlarla ilerler ✨</Text>
         </View>
       </ScrollView>
+
+      {/* Profile Details Modal */}
+      <Modal
+        visible={isModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: currentTheme.colors.background[1], borderColor: currentTheme.colors.glow }]}>
+            <View style={styles.modalHeader}>
+               <Text style={[styles.modalTitle, { color: currentTheme.colors.text.primary }]}>Profil Bilgileri</Text>
+               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                 <Ionicons name="close" size={24} color={currentTheme.colors.text.secondary} />
+               </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+               <View style={styles.modalAvatarContainer}>
+                  <LinearGradient
+                    colors={[currentTheme.colors.mascot.start, currentTheme.colors.mascot.end]}
+                    style={styles.largeAvatarGlow}
+                  >
+                    <View style={[styles.largeAvatar, { backgroundColor: currentTheme.colors.background[1] }]}>
+                      <Text style={styles.largeAvatarLetter}>
+                        {user?.username?.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  </LinearGradient>
+               </View>
+
+               <View style={styles.infoGroup}>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>Kullanıcı Adı</Text>
+                  <Text style={[styles.infoValue, { color: currentTheme.colors.text.primary }]}>{user?.username}</Text>
+               </View>
+
+               <View style={styles.infoGroup}>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>E-posta</Text>
+                  <Text style={[styles.infoValue, { color: currentTheme.colors.text.primary }]}>{user?.email}</Text>
+               </View>
+            </View>
+
+            <CustomButton 
+              title="Kapat" 
+              onPress={() => setIsModalVisible(false)} 
+              style={{ marginTop: 24 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </GradientBackground>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -258,5 +317,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  avatarLetter: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalBody: {
+    alignItems: 'center',
+  },
+  modalAvatarContainer: {
+    marginBottom: 32,
+  },
+  largeAvatarGlow: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 3,
+  },
+  largeAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 47,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  largeAvatarLetter: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  infoGroup: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  infoLabel: {
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 17,
+    fontWeight: '600',
   },
 });

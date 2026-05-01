@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GradientBackground } from '../../components/GradientBackground';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import { Colors } from '../../constants/Colors';
+import { MascotBlob } from '../../components/MascotBlob';
+import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import useAuthStore from '../../store/useAuthStore';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
@@ -40,7 +43,11 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      setModal({ visible: true, title: 'Hata', message: 'Lütfen e-posta adresinizi girin.' });
+      setModal({ 
+        visible: true, 
+        title: 'E-posta Gerekli', 
+        message: 'Şifre sıfırlama kodu gönderebilmemiz için lütfen e-posta adresinizi girin.' 
+      });
       return;
     }
 
@@ -50,19 +57,20 @@ export default function LoginScreen() {
       setModal({ 
         visible: true, 
         title: 'Kod Gönderildi', 
-        message: '6 haneli sıfırlama kodu e-posta adresine gönderildi.' 
+        message: '6 haneli sıfırlama kodu e-posta adresine gönderildi. Sıfırlama ekranına yönlendiriliyorsun.' 
       });
       setTimeout(() => {
-        router.push('/reset-password');
-      }, 1500);
+        setModal(prev => ({ ...prev, visible: false }));
+        router.push({
+          pathname: '/reset-password',
+          params: { email } // Pass email to reset screen if needed
+        });
+      }, 2000);
     } catch (error: any) {
-      if (__DEV__) {
-        console.log('[Login ForgotPassword] Error:', error.response?.data || error.message);
-      }
       setModal({ 
         visible: true, 
         title: 'Hata', 
-        message: 'Bağlantı gönderilirken bir sorun oluştu.' 
+        message: error.response?.data?.message || 'Bağlantı gönderilirken bir sorun oluştu.' 
       });
     } finally {
       setLoading(false);
@@ -71,58 +79,79 @@ export default function LoginScreen() {
 
   return (
     <GradientBackground style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Hoş Geldin</Text>
-        <Text style={styles.subtitle}>Kendine ayıracağın küçük bir vakit için hazır mısın?</Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <View style={styles.content}>
+          <View style={styles.mascotContainer}>
+            <MascotBlob mood="neutral" />
+          </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="E-posta"
-          placeholderTextColor={Colors.text.secondary}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+          <Text style={styles.title}>Tekrar hoş geldin</Text>
+          <Text style={styles.subtitle}>Kendine ayırdığın küçük alana geri dön.</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Şifre"
-          placeholderTextColor={Colors.text.secondary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="E-posta"
+              placeholderTextColor={Colors.text.secondary}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
 
-        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
-          <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
-        </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[styles.input, { paddingRight: 50 }]}
+              placeholder="Şifre"
+              placeholderTextColor={Colors.text.secondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity 
+              style={styles.eyeIcon} 
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons 
+                name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                size={22} 
+                color={Colors.text.secondary} 
+              />
+            </TouchableOpacity>
+          </View>
 
-        <TouchableOpacity onPress={() => router.push('/reset-password')} style={styles.resetCodeContainer}>
-          <Text style={styles.resetCodeText}>Kod ile Şifre Sıfırla</Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
+            <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
+          </TouchableOpacity>
 
-        <CustomButton 
-          title="Giriş Yap" 
-          onPress={handleLogin} 
-          loading={loading} 
-          style={{ marginTop: 20 }}
-        />
+          <CustomButton 
+            title="Giriş Yap" 
+            onPress={handleLogin} 
+            loading={loading} 
+            style={{ marginTop: 10, width: '100%' }}
+          />
 
-        <TouchableOpacity onPress={() => router.push('/register')}>
-          <Text style={styles.linkText}>Hesabın yok mu? Kayıt Ol</Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/register')} style={styles.registerLink}>
+            <Text style={styles.linkText}>Hesabın yok mu? <Text style={{ fontWeight: 'bold' }}>Kayıt Ol</Text></Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.devResetButton} 
-          onPress={async () => {
-            await useAuthStore.getState().resetAll();
-            router.replace('/onboarding');
-          }}
-        >
-          <Text style={styles.devResetText}>[ DEV RESET ]</Text>
-        </TouchableOpacity>
-      </View>
+          {__DEV__ && (
+            <TouchableOpacity 
+              style={styles.devResetButton} 
+              onPress={async () => {
+                await useAuthStore.getState().resetAll();
+                router.replace('/onboarding');
+              }}
+            >
+              <Text style={styles.devResetText}>[ DEV RESET ]</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </KeyboardAvoidingView>
 
       <CustomModal
         visible={modal.visible}
@@ -136,59 +165,77 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
     justifyContent: 'center',
+    padding: 24,
   },
   content: {
     alignItems: 'center',
+    width: '100%',
+  },
+  mascotContainer: {
+    height: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 0,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: Colors.text.primary,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: Colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
+    paddingHorizontal: 20,
+    lineHeight: 22,
+  },
+  inputContainer: {
+    width: '100%',
+    position: 'relative',
+    marginBottom: 16,
   },
   input: {
     width: '100%',
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     color: Colors.text.primary,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 18,
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
-    marginBottom: 10,
+    marginBottom: 24,
     marginRight: 4,
   },
   forgotPasswordText: {
     color: Colors.text.secondary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
   },
-  resetCodeContainer: {
-    alignSelf: 'flex-end',
-    marginBottom: 20,
-    marginRight: 4,
-  },
-  resetCodeText: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: '600',
+  registerLink: {
+    marginTop: 24,
+    padding: 10,
   },
   linkText: {
-    color: Colors.primary,
-    marginTop: 20,
-    fontSize: 14,
+    color: Colors.text.primary,
+    fontSize: 15,
   },
   devResetButton: {
-    marginTop: 60,
+    marginTop: 40,
     opacity: 0.5,
   },
   devResetText: {
@@ -198,3 +245,4 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
 });
+

@@ -31,13 +31,19 @@ exports.register = async (req, res) => {
 
     // Create user
     const newUser = await db.query(
-      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email',
+      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, created_at',
       [username, email, hashedPassword]
     );
 
+    const user = newUser.rows[0];
     res.status(201).json({
       message: 'Kayıt başarılı.',
-      user: newUser.rows[0]
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.created_at
+      }
     });
   } catch (err) {
     console.error(err);
@@ -72,7 +78,8 @@ exports.login = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        createdAt: user.created_at
       }
     });
   } catch (err) {

@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { GradientBackground } from '../components/GradientBackground';
 import { CustomButton } from '../components/CustomButton';
 import { CustomModal } from '../components/CustomModal';
 import { Colors } from '../constants/Colors';
+import { MascotBlob } from '../components/MascotBlob';
+import { Ionicons } from '@expo/vector-icons';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
 
 export default function ResetPasswordScreen() {
-  const { token: urlToken } = useLocalSearchParams<{ token: string }>();
+  const { token: urlToken, email: urlEmail } = useLocalSearchParams<{ token: string, email: string }>();
   const [token, setToken] = useState(urlToken || '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '', success: false });
   const router = useRouter();
@@ -46,7 +50,7 @@ export default function ResetPasswordScreen() {
       setModal({ 
         visible: true, 
         title: 'Başarılı', 
-        message: 'Şifreniz başarıyla güncellendi.', 
+        message: 'Şifreniz başarıyla güncellendi. Giriş yapabilirsin.', 
         success: true 
       });
     } catch (error: any) {
@@ -63,62 +67,95 @@ export default function ResetPasswordScreen() {
 
   return (
     <GradientBackground style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Şifre Sıfırlama</Text>
-          <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-            E-posta adresine gelen 6 haneli kodu girerek şifreni yenile.
-          </Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            <View style={styles.mascotContainer}>
+              <MascotBlob mood="neutral" />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Sıfırlama Kodu</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
-              placeholder="6 Haneli Kod"
-              placeholderTextColor={currentTheme.colors.text.muted}
-              value={token}
-              onChangeText={setToken}
-              keyboardType="number-pad"
-              maxLength={6}
+            <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Şifre Yenileme</Text>
+            <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
+              {urlEmail ? `${urlEmail} adresine` : 'E-posta adresine'} gelen 6 haneli kodu ve yeni şifreni gir.
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Sıfırlama Kodu</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
+                placeholder="6 Haneli Kod"
+                placeholderTextColor={currentTheme.colors.text.muted}
+                value={token}
+                onChangeText={setToken}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Yeni Şifre</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder, paddingRight: 50 }]}
+                  placeholder="Yeni Şifre"
+                  placeholderTextColor={currentTheme.colors.text.muted}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNewPassword}
+                />
+                <TouchableOpacity 
+                  style={styles.eyeIcon} 
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                >
+                  <Ionicons 
+                    name={showNewPassword ? "eye-off-outline" : "eye-outline"} 
+                    size={22} 
+                    color={currentTheme.colors.text.muted} 
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Şifre Tekrar</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder, paddingRight: 50 }]}
+                  placeholder="Şifreyi Onayla"
+                  placeholderTextColor={currentTheme.colors.text.muted}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity 
+                  style={styles.eyeIcon} 
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Ionicons 
+                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
+                    size={22} 
+                    color={currentTheme.colors.text.muted} 
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <CustomButton 
+              title="Şifreyi Güncelle" 
+              onPress={handleResetPassword} 
+              loading={loading} 
+              style={{ marginTop: 10, width: '100%' }}
             />
+
+            <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backLink}>
+              <Text style={[styles.backLinkText, { color: currentTheme.colors.primary }]}>Giriş ekranına dön</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Yeni Şifre</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
-              placeholder="Yeni Şifre"
-              placeholderTextColor={currentTheme.colors.text.muted}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Yeni Şifre Tekrar</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
-              placeholder="Şifreyi Onayla"
-              placeholderTextColor={currentTheme.colors.text.muted}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <CustomButton 
-            title="Şifreyi Güncelle" 
-            onPress={handleResetPassword} 
-            loading={loading} 
-            style={{ marginTop: 24 }}
-          />
-
-          <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backLink}>
-            <Text style={[styles.backLinkText, { color: currentTheme.colors.primary }]}>Giriş ekranına dön</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <CustomModal
         visible={modal.visible}
@@ -146,20 +183,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
+  mascotContainer: {
+    height: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 0,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
     lineHeight: 22,
+    paddingHorizontal: 10,
   },
   inputGroup: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  inputWrapper: {
+    position: 'relative',
+    width: '100%',
   },
   label: {
     fontSize: 13,
@@ -169,13 +218,18 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     fontSize: 16,
   },
+  eyeIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 18,
+  },
   backLink: {
-    marginTop: 32,
+    marginTop: 24,
     padding: 12,
   },
   backLinkText: {
@@ -183,3 +237,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   }
 });
+

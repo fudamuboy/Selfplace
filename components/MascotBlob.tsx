@@ -18,11 +18,39 @@ const AnimatedG = Animated.createAnimatedComponent(G);
 
 interface Props {
   mood?: 'happy' | 'neutral' | 'calm' | 'sad' | 'tired';
+  color?: 'purple' | 'yellow' | 'green' | 'blue';
 }
 
-export const MascotBlob: React.FC<Props> = ({ mood = 'neutral' }) => {
+const COLOR_CONFIG = {
+  purple: {
+    start: '#8B7CFF',
+    end: '#6366F1',
+    glow: '#8B7CFF',
+  },
+  yellow: {
+    start: '#FFD166',
+    end: '#F59E0B',
+    glow: '#FFD166',
+  },
+  green: {
+    start: '#55E6C1',
+    end: '#10B981',
+    glow: '#55E6C1',
+  },
+  blue: {
+    start: '#818CF8',
+    end: '#6366F1',
+    glow: '#818CF8',
+  }
+};
+
+export const MascotBlob: React.FC<Props> = ({ mood = 'neutral', color }) => {
   const { currentTheme } = useThemeStore();
-  // ... (rest of shared values and useEffect)
+  
+  const config = color && COLOR_CONFIG[color] 
+    ? COLOR_CONFIG[color] 
+    : currentTheme.colors.mascot;
+
   const radiusTL = useSharedValue(60);
   const radiusTR = useSharedValue(55);
   const radiusBL = useSharedValue(50);
@@ -64,8 +92,8 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral' }) => {
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
     transform: [{ scale: interpolate(glowOpacity.value, [0.15, 0.28], [1, 1.15]) }],
-    backgroundColor: currentTheme.colors.mascot.glow,
-    shadowColor: currentTheme.colors.mascot.glow,
+    backgroundColor: config.glow,
+    shadowColor: config.glow,
   }));
 
   const eyeProps = useAnimatedProps(() => ({
@@ -79,7 +107,7 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral' }) => {
       
       <Animated.View style={[styles.blob, morphStyle]}>
         <LinearGradient
-          colors={[currentTheme.colors.mascot.start, currentTheme.colors.mascot.end]}
+          colors={[config.start, config.end]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -156,3 +184,4 @@ const styles = StyleSheet.create({
     elevation: 40,
   },
 });
+
