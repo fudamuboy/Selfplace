@@ -9,4 +9,7 @@ router.get('/weekly', authenticateToken, insightController.getWeeklyInsight);
 // Stats for Profile
 router.get('/stats', authenticateToken, insightController.getStats);
 
+// Pattern Awareness (Gentle observations)
+router.get('/patterns', authenticateToken, insightController.getPatterns);
+
 module.exports = router;

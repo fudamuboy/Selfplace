@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import useThemeStore from '../../store/useThemeStore';
 import useNotificationStore from '../../store/useNotificationStore';
 import { CustomButton } from '../../components/CustomButton';
+import { CustomModal } from '../../components/CustomModal';
 
 interface Stats {
   checkInCount: number;
@@ -21,6 +22,7 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isPremiumModalVisible, setIsPremiumModalVisible] = useState(false);
   const { currentTheme } = useThemeStore();
   const { remindersEnabled, reminderTime, loadConfig } = useNotificationStore();
 
@@ -139,6 +141,31 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Premium Teaser Card */}
+        <View style={styles.section}>
+          <LinearGradient
+            colors={[currentTheme.colors.card, 'transparent']}
+            style={[styles.premiumCard, { borderColor: currentTheme.colors.cardBorder }]}
+          >
+            <View style={styles.premiumHeader}>
+              <View style={[styles.premiumIconContainer, { backgroundColor: currentTheme.colors.glow }]}>
+                <Ionicons name="sparkles" size={18} color={currentTheme.colors.primary} />
+              </View>
+              <Text style={[styles.premiumTitle, { color: currentTheme.colors.text.primary }]}>Daha fazlası yakında ✨</Text>
+            </View>
+            <Text style={[styles.premiumSubtitle, { color: currentTheme.colors.text.secondary }]}>
+              Selfplace zamanla daha kişisel içgörüler ve daha derin farkındalıklar sunacak.
+            </Text>
+            <TouchableOpacity 
+              style={[styles.notifyButton, { backgroundColor: currentTheme.colors.glow }]}
+              onPress={() => setIsPremiumModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.notifyButtonText, { color: currentTheme.colors.primary }]}>Beni haberdar et</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+
         {/* Menu */}
         <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
           {renderMenuItem('settings-outline', 'Ayarlar', undefined, () => router.push('/settings'))}
@@ -208,6 +235,14 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      <CustomModal
+        visible={isPremiumModalVisible}
+        title="Harika ✨"
+        message="Yeni özellikler hazır olduğunda seni nazikçe bilgilendireceğiz."
+        onClose={() => setIsPremiumModalVisible(false)}
+        confirmText="Tamam"
+      />
     </GradientBackground>
   );
 }
@@ -336,6 +371,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  premiumCard: {
+    borderRadius: 28,
+    padding: 24,
+    borderWidth: 1,
+  },
+  premiumHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  premiumIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  premiumTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  premiumSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  notifyButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 14,
+  },
+  notifyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   avatarLetter: {
     fontSize: 24,

@@ -83,11 +83,21 @@ export default function CheckInScreen() {
   const [loading, setLoading] = useState(false);
   const [fetchingQuestion, setFetchingQuestion] = useState(true);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
+  const [placeholder, setPlaceholder] = useState('');
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const submitScale = useSharedValue(1);
+  const modalOpacity = useSharedValue(0);
+
+  const PLACEHOLDERS = [
+    'Bugün içinden geçen küçük bir şey...',
+    'Aklında kalan bir duygu, düşünce ya da an...',
+    'Kısaca kendine not bırakabilirsin.',
+  ];
 
   useEffect(() => {
     fetchQuestion();
+    setPlaceholder(PLACEHOLDERS[Math.floor(Math.random() * PLACEHOLDERS.length)]);
   }, []);
 
   const fetchQuestion = async () => {
@@ -109,13 +119,22 @@ export default function CheckInScreen() {
     }
 
     setLoading(true);
+    submitScale.value = withSpring(0.95, { damping: 10, stiffness: 100 });
+
     try {
       await client.post('/check-ins', {
         mood: selectedMood,
         reflection_question: question,
         note: note
       });
-      setModal({ visible: true, title: 'Teşekkürler', message: 'Check-in tamamlandı. Kendine zaman ayırdığın için teşekkürler.' });
+      
+      // Artificial delay for emotional satisfaction
+      setTimeout(() => {
+        submitScale.value = withSpring(1);
+        setModal({ visible: true, title: 'Teşekkürler', message: 'Check-in tamamlandı. Kendine zaman ayırdığın için teşekkürler.' });
+        modalOpacity.value = withTiming(1, { duration: 500 });
+      }, 800);
+      
     } catch (error) {
       setModal({ visible: true, title: 'Hata', message: 'Kaydedilirken bir sorun oluştu.' });
     } finally {
@@ -125,8 +144,16 @@ export default function CheckInScreen() {
 
   return (
     <GradientBackground>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView 
+        contentContainerStyle={styles.container} 
+        showsVerticalScrollIndicator={false}
+        style={{ transform: [{ scale: submitScale }] }}
+      >
         <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Bugün nasıl hissediyorsun?</Text>
+        
+        <View style={styles.dailyQuestionCard}>
+          <Text style={[styles.dailyQuestionText, { color: currentTheme.colors.text.secondary }]}>Bugün kendine nasıl yaklaştığını fark edebilirsin.</Text>
+        </View>
 
         <View style={styles.gridContainer}>
           <View style={styles.row}>
@@ -154,11 +181,11 @@ export default function CheckInScreen() {
         </View>
 
         <View style={styles.questionSection}>
-          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.primary }]}>{question}</Text>
+          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.primary }]}>{question || "İstersen birkaç kelime bırak"}</Text>
           <View style={[styles.inputContainer, { backgroundColor: currentTheme.colors.input.background, borderColor: currentTheme.colors.input.border }]}>
             <TextInput
               style={[styles.input, { color: currentTheme.colors.input.text }]}
-              placeholder="Neler hissettiğini buraya dökebilirsin..."
+              placeholder={placeholder}
               placeholderTextColor={currentTheme.colors.input.placeholder}
               multiline
               value={note}
@@ -178,7 +205,7 @@ export default function CheckInScreen() {
             <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Daha sonra</Text>
           </Pressable>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <CustomModal
         visible={modal.visible}
@@ -203,7 +230,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 12,
   },
   gridContainer: {
     gap: 16,
@@ -267,5 +294,16 @@ const styles = StyleSheet.create({
   },
   laterText: {
     fontSize: 16,
+  },
+  dailyQuestionCard: {
+    paddingHorizontal: 24,
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  dailyQuestionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

@@ -43,21 +43,21 @@ function ruleBasedWeekly(checkIns, cardResponses) {
   }, {});
   const topMood = Object.keys(moodCounts).reduce(
     (a, b) => (moodCounts[a] > moodCounts[b] ? a : b),
-    'Nötr'
+    'Sakin'
   );
 
   if (topCategory === 'Küçük Cesaret') {
-    return "Bu hafta küçük cesaret davetlerine daha açık olduğun bir dönemden geçiyor olabilirsin.";
+    return "Bu hafta yeni adımlar atmaya daha açık olmuş olabilirsin. Küçük cesaret anlarının sana iyi geldiği görünüyor.";
   } else if (topCategory === 'Dinlenme') {
-    return "Son günlerde dinlenme teması senin için daha belirgin bir ihtiyaç olarak görünüyor.";
+    return "Son günlerde dinlenme ihtiyacı daha belirgin hale gelmiş olabilir. Kendine mola vermenin değerli olduğunu fark etmiş olabilirsin.";
   } else if (topCategory === 'Öz-Şefkat') {
-    return "Bazı günlerde kendine karşı biraz daha yumuşak ve şefkatli olmaya ihtiyaç duymuş olabilirsin.";
+    return "Kendine karşı daha yumuşak olduğun anlar bu hafta öne çıkmış olabilir. İç sesinin biraz daha sakinleştiği görünüyor.";
   } else if (topMood === 'Yorgun') {
-    return "Bu hafta bedeninin veya zihninin biraz daha fazla sessizliğe ve alana ihtiyaç duyduğunu fark etmiş olabilirsin.";
+    return "Bu hafta bedenin biraz daha fazla sessizliğe ihtiyaç duymuş olabilir. Kendini dinleme isteğinin arttığı bir dönemden geçiyor olabilirsin.";
   } else if (topMood === 'Mutlu') {
-    return "Haftanın genelinde enerjinin biraz daha yükseldiğini ve yaşamın ritmine daha kolay uyum sağladığını hissetmiş olabilirsin.";
+    return "Haftanın genelinde enerjinin biraz daha yükseldiğini hissetmiş olabilirsin. Yaşamın ritmine daha kolay uyum sağladığın görünüyor.";
   } else {
-    return "Bu hafta kendine biraz daha alan açmaya ve iç sesini dinlemeye ihtiyaç duymuş olabilirsin.";
+    return "Bu hafta kendine biraz daha alan açmaya ihtiyaç duymuş olabilirsin. Sakinlik ve denge arayışı bu günlerde daha görünür görünüyor.";
   }
 }
 
@@ -222,5 +222,136 @@ exports.getStats = async (req, res) => {
   } catch (err) {
     console.error('[insightController] getStats error:', err.message);
     res.status(500).json({ message: 'İstatistikler alınırken bir hata oluştu.' });
+  }
+};
+// ---------------------------------------------------------------------------
+// GET /api/insights/patterns
+// ---------------------------------------------------------------------------
+
+exports.getPatterns = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // 1. Fetch data from last 14 days
+    const [checkInsRes, cardRes] = await Promise.all([
+      db.query(
+        `SELECT mood, note, created_at
+         FROM check_ins
+         WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '14 days'`,
+        [userId]
+      ),
+      db.query(
+        `SELECT category, response
+         FROM card_responses
+         WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '14 days'`,
+        [userId]
+      ),
+    ]);
+
+    const checkIns = checkInsRes.rows;
+    const cardResponses = cardRes.rows;
+
+    if (checkIns.length < 3) {
+      return res.json({
+        patterns: [],
+        checkInCount: checkIns.length,
+        message: "Kendini anlamaya başlıyorsun...",
+        subtitle: "Devam ettikçe seni daha iyi anlayacak."
+      });
+    }
+
+    const patterns = [];
+
+    // --- Logic for Mood Patterns ---
+    const moodCounts = checkIns.reduce((acc, curr) => {
+      acc[curr.mood] = (acc[curr.mood] || 0) + 1;
+      return acc;
+    }, {});
+
+    const entriesCount = checkIns.length;
+    
+    if (moodCounts['Sakin'] > entriesCount * 0.4) {
+      const variations = [
+        "Sakin hissettiğin anlar bu hafta daha fazla öne çıkmış olabilir.",
+        "İç huzuru bulduğun anlar son zamanlarda daha sık uğramış görünüyor.",
+        "Sakinlik teması son günlerinde daha belirgin hale gelmiş olabilir."
+      ];
+      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    }
+
+    if (moodCounts['Yorgun'] > entriesCount * 0.4) {
+      const variations = [
+        "Yorgunluk teması son check-inlerinde biraz daha görünür olmuş olabilir.",
+        "Bu günlerde bedenin veya zihnin biraz daha fazla dinlenmeye ihtiyaç duyuyor olabilir.",
+        "Son zamanlarda enerjinin biraz düşük olduğu anlar daha çok dikkat çekmiş görünüyor."
+      ];
+      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    }
+
+    if (Object.keys(moodCounts).length >= 4) {
+      const variations = [
+        "Son günlerde enerjinin biraz dalgalı olduğu görünüyor olabilir.",
+        "Duygularının biraz daha değişken olduğu bir dönemden geçiyor olabilirsin.",
+        "Farklı duyguların iç içe geçtiği bir hafta olmuş olabilir."
+      ];
+      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    }
+
+    // --- Logic for Card Interactions ---
+    const favoriteCategory = cardResponses
+      .filter(r => r.response === 'Deneyeceğim')
+      .reduce((acc, curr) => {
+        acc[curr.category] = (acc[curr.category] || 0) + 1;
+        return acc;
+      }, {});
+
+    const topCategory = Object.keys(favoriteCategory).reduce(
+      (a, b) => (favoriteCategory[a] > favoriteCategory[b] ? a : b),
+      null
+    );
+
+    if (topCategory === 'Dinlenme') {
+      const variations = [
+        "Dinlenme davetlerine daha açık olduğun bir dönemden geçiyor olabilirsin.",
+        "Durup nefes alma ihtiyacı son zamanlarda daha çok karşılık bulmuş görünüyor.",
+        "Kendine mola verme teması senin için daha öncelikli hale gelmiş olabilir."
+      ];
+      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    }
+
+    if (topCategory === 'Küçük Cesaret') {
+      const variations = [
+        "Küçük cesaret kartları sende daha fazla karşılık bulmuş olabilir.",
+        "Yeni adımlar atma isteği son günlerde daha görünür olmuş görünüyor.",
+        "Kendine doğru küçük ama cesur adımlar attığın bir hafta olmuş olabilir."
+      ];
+      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    }
+
+    // --- Journaling Patterns (Simple keyword check) ---
+    const allNotes = checkIns.map(c => c.note).filter(Boolean).join(' ').toLowerCase();
+    if (allNotes.includes('zaman') || allNotes.includes('alan')) {
+      const variations = [
+        "Kendine alan açma teması son zamanlarda daha çok karşına çıkmış olabilir.",
+        "Zamanı kendine ayırma isteği düşüncelerinde daha sık yer bulmuş görünüyor.",
+        "Kendinle baş başa kalma ihtiyacı son notlarında daha görünür olmuş olabilir."
+      ];
+      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    }
+
+    // Limit to 3 patterns and ensure variation
+    const selectedPatterns = patterns
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 3);
+
+    res.json({
+      patterns: selectedPatterns,
+      message: selectedPatterns.length === 0 ? "Biraz daha paylaştıkça burada sana özel küçük farkındalıklar oluşacak ✨" : null,
+      subtitle: selectedPatterns.length === 0 ? "Devam ettikçe seni daha iyi anlayacak." : null
+    });
+
+  } catch (err) {
+    console.error('[insightController] getPatterns error:', err.message);
+    res.status(500).json({ message: 'Farkındalıklar alınırken bir hata oluştu.' });
   }
 };

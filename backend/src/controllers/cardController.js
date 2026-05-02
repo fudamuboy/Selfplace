@@ -11,43 +11,55 @@ exports.getAllCards = async (req, res) => {
 };
 
 exports.getRandomCard = async (req, res) => {
-
   const userId = req.user.id;
 
   try {
-    // 1. Analyze user preferences from past responses
-    const prefResult = await db.query(
-      `SELECT category, 
-              SUM(CASE WHEN response = 'Deneyeceğim' THEN 1 WHEN response = 'Bana göre değil' THEN -2 ELSE 0 END) as score
-       FROM card_responses
-       WHERE user_id = $1
-       GROUP BY category`,
-      [userId]
-    );
+    // 1. Fetch all cards and user preferences
+    const [cardsRes, prefRes] = await Promise.all([
+      db.query('SELECT * FROM invitation_cards'),
+      db.query(
+        `SELECT category, 
+                SUM(CASE WHEN response = 'Deneyeceğim' THEN 2 WHEN response = 'Bana göre değil' THEN -1 ELSE 0 END) as score
+         FROM card_responses
+         WHERE user_id = $1
+         GROUP BY category`,
+        [userId]
+      )
+    ]);
 
-    const preferences = prefResult.rows;
-    let excludedCategories = preferences.filter(p => p.score <= -4).map(p => p.category);
+    const allCards = cardsRes.rows;
+    const preferences = prefRes.rows.reduce((acc, curr) => {
+      acc[curr.category] = parseInt(curr.score);
+      return acc;
+    }, {});
 
-    // 2. Fetch a random card, avoiding excluded categories and recently seen cards
-    let query = 'SELECT * FROM invitation_cards';
-    let params = [];
-
-    if (excludedCategories.length > 0) {
-      query += ' WHERE category NOT IN (' + excludedCategories.map((_, i) => `$${i + 1}`).join(',') + ')';
-      params = excludedCategories;
+    if (allCards.length === 0) {
+      return res.status(404).json({ message: 'Kart bulunamadı.' });
     }
 
-    query += ' ORDER BY RANDOM() LIMIT 1';
+    // 2. Assign weights to cards
+    // Base weight is 10. Adjust based on category score.
+    const weightedCards = allCards.map(card => {
+      const score = preferences[card.category] || 0;
+      // Weight can't go below 1 (to keep variety)
+      const weight = Math.max(1, 10 + score);
+      return { ...card, weight };
+    });
 
-    const cardResult = await db.query(query, params);
+    // 3. Pick a card using weighted randomness
+    const totalWeight = weightedCards.reduce((sum, card) => sum + card.weight, 0);
+    let random = Math.random() * totalWeight;
     
-    if (cardResult.rows.length === 0) {
-      // Fallback if all categories are excluded (should be rare)
-      const fallback = await db.query('SELECT * FROM invitation_cards ORDER BY RANDOM() LIMIT 1');
-      return res.json(fallback.rows[0]);
+    let selectedCard = weightedCards[0];
+    for (const card of weightedCards) {
+      if (random < card.weight) {
+        selectedCard = card;
+        break;
+      }
+      random -= card.weight;
     }
 
-    res.json(cardResult.rows[0]);
+    res.json(selectedCard);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Kart getirilemedi.' });

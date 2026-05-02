@@ -26,6 +26,10 @@ interface CheckIn {
 export default function HistoryScreen() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [insight, setInsight] = useState<string | null>(null);
+  const [patterns, setPatterns] = useState<string[]>([]);
+  const [patternMessage, setPatternMessage] = useState<string | null>(null);
+  const [patternSubtitle, setPatternSubtitle] = useState<string | null>(null);
+  const [patternCheckInCount, setPatternCheckInCount] = useState<number>(0);
   const [dailyReflection, setDailyReflection] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,10 +40,11 @@ export default function HistoryScreen() {
     setLoading(true);
     
     try {
-      const [historyRes, dailyRes, weeklyRes] = await Promise.allSettled([
+      const [historyRes, dailyRes, weeklyRes, patternsRes] = await Promise.allSettled([
         client.get('/check-ins'),
         client.get('/reflections/daily'),
-        client.get('/insights/weekly')
+        client.get('/insights/weekly'),
+        client.get('/insights/patterns')
       ]);
 
       if (historyRes.status === 'fulfilled') {
@@ -65,6 +70,15 @@ export default function HistoryScreen() {
         setInsight(weeklyRes.value.data.insight);
       } else {
         setInsight(null);
+      }
+
+      if (patternsRes.status === 'fulfilled') {
+        setPatterns(patternsRes.value.data.patterns);
+        setPatternMessage(patternsRes.value.data.message);
+        setPatternSubtitle(patternsRes.value.data.subtitle);
+        setPatternCheckInCount(patternsRes.value.data.checkInCount || 0);
+      } else {
+        setPatterns([]);
       }
 
     } catch (error: any) {
@@ -117,7 +131,7 @@ export default function HistoryScreen() {
   return (
     <GradientBackground>
       <View style={styles.container}>
-        <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Senin Hikayen</Text>
+        <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Kendinle Yolculuğun</Text>
         
         {loading && !refreshing ? (
           <ActivityIndicator size="large" color={currentTheme.colors.primary} style={{ marginTop: 40 }} />
@@ -135,14 +149,45 @@ export default function HistoryScreen() {
                 )}
                 
                 {insight && (
-                  <View style={[styles.insightCard, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder }]}>
+                  <View style={[styles.insightCard, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder, marginTop: 24 }]}>
                     <Text style={[styles.insightTitle, { color: currentTheme.colors.primary }]}>Haftalık İçgörü ✨</Text>
+                    <Text style={[styles.insightHook, { color: currentTheme.colors.text.secondary }]}>Bu hafta senin için küçük bir bakış ✨</Text>
                     <Text style={[styles.insightText, { color: currentTheme.colors.text.primary }]}>{insight}</Text>
                   </View>
                 )}
 
+                <View style={[styles.patternSection, { marginTop: 24 }]}>
+                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 4 }]}>Fark Ettiklerin</Text>
+                  <Text style={[styles.sectionSubtitle, { color: currentTheme.colors.text.secondary, marginBottom: 16 }]}>Küçük tekrarlar bazen kendini daha iyi anlamana yardımcı olabilir.</Text>
+                  
+                  {patterns.length > 0 ? (
+                    patterns.map((pattern, index) => (
+                      <View key={index} style={styles.patternItem}>
+                        <Text style={[styles.patternLabel, { color: currentTheme.colors.primary }]}>Senin için oluştu ✨</Text>
+                        <View style={[styles.patternCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                          <Text style={[styles.patternText, { color: currentTheme.colors.text.primary }]}>{pattern}</Text>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={[styles.patternCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder, borderStyle: 'dashed' }]}>
+                      <Text style={[styles.patternText, { color: currentTheme.colors.text.primary, fontWeight: '600', textAlign: 'center', marginBottom: 4 }]}>
+                        {patternMessage || "Biraz daha paylaştıkça burada sana özel küçük farkındalıklar oluşacak ✨"}
+                      </Text>
+                      <Text style={[styles.patternProgress, { color: currentTheme.colors.text.secondary, textAlign: 'center', marginBottom: 8 }]}>
+                        ({patternCheckInCount}/3 küçük paylaşım)
+                      </Text>
+                      {patternSubtitle && (
+                        <Text style={[styles.patternSubtext, { color: currentTheme.colors.text.secondary, textAlign: 'center' }]}>
+                          {patternSubtitle}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+
                 {checkIns.length > 0 && (
-                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Paylaşımların</Text>
+                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary, marginTop: 24 }]}>Paylaşımların</Text>
                 )}
               </View>
             }
@@ -153,7 +198,7 @@ export default function HistoryScreen() {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>Burada henüz bir hikayen yok.</Text>
+                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>Henüz bir yolculuk kaydın yok.</Text>
                 <Text style={[styles.emptySubtext, { color: currentTheme.colors.text.secondary }]}>Kendini tanıma yolculuğun küçük adımlarla başlar. Bugünün sorusuna cevap vererek yeni bir sayfa açabilirsin.</Text>
               </View>
             }
@@ -186,10 +231,49 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  patternSection: {
     marginTop: 8,
+    marginBottom: 16,
+  },
+  patternCard: {
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  patternText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  patternSubtext: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  patternProgress: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  patternItem: {
+    marginBottom: 16,
+  },
+  patternLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginLeft: 8,
+  },
+  insightHook: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginBottom: 12,
   },
   list: {
     paddingHorizontal: 24,
