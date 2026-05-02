@@ -5,6 +5,7 @@ import { GradientBackground } from '../components/GradientBackground';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
+import useNotificationStore from '../store/useNotificationStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -17,64 +18,37 @@ export default function SettingsScreen() {
   const { currentTheme } = useThemeStore();
   const { user } = useAuthStore();
 
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState(new Date(new Date().setHours(21, 0, 0, 0)));
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const { 
+    remindersEnabled, 
+    reminderTime, 
+    loadConfig, 
+    toggleReminders: storeToggleReminders, 
+    setReminderTime: storeSetReminderTime 
+  } = useNotificationStore();
   
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [infoModal, setInfoModal] = useState({ visible: false, title: '', message: '' });
 
   useEffect(() => {
-    loadPreferences();
+    loadConfig();
   }, []);
 
-  const loadPreferences = async () => {
-    try {
-      const prefs = await AsyncStorage.getItem('userPreferences');
-      if (prefs) {
-        const { remindersEnabled, reminderTime: savedTime } = JSON.parse(prefs);
-        setRemindersEnabled(remindersEnabled);
-        if (savedTime) setReminderTime(new Date(savedTime));
-      }
-    } catch (error) {
-      console.log('Error loading prefs:', error);
-    }
-  };
-
-  const savePreferences = async (enabled: boolean, time: Date) => {
-    try {
-      const prefs = { remindersEnabled: enabled, reminderTime: time.toISOString() };
-      await AsyncStorage.setItem('userPreferences', JSON.stringify(prefs));
-    } catch (error) {
-      console.log('Error saving prefs:', error);
-    }
-  };
-
   const toggleReminders = async (value: boolean) => {
-    if (value) {
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== 'granted') {
-        const { status: newStatus } = await Notifications.requestPermissionsAsync();
-        if (newStatus !== 'granted') {
-          setInfoModal({
-            visible: true,
-            title: 'İzin Gerekli',
-            message: 'Hatırlatıcı gönderebilmemiz için bildirim izni vermeniz gerekiyor.'
-          });
-          setRemindersEnabled(false);
-          return;
-        }
-      }
+    const success = await storeToggleReminders(value);
+    if (!success && value) {
+      setInfoModal({
+        visible: true,
+        title: 'İzin Gerekli',
+        message: 'Hatırlatıcı gönderebilmemiz için bildirim izni vermeniz gerekiyor.'
+      });
     }
-    setRemindersEnabled(value);
-    savePreferences(value, reminderTime);
   };
 
   const handleTimeChange = (event: any, selectedDate?: Date) => {
     setShowTimePicker(Platform.OS === 'ios');
     if (selectedDate) {
-      setReminderTime(selectedDate);
-      savePreferences(remindersEnabled, selectedDate);
+      storeSetReminderTime(selectedDate);
     }
   };
 

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { LinearGradient } from 'expo-linear-gradient';
 import useThemeStore from '../../store/useThemeStore';
+import useNotificationStore from '../../store/useNotificationStore';
 import { CustomButton } from '../../components/CustomButton';
 
 interface Stats {
@@ -21,9 +22,11 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const { currentTheme } = useThemeStore();
+  const { remindersEnabled, reminderTime, loadConfig } = useNotificationStore();
 
   useEffect(() => {
     fetchStats();
+    loadConfig();
   }, []);
 
   const fetchStats = async () => {
@@ -42,7 +45,7 @@ export default function ProfileScreen() {
     router.replace('/login');
   };
 
-  const renderMenuItem = (icon: any, title: string, onPress?: () => void, isDestructive = false) => (
+  const renderMenuItem = (icon: any, title: string, subtitle?: string, onPress?: () => void, isDestructive = false) => (
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
       <View style={styles.menuLeft}>
         <View style={[
@@ -55,11 +58,22 @@ export default function ProfileScreen() {
             color={isDestructive ? '#F87171' : currentTheme.colors.primary} 
           />
         </View>
-        <Text style={[
-          styles.menuText, 
-          { color: currentTheme.colors.text.primary },
-          isDestructive && styles.destructiveText
-        ]}>{title}</Text>
+        <View style={{ marginLeft: 16 }}>
+          <Text style={[
+            styles.menuText, 
+            { color: currentTheme.colors.text.primary, marginLeft: 0 },
+            isDestructive && styles.destructiveText
+          ]}>{title}</Text>
+          {subtitle && (
+            <Text style={{ 
+              fontSize: 12, 
+              color: currentTheme.colors.text.secondary,
+              marginTop: 2 
+            }}>
+              {subtitle}
+            </Text>
+          )}
+        </View>
       </View>
       <Ionicons name="chevron-forward" size={18} color={currentTheme.colors.text.muted} />
     </TouchableOpacity>
@@ -127,12 +141,17 @@ export default function ProfileScreen() {
 
         {/* Menu */}
         <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-          {renderMenuItem('settings-outline', 'Ayarlar', () => router.push('/settings'))}
-          {renderMenuItem('notifications-outline', 'Günlük Hatırlatıcı')}
-          {renderMenuItem('color-palette-outline', 'Uygulama Hissi', () => router.push('/theme-selection'))}
-          {renderMenuItem('shield-checkmark-outline', 'Gizlilik ve Veriler', () => router.push('/privacy-data'))}
+          {renderMenuItem('settings-outline', 'Ayarlar', undefined, () => router.push('/settings'))}
+          {renderMenuItem(
+            'notifications-outline', 
+            'Günlük Hatırlatıcı', 
+            remindersEnabled ? `Her gün ${reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : 'Kapalı',
+            () => router.push('/settings')
+          )}
+          {renderMenuItem('color-palette-outline', 'Uygulama Hissi', undefined, () => router.push('/theme-selection'))}
+          {renderMenuItem('shield-checkmark-outline', 'Gizlilik ve Veriler', undefined, () => router.push('/privacy-data'))}
           <View style={[styles.logoutSeparator, { backgroundColor: currentTheme.colors.cardBorder }]} />
-          {renderMenuItem('log-out-outline', 'Çıkış Yap', handleLogout, true)}
+          {renderMenuItem('log-out-outline', 'Çıkış Yap', undefined, handleLogout, true)}
         </View>
 
         <View style={styles.footer}>

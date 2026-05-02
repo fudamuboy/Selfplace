@@ -45,7 +45,7 @@ export default function CardsScreen() {
     setSubmitting(true);
     try {
       await client.post(`/cards/${card.id}/response`, { response });
-      setModal({ visible: true, title: 'Teşekkürler', message: 'Yanıtın kaydedildi.' });
+      setModal({ visible: true, title: 'Harika ✨', message: 'Kendin için küçük bir adım attın.' });
     } catch (error) {
       setModal({ visible: true, title: 'Hata', message: 'Yanıt kaydedilemedi.' });
     } finally {
@@ -79,18 +79,18 @@ export default function CardsScreen() {
 
       <View style={styles.actions}>
         <CustomButton 
-          title="Deneyeceğim" 
-          onPress={() => handleResponse('Deneyeceğim')} 
+          title="Kendim için deneyeyim" 
+          onPress={() => handleResponse('Kendim için deneyeyim')} 
           loading={submitting}
         />
         <CustomButton 
-          title="Bana göre değil" 
-          onPress={() => handleResponse('Bana göre değil')} 
+          title="Şu an ihtiyacım yok" 
+          onPress={() => handleResponse('Şu an ihtiyacım yok')} 
           variant="outline"
           loading={submitting}
         />
         <TouchableOpacity onPress={() => router.back()} style={styles.laterButton}>
-          <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Daha sonra</Text>
+          <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Daha sonra dönerim</Text>
         </TouchableOpacity>
       </View>
 
@@ -100,7 +100,7 @@ export default function CardsScreen() {
         message={modal.message}
         onClose={() => {
           setModal({ ...modal, visible: false });
-          if (modal.title === 'Teşekkürler') router.back();
+          if (modal.title === 'Harika ✨') router.back();
         }}
       />
     </GradientBackground>

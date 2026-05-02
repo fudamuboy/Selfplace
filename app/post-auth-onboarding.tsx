@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
+import useNotificationStore from '../store/useNotificationStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -60,9 +61,18 @@ export default function PostAuthOnboardingScreen() {
   const { currentTheme } = useThemeStore();
   const { setPostAuthOnboardingCompleted } = useAuthStore();
 
-  // Personalization State
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState(new Date(new Date().setHours(21, 0, 0, 0)));
+  const { 
+    remindersEnabled, 
+    reminderTime, 
+    loadConfig,
+    toggleReminders: storeToggleReminders,
+    setReminderTime: storeSetReminderTime
+  } = useNotificationStore();
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(10); // 5, 10, 15
 
@@ -101,11 +111,9 @@ export default function PostAuthOnboardingScreen() {
       }, 300);
 
       if (step === 2 && remindersEnabled) {
-        await Notifications.requestPermissionsAsync();
+        await storeToggleReminders(true);
       }
     } else {
-      await AsyncStorage.setItem('remindersEnabled', remindersEnabled ? 'true' : 'false');
-      await AsyncStorage.setItem('reminderTime', reminderTime.toISOString());
       await AsyncStorage.setItem('dailyGoal', dailyGoal.toString());
       await setPostAuthOnboardingCompleted(true);
       router.replace('/(tabs)');
@@ -196,7 +204,7 @@ export default function PostAuthOnboardingScreen() {
                   </View>
                   <Switch 
                     value={remindersEnabled} 
-                    onValueChange={setRemindersEnabled}
+                    onValueChange={storeToggleReminders}
                     trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.buttonGlow }}
                     thumbColor="#FFF"
                   />
@@ -242,7 +250,7 @@ export default function PostAuthOnboardingScreen() {
                 </View>
                 <Switch 
                   value={remindersEnabled} 
-                  onValueChange={setRemindersEnabled}
+                  onValueChange={storeToggleReminders}
                   trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.buttonGlow }}
                   thumbColor="#FFF"
                 />
@@ -289,7 +297,7 @@ export default function PostAuthOnboardingScreen() {
             display="spinner"
             onChange={(event, date) => {
               setShowTimePicker(false);
-              if (date) setReminderTime(date);
+              if (date) storeSetReminderTime(date);
             }}
           />
         )}
