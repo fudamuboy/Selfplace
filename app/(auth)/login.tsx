@@ -5,6 +5,7 @@ import { GradientBackground } from '../../components/GradientBackground';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import { Colors } from '../../constants/Colors';
+import { Image } from 'expo-image';
 import { MascotBlob } from '../../components/MascotBlob';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
@@ -84,8 +85,12 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <View style={styles.mascotContainer}>
-            <MascotBlob mood="neutral" />
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../assets/images/icon.png')} 
+              style={styles.logo} 
+              contentFit="contain"
+            />
           </View>
 
           <Text style={styles.title}>Tekrar hoş geldin</Text>
@@ -166,11 +171,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-  mascotContainer: {
-    height: 160,
+  logoContainer: {
+    height: 120,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 0,
+    marginBottom: 20,
+  },
+  logo: {
+    width: 100,
+    height: 100,
   },
   title: {
     fontSize: 28,

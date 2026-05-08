@@ -26,30 +26,30 @@ const { width, height } = Dimensions.get('window');
 const THEMES = [
   {
     step: 1,
-    colors: ['#0F0F1A', '#1C1F3A', '#8B7CFF'],
+    colors: ['#1E241F', '#2D362F', '#A78BFA'],
     mascotColor: 'purple' as const,
     mood: 'calm' as const,
     title: 'Yolculuğunu sana göre şekillendirelim',
     subtitle: 'Küçük tercihlerle Selfplace daha kişisel hissedebilir.',
-    buttonGlow: '#8B7CFF',
+    buttonGlow: '#A78BFA',
   },
   {
     step: 2,
-    colors: ['#0F0F1A', '#2D2200', '#FFD166'],
-    mascotColor: 'yellow' as const,
+    colors: ['#1E241F', '#3A453E', '#A5AD94'],
+    mascotColor: 'green' as const,
     mood: 'happy' as const,
     title: 'Sana nazikçe hatırlatalım',
     subtitle: 'Sadece seçtiğin zamanda, huzurunu bozmadan küçük bir bildirim.',
-    buttonGlow: '#FFD166',
+    buttonGlow: '#A5AD94',
   },
   {
     step: 3,
-    colors: ['#0F0F1A', '#062E25', '#55E6C1'],
-    mascotColor: 'green' as const,
+    colors: ['#1E241F', '#2D362F', '#A78BFA'],
+    mascotColor: 'purple' as const,
     mood: 'happy' as const,
     title: 'Hazırsın',
     subtitle: 'Bu alan tamamen senin. Kendine ayıracağın küçük bir anla başlayabilirsin.',
-    buttonGlow: '#55E6C1',
+    buttonGlow: '#A78BFA',
   }
 ];
 

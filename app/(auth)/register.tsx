@@ -6,6 +6,7 @@ import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import client from '../../api/client';
 
 export default function RegisterScreen() {
@@ -51,6 +52,13 @@ export default function RegisterScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../assets/images/icon.png')} 
+              style={styles.logo} 
+              contentFit="contain"
+            />
+          </View>
           <Text style={styles.title}>Yeni Hesap</Text>
           <Text style={styles.subtitle}>Kendine giden yolculuğa buradan başla.</Text>
 
@@ -135,6 +143,16 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     width: '100%',
+  },
+  logoContainer: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logo: {
+    width: 80,
+    height: 80,
   },
   title: {
     fontSize: 28,
