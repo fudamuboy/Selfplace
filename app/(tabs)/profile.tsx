@@ -36,7 +36,7 @@ export default function ProfileScreen() {
       const res = await client.get('/insights/stats');
       setStats(res.data);
     } catch (error) {
-      console.log('Error fetching stats:', error);
+      // Error is handled silently in production or could be sent to an error reporter
     } finally {
       setLoading(false);
     }

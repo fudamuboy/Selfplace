@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, interpolate, withTiming } from 'react-native-reanimated';
 import client from '../api/client';
 import { CustomButton } from '../components/CustomButton';
@@ -144,7 +144,11 @@ export default function CheckInScreen() {
 
   return (
     <GradientBackground>
-      <Animated.ScrollView 
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <Animated.ScrollView 
         contentContainerStyle={styles.container} 
         showsVerticalScrollIndicator={false}
         style={{ transform: [{ scale: submitScale }] }}
@@ -216,6 +220,7 @@ export default function CheckInScreen() {
           if (modal.title === 'Teşekkürler') router.back();
         }}
       />
+      </KeyboardAvoidingView>
     </GradientBackground>
   );
 }
@@ -223,7 +228,6 @@ export default function CheckInScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 24,
-    paddingTop: 80,
     paddingBottom: 60,
   },
   title: {

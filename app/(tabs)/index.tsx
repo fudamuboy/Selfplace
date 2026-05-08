@@ -22,7 +22,7 @@ export default function HomeScreen() {
 
         <View style={styles.mascotContainer}>
           <MascotBlob mood="neutral" />
-          <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>"Buradayım, seni dinliyorum."</Text>
+          <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>&quot;Buradayım, seni dinliyorum.&quot;</Text>
         </View>
 
         <View style={styles.actions}>
@@ -45,7 +45,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 24,
-    paddingTop: 60,
     flexGrow: 1,
   },
   header: {

@@ -28,7 +28,7 @@ const useNotificationStore = create<NotificationState>((set, get) => ({
         });
       }
     } catch (error) {
-      console.log('Error loading notification config:', error);
+      // Silence config loading error
     }
   },
 

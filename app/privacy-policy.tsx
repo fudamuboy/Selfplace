@@ -72,7 +72,7 @@ export default function PrivacyPolicyScreen() {
 
             <Text style={[styles.subSectionTitle, { color: currentTheme.colors.text.secondary, fontSize: 16 }]}>Usage Data</Text>
             <Text style={[styles.paragraph, { color: currentTheme.colors.text.primary }]}>
-              Usage Data is collected automatically when using the Service. It may include information such as Your Device's Internet Protocol address (e.g. IP address), browser type, browser version, the pages of our Service that You visit, the time and date of Your visit, and other diagnostic data.
+              Usage Data is collected automatically when using the Service. It may include information such as Your Device&apos;s Internet Protocol address (e.g. IP address), browser type, browser version, the pages of our Service that You visit, the time and date of Your visit, and other diagnostic data.
             </Text>
 
             <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>Use of Your Personal Data</Text>

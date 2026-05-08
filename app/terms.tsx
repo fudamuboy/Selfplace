@@ -69,7 +69,7 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>7. Hesap ve Veri Silme</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              İstediğiniz zaman Ayarlar > Gizlilik ve Veriler sekmesinden tüm verilerinizi silebilir veya hesabınızı tamamen kapatabilirsiniz. Bu işlem geri alınamaz.
+              İstediğiniz zaman Ayarlar &gt; Gizlilik ve Veriler sekmesinden tüm verilerinizi silebilir veya hesabınızı tamamen kapatabilirsiniz. Bu işlem geri alınamaz.
             </Text>
           </View>
 

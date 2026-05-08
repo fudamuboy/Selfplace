@@ -30,7 +30,6 @@ export default function PrivacyDataScreen() {
         title: 'Selfplace Verilerim',
       });
     } catch (error) {
-      console.log('Export error:', error);
       setInfoModal({
         visible: true,
         title: 'Hata',

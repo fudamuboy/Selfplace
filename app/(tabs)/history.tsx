@@ -50,7 +50,6 @@ export default function HistoryScreen() {
       if (historyRes.status === 'fulfilled') {
         setCheckIns(historyRes.value.data);
       } else {
-        console.error('History Fetch Error:', historyRes.reason?.response?.data || historyRes.reason.message);
         if (historyRes.reason.response?.status !== 404) {
           setModal({ 
             visible: true, 
@@ -82,7 +81,7 @@ export default function HistoryScreen() {
       }
 
     } catch (error: any) {
-      console.error('Unexpected Fetch Error:', error.message);
+      // Handle unexpected errors silently or with error reporting service
     }
 
     setLoading(false);

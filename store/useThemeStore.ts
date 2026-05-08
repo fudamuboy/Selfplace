@@ -24,7 +24,7 @@ const useThemeStore = create<ThemeState>((set) => ({
         set({ currentTheme: themeModes[savedThemeId] });
       }
     } catch (error) {
-      console.log('Error loading theme:', error);
+      // Silence theme loading error
     }
   },
 }));

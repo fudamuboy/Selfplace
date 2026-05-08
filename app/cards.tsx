@@ -28,7 +28,6 @@ export default function CardsScreen() {
       const response = await client.get('/cards/random');
       setCard(response.data);
     } catch (error) {
-      console.error('[CardsScreen] Fetch Error:', error);
       setModal({ visible: true, title: 'Hata', message: 'Kart yüklenirken bir hata oluştu.' });
     } finally {
       setLoading(false);

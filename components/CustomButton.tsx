@@ -7,6 +7,7 @@ interface Props {
   title: string;
   onPress: () => void;
   loading?: boolean;
+  disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'outline';
   style?: any;
 }
@@ -15,21 +16,29 @@ export const CustomButton: React.FC<Props> = ({
   title, 
   onPress, 
   loading = false, 
+  disabled = false,
   variant = 'primary',
   style 
 }) => {
   const { currentTheme } = useThemeStore();
 
   const getButtonStyle = () => {
-    switch (variant) {
-      case 'secondary': return { backgroundColor: currentTheme.colors.button.secondary };
-      case 'outline': return { 
-        backgroundColor: 'transparent', 
-        borderWidth: 1, 
-        borderColor: currentTheme.colors.button.primary 
-      };
-      default: return { backgroundColor: currentTheme.colors.button.primary };
+    const baseStyle = (() => {
+      switch (variant) {
+        case 'secondary': return { backgroundColor: currentTheme.colors.button.secondary };
+        case 'outline': return { 
+          backgroundColor: 'transparent', 
+          borderWidth: 1, 
+          borderColor: currentTheme.colors.button.primary 
+        };
+        default: return { backgroundColor: currentTheme.colors.button.primary };
+      }
+    })();
+
+    if (disabled || loading) {
+      return { ...baseStyle, opacity: 0.5 };
     }
+    return baseStyle;
   };
 
   const getTextStyle = () => {
@@ -43,7 +52,7 @@ export const CustomButton: React.FC<Props> = ({
     <TouchableOpacity 
       style={[styles.button, getButtonStyle(), style]} 
       onPress={onPress}
-      disabled={loading}
+      disabled={loading || disabled}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'outline' ? currentTheme.colors.button.primary : currentTheme.colors.button.text} />

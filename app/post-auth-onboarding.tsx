@@ -158,7 +158,7 @@ export default function PostAuthOnboardingScreen() {
   );
 
   return (
-    <LinearGradient colors={currentThemeData.colors} style={styles.container}>
+    <LinearGradient colors={[currentThemeData.colors[0], currentThemeData.colors[1], currentThemeData.colors[2]]} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         
         {/* TOP: TEXT SECTION */}
@@ -204,7 +204,7 @@ export default function PostAuthOnboardingScreen() {
                   </View>
                   <Switch 
                     value={remindersEnabled} 
-                    onValueChange={storeToggleReminders}
+                    onValueChange={(val) => { storeToggleReminders(val); }}
                     trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.buttonGlow }}
                     thumbColor="#FFF"
                   />
@@ -250,7 +250,7 @@ export default function PostAuthOnboardingScreen() {
                 </View>
                 <Switch 
                   value={remindersEnabled} 
-                  onValueChange={storeToggleReminders}
+                  onValueChange={(val) => { storeToggleReminders(val); }}
                   trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.buttonGlow }}
                   thumbColor="#FFF"
                 />
@@ -262,7 +262,7 @@ export default function PostAuthOnboardingScreen() {
                 <View style={styles.welcomeIconCircle}>
                    <Ionicons name="sparkles" size={20} color={currentThemeData.buttonGlow} />
                 </View>
-                <Text style={styles.welcomeText}>Selfplace'e hoş geldin, seni burada görmek çok güzel.</Text>
+                <Text style={styles.welcomeText}>Selfplace&apos;e hoş geldin, seni burada görmek çok güzel.</Text>
               </View>
             )}
           </View>
