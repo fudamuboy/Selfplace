@@ -7,6 +7,9 @@ import Constants from 'expo-constants';
  * 3. If using physical device: http://YOUR_MACHINE_IP:5001/api
  */
 
+const PROD_URL = 'https://selfplacebackend.onrender.com/api';
+const DEV_URL = 'http://localhost:5001/api';
+
 export const Config = {
-  API_URL: 'http://localhost:5001/api', // Default for simulators
+  API_URL: __DEV__ ? DEV_URL : PROD_URL,
 };

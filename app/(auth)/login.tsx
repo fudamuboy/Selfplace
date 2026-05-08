@@ -139,17 +139,7 @@ export default function LoginScreen() {
             <Text style={styles.linkText}>Hesabın yok mu? <Text style={{ fontWeight: 'bold' }}>Kayıt Ol</Text></Text>
           </TouchableOpacity>
 
-          {__DEV__ && (
-            <TouchableOpacity 
-              style={styles.devResetButton} 
-              onPress={async () => {
-                await useAuthStore.getState().resetAll();
-                router.replace('/onboarding');
-              }}
-            >
-              <Text style={styles.devResetText}>[ DEV RESET ]</Text>
-            </TouchableOpacity>
-          )}
+
         </View>
       </KeyboardAvoidingView>
 
@@ -234,15 +224,6 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     fontSize: 15,
   },
-  devResetButton: {
-    marginTop: 40,
-    opacity: 0.5,
-  },
-  devResetText: {
-    color: '#FF4B4B',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
+
 });
 

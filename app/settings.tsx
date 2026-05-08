@@ -12,6 +12,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomModal } from '../components/CustomModal';
 import { CustomButton } from '../components/CustomButton';
 import client from '../api/client';
+import * as Clipboard from 'expo-clipboard';
+import { Toast } from '../components/Toast';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -29,6 +31,8 @@ export default function SettingsScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [infoModal, setInfoModal] = useState({ visible: false, title: '', message: '' });
+  const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '' });
 
   useEffect(() => {
     loadConfig();
@@ -55,12 +59,14 @@ export default function SettingsScreen() {
   const handleContactSupport = () => {
     const email = 'selfplace.support@gmail.com';
     Linking.openURL(`mailto:${email}`).catch(() => {
-      setInfoModal({
-        visible: true,
-        title: 'Bize Ulaşın',
-        message: `E-posta uygulamanız açılamadı. Lütfen bize ${email} adresinden yazın.`
-      });
+      // Soft failure: Show custom branded modal instead of technical error
+      setContactModalVisible(true);
     });
+  };
+
+  const copyToClipboard = async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    setToast({ visible: true, message: 'E-posta kopyalandı ✨' });
   };
 
   const handleSendResetLink = async () => {
@@ -202,6 +208,22 @@ export default function SettingsScreen() {
         title={infoModal.title}
         message={infoModal.message}
         onClose={() => setInfoModal({ ...infoModal, visible: false })}
+      />
+
+      <CustomModal
+        visible={contactModalVisible}
+        title="Bize Yaz 🌿"
+        message={"Mail uygulaması açılamadı.\nAşağıdaki adrese yazabilirsin:\n\nselfplace.support@gmail.com"}
+        onClose={() => setContactModalVisible(false)}
+        confirmText="Tamam"
+        secondaryText="E-postayı Kopyala"
+        onSecondaryPress={() => copyToClipboard('selfplace.support@gmail.com')}
+      />
+
+      <Toast 
+        visible={toast.visible} 
+        message={toast.message} 
+        onHide={() => setToast({ ...toast, visible: false })} 
       />
     </GradientBackground>
   );

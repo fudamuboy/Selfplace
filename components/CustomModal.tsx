@@ -10,6 +10,8 @@ interface Props {
   onClose: () => void;
   onConfirm?: () => void;
   confirmText?: string;
+  secondaryText?: string;
+  onSecondaryPress?: () => void;
 }
 
 export const CustomModal: React.FC<Props> = ({ 
@@ -18,7 +20,9 @@ export const CustomModal: React.FC<Props> = ({
   message, 
   onClose, 
   onConfirm,
-  confirmText = "Tamam"
+  confirmText = "Tamam",
+  secondaryText,
+  onSecondaryPress
 }) => {
   const { currentTheme } = useThemeStore();
 
@@ -33,13 +37,22 @@ export const CustomModal: React.FC<Props> = ({
           <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{title}</Text>
           <Text style={[styles.message, { color: currentTheme.colors.text.secondary }]}>{message}</Text>
           
+          {secondaryText && onSecondaryPress && (
+            <CustomButton 
+              title={secondaryText} 
+              onPress={onSecondaryPress} 
+              variant="secondary"
+              style={{ marginBottom: 12 }}
+            />
+          )}
+
           <CustomButton 
             title={confirmText} 
             onPress={onConfirm || onClose} 
             variant="primary"
           />
           
-          {onConfirm && (
+          {(onConfirm && !secondaryText) && (
             <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
               <Text style={[styles.cancelText, { color: currentTheme.colors.text.secondary }]}>Vazgeç</Text>
             </TouchableOpacity>

@@ -18,6 +18,22 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Root route for Render health monitoring
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Selfplace backend is running',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy'
+  });
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/check-ins', checkInRoutes);
@@ -26,10 +42,7 @@ app.use('/api/insights', insightRoutes);
 app.use('/api/reflections', reflectionRoutes);
 app.use('/api/user', userRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Selfplace API is running' });
-});
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
