@@ -27,8 +27,15 @@ export default function CardsScreen() {
     try {
       const response = await client.get('/cards/random');
       setCard(response.data);
-    } catch (error) {
-      setModal({ visible: true, title: 'Hata', message: 'Kart yüklenirken bir hata oluştu.' });
+    } catch (error: any) {
+      const debugInfo = error.response?.data?.debug_error;
+      setModal({ 
+        visible: true, 
+        title: 'Hata', 
+        message: debugInfo 
+          ? `Kart yüklenirken bir hata oluştu.\n\nDebug: ${debugInfo}`
+          : 'Kart yüklenirken bir hata oluştu.' 
+      });
     } finally {
       setLoading(false);
     }
@@ -45,8 +52,15 @@ export default function CardsScreen() {
     try {
       await client.post(`/cards/${card.id}/response`, { response });
       setModal({ visible: true, title: 'Harika ✨', message: 'Kendin için küçük bir adım attın.' });
-    } catch (error) {
-      setModal({ visible: true, title: 'Hata', message: 'Yanıt kaydedilemedi.' });
+    } catch (error: any) {
+      const debugInfo = error.response?.data?.debug_error;
+      setModal({ 
+        visible: true, 
+        title: 'Hata', 
+        message: debugInfo 
+          ? `Yanıt kaydedilemedi.\n\nDebug: ${debugInfo}`
+          : 'Yanıt kaydedilemedi.' 
+      });
     } finally {
       setSubmitting(false);
     }

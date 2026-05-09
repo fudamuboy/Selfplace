@@ -44,28 +44,28 @@ export const themeModes: Record<string, ThemeMode> = {
     id: 'sakin',
     name: 'Sakin 🌙',
     colors: {
-      background: ['#3A453E', '#1E241F'], // Deep Forest Sage
-      card: 'rgba(58, 69, 62, 0.4)',
-      cardBorder: 'rgba(165, 173, 148, 0.1)',
+      background: ['#0F111A', '#1E1B4B', '#0F111A'], // Premium Dark Aura: Deep Navy to Indigo
+      card: 'rgba(255, 255, 255, 0.05)',
+      cardBorder: 'rgba(255, 255, 255, 0.1)',
       primary: '#A78BFA', // Lavender Purple
-      secondary: '#A5AD94', // Sage Green
-      accent: '#A78BFA',
+      secondary: 'rgba(167, 139, 250, 0.12)', // Glassmorphic purple
+      accent: '#C084FC', // Thistle Purple
       text: {
-        primary: '#F8FAF5', // Off-white sage
-        secondary: '#A5AD94',
-        muted: 'rgba(165, 173, 148, 0.4)',
+        primary: '#FFFFFF',
+        secondary: '#94A3B8',
+        muted: 'rgba(148, 163, 184, 0.4)',
       },
-      glow: 'rgba(167, 139, 250, 0.15)',
+      glow: 'rgba(139, 92, 246, 0.25)', // Indigo Glow
       tabBar: {
-        background: '#1E241F',
+        background: '#0F111A',
         active: '#A78BFA',
-        inactive: '#4A5D4E',
-        border: 'rgba(165, 173, 148, 0.05)',
+        inactive: '#475569',
+        border: 'rgba(255, 255, 255, 0.08)',
       },
       button: {
         primary: '#A78BFA',
-        secondary: '#4A5D4E',
-        text: '#1E241F',
+        secondary: 'rgba(167, 139, 250, 0.15)',
+        text: '#0F111A',
       },
       mascot: {
         start: '#A78BFA',
@@ -73,10 +73,10 @@ export const themeModes: Record<string, ThemeMode> = {
         glow: '#A78BFA',
       },
       input: {
-        background: 'rgba(45, 54, 47, 0.4)',
-        border: 'rgba(165, 173, 148, 0.1)',
-        text: '#F8FAF5',
-        placeholder: 'rgba(165, 173, 148, 0.3)',
+        background: 'rgba(255, 255, 255, 0.05)',
+        border: 'rgba(255, 255, 255, 0.1)',
+        text: '#FFFFFF',
+        placeholder: 'rgba(148, 163, 184, 0.5)',
       },
     },
   },

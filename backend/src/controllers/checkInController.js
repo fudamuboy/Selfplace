@@ -5,8 +5,12 @@ exports.getRandomQuestion = async (req, res) => {
     const result = await db.query('SELECT * FROM reflection_questions ORDER BY RANDOM() LIMIT 1');
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Soru getirilemedi.' });
+    console.error('[checkInController] getRandomQuestion error:', err.message);
+    res.status(500).json({ 
+      message: 'Soru getirilemedi.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
 
@@ -21,8 +25,12 @@ exports.createCheckIn = async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Check-in kaydedilemedi.' });
+    console.error('[checkInController] createCheckIn error:', err.message);
+    res.status(500).json({ 
+      message: 'Check-in kaydedilemedi.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
 
@@ -32,8 +40,12 @@ exports.getCheckIns = async (req, res) => {
     const result = await db.query('SELECT * FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Veriler getirilemedi.' });
+    console.error('[checkInController] getCheckIns error:', err.message);
+    res.status(500).json({ 
+      message: 'Veriler getirilemedi.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
 
@@ -47,8 +59,12 @@ exports.getCheckInById = async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Veri getirilemedi.' });
+    console.error('[checkInController] getCheckInById error:', err.message);
+    res.status(500).json({ 
+      message: 'Veri getirilemedi.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
 
@@ -62,7 +78,11 @@ exports.deleteCheckIn = async (req, res) => {
     }
     res.json({ message: 'Kayıt başarıyla silindi.' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Kayıt silinemedi.' });
+    console.error('[checkInController] deleteCheckIn error:', err.message);
+    res.status(500).json({ 
+      message: 'Kayıt silinemedi.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };

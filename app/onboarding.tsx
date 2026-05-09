@@ -87,26 +87,18 @@ export default function OnboardingScreen() {
   const { currentTheme } = useThemeStore();
   const { setOnboardingCompleted } = useAuthStore();
 
-  const mascotScale = useSharedValue(1);
-
   useEffect(() => {
-    // Step 1: Slow breathing mascot
-    mascotScale.value = withRepeat(
-      withTiming(1.02, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true
-    );
-
     if (step === 1) {
-      setTimeout(() => setShowText1(true), 2000);
-      setTimeout(() => setShowText2(true), 4000);
-      setTimeout(() => setShowButton(true), 5500);
+      const t1 = setTimeout(() => setShowText1(true), 2000);
+      const t2 = setTimeout(() => setShowText2(true), 4000);
+      const t3 = setTimeout(() => setShowButton(true), 5500);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
     }
   }, [step]);
-
-  const animatedMascotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: mascotScale.value }],
-  }));
 
   const handleFinish = async () => {
     try {
@@ -122,9 +114,9 @@ export default function OnboardingScreen() {
       case 1:
         return (
           <View style={styles.stepContainer}>
-            <Animated.View style={[styles.mascotWrapper, animatedMascotStyle]}>
+            <View style={styles.mascotWrapper}>
               <MascotBlob mood="calm" />
-            </Animated.View>
+            </View>
             
             <View style={styles.textContainer}>
               {showText1 && (

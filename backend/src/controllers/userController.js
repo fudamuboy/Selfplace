@@ -71,12 +71,12 @@ exports.changePassword = async (req, res) => {
 
   try {
     // Get user
-    const userRes = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    const userRes = await db.query('SELECT password FROM users WHERE id = $1', [userId]);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, userRes.rows[0].password_hash);
+    const isMatch = await bcrypt.compare(currentPassword, userRes.rows[0].password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Mevcut şifre hatalı.' });
     }
@@ -84,7 +84,7 @@ exports.changePassword = async (req, res) => {
     const saltRounds = 10;
     const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedNewPassword, userId]);
+    await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, userId]);
 
     res.json({ message: 'Şifreniz başarıyla değiştirildi.' });
   } catch (err) {

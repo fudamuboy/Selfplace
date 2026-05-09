@@ -56,10 +56,9 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral', color }) => {
   const radiusBL = useSharedValue(50);
   const radiusBR = useSharedValue(65);
   
-  const scaleX = useSharedValue(1);
-  const scaleY = useSharedValue(1);
+  const scale = useSharedValue(1);
   const floatY = useSharedValue(0);
-  const glowOpacity = useSharedValue(0.15);
+  const glowOpacity = useSharedValue(0.2);
   const blink = useSharedValue(1);
 
   useEffect(() => {
@@ -67,10 +66,16 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral', color }) => {
     radiusTR.value = withRepeat(withTiming(40, { duration: 6300, easing: Easing.inOut(Easing.sin) }), -1, true);
     radiusBL.value = withRepeat(withTiming(75, { duration: 4400, easing: Easing.inOut(Easing.sin) }), -1, true);
     radiusBR.value = withRepeat(withTiming(45, { duration: 5700, easing: Easing.inOut(Easing.sin) }), -1, true);
-    scaleX.value = withRepeat(withTiming(1.05, { duration: 7500, easing: Easing.inOut(Easing.sin) }), -1, true);
-    scaleY.value = withRepeat(withTiming(1.08, { duration: 6200, easing: Easing.inOut(Easing.sin) }), -1, true);
-    floatY.value = withRepeat(withTiming(-8, { duration: 8000, easing: Easing.inOut(Easing.sin) }), -1, true);
-    glowOpacity.value = withRepeat(withTiming(0.28, { duration: 6200, easing: Easing.inOut(Easing.sin) }), -1, true);
+    
+    // Soft breathing animation
+    scale.value = withRepeat(
+      withTiming(1.04, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+    
+    floatY.value = withRepeat(withTiming(-6, { duration: 3500, easing: Easing.inOut(Easing.sin) }), -1, true);
+    glowOpacity.value = withRepeat(withTiming(0.4, { duration: 3000, easing: Easing.inOut(Easing.sin) }), -1, true);
     
     let timeoutId: any;
     const triggerBlink = () => {
@@ -86,12 +91,12 @@ export const MascotBlob: React.FC<Props> = ({ mood = 'neutral', color }) => {
     borderTopRightRadius: radiusTR.value,
     borderBottomLeftRadius: radiusBL.value,
     borderBottomRightRadius: radiusBR.value,
-    transform: [{ translateY: floatY.value }, { scaleX: scaleX.value }, { scaleY: scaleY.value }],
+    transform: [{ translateY: floatY.value }, { scale: scale.value }],
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
-    transform: [{ scale: interpolate(glowOpacity.value, [0.15, 0.28], [1, 1.15]) }],
+    transform: [{ scale: interpolate(glowOpacity.value, [0.2, 0.4], [1, 1.1]) }],
     backgroundColor: config.glow,
     shadowColor: config.glow,
   }));
@@ -172,16 +177,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
   },
   glowLarge: {
-    width: 260,
-    height: 260,
-    shadowRadius: 100,
-    elevation: 50,
+    width: 320,
+    height: 320,
+    shadowRadius: 120,
+    elevation: 60,
   },
   glowMedium: {
-    width: 200,
-    height: 200,
-    shadowRadius: 70,
-    elevation: 40,
+    width: 240,
+    height: 240,
+    shadowRadius: 80,
+    elevation: 45,
   },
 });
 

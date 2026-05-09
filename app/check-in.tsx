@@ -135,8 +135,15 @@ export default function CheckInScreen() {
         modalOpacity.value = withTiming(1, { duration: 500 });
       }, 800);
       
-    } catch (error) {
-      setModal({ visible: true, title: 'Hata', message: 'Kaydedilirken bir sorun oluştu.' });
+    } catch (error: any) {
+      const debugInfo = error.response?.data?.debug_error;
+      setModal({ 
+        visible: true, 
+        title: 'Hata', 
+        message: debugInfo 
+          ? `Kaydedilirken bir sorun oluştu.\n\nDebug: ${debugInfo}`
+          : 'Kaydedilirken bir sorun oluştu.' 
+      });
     } finally {
       setLoading(false);
     }

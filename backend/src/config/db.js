@@ -1,21 +1,41 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
+console.log('--- DATABASE CONFIG AUDIT ---');
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
-pool.on('connect', () => {
-  console.log('Connected to the PostgreSQL database');
-});
+// In production or when using Supabase, we MUST use connectionString and SSL
+const isProd = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('supabase.co');
+
+let poolConfig;
+
+if (process.env.DATABASE_URL) {
+  console.log('[DB] Using connectionString from DATABASE_URL');
+  poolConfig = {
+    connectionString: process.env.DATABASE_URL,
+    ssl: isProd ? { rejectUnauthorized: false } : false,
+  };
+} else {
+  console.log('[DB] No DATABASE_URL found, falling back to local PG config');
+  poolConfig = {
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT || 5432,
+  };
+}
+
+console.log('------------------------------');
+
+const pool = new Pool(poolConfig);
 
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('[DATABASE] Unexpected error on idle client:', err.message);
+  if (err.message.includes('ECONNREFUSED')) {
+    console.error('[DATABASE] CRITICAL: Connection refused. Check if you are trying to connect to localhost in production!');
+  }
 });
 
 module.exports = {

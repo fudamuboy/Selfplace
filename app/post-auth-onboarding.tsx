@@ -26,7 +26,7 @@ const { width, height } = Dimensions.get('window');
 const THEMES = [
   {
     step: 1,
-    colors: ['#1E241F', '#2D362F', '#A78BFA'],
+    colors: ['#1A1625', '#2E1065', '#A78BFA'],
     mascotColor: 'purple' as const,
     mood: 'calm' as const,
     title: 'Yolculuğunu sana göre şekillendirelim',
@@ -35,16 +35,16 @@ const THEMES = [
   },
   {
     step: 2,
-    colors: ['#1E241F', '#3A453E', '#A5AD94'],
-    mascotColor: 'green' as const,
+    colors: ['#1A1625', '#1E1B4B', '#7C3AED'],
+    mascotColor: 'purple' as const,
     mood: 'happy' as const,
     title: 'Sana nazikçe hatırlatalım',
     subtitle: 'Sadece seçtiğin zamanda, huzurunu bozmadan küçük bir bildirim.',
-    buttonGlow: '#A5AD94',
+    buttonGlow: '#7C3AED',
   },
   {
     step: 3,
-    colors: ['#1E241F', '#2D362F', '#A78BFA'],
+    colors: ['#1A1625', '#2E1065', '#A78BFA'],
     mascotColor: 'purple' as const,
     mood: 'happy' as const,
     title: 'Hazırsın',
@@ -77,18 +77,12 @@ export default function PostAuthOnboardingScreen() {
   const [dailyGoal, setDailyGoal] = useState(10); // 5, 10, 15
 
   // Animations
-  const mascotScale = useSharedValue(1);
   const floatAnim = useSharedValue(0);
   const fadeAnim = useSharedValue(1);
   const slideAnim = useSharedValue(0);
   const buttonPressScale = useSharedValue(1);
 
   useEffect(() => {
-    mascotScale.value = withRepeat(
-      withTiming(1.05, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true
-    );
     floatAnim.value = withRepeat(
       withTiming(-10, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -121,7 +115,7 @@ export default function PostAuthOnboardingScreen() {
   };
 
   const mascotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: mascotScale.value }],
+    transform: [],
   }));
 
   const floatingStyle = useAnimatedStyle(() => ({
@@ -187,9 +181,9 @@ export default function PostAuthOnboardingScreen() {
             </Animated.View>
           )}
 
-          <Animated.View style={mascotStyle}>
+          <View>
             <MascotBlob mood={currentThemeData.mood} color={currentThemeData.mascotColor} />
-          </Animated.View>
+          </View>
         </View>
 
         {/* BOTTOM: INTERACTION AREA */}

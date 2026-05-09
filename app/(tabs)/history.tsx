@@ -51,10 +51,13 @@ export default function HistoryScreen() {
         setCheckIns(historyRes.value.data);
       } else {
         if (historyRes.reason.response?.status !== 404) {
+          const debugInfo = historyRes.reason.response?.data?.debug_error;
           setModal({ 
             visible: true, 
             title: 'Hata', 
-            message: 'Geçmiş yüklenirken bir sorun oluştu.' 
+            message: debugInfo 
+              ? `Geçmiş yüklenirken bir sorun oluştu.\n\nDebug: ${debugInfo}`
+              : 'Geçmiş yüklenirken bir sorun oluştu.' 
           });
         }
       }

@@ -7,6 +7,7 @@ import { CustomModal } from '../../components/CustomModal';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { MascotBlob } from '../../components/MascotBlob';
 import client from '../../api/client';
 
 export default function RegisterScreen() {
@@ -33,11 +34,17 @@ export default function RegisterScreen() {
         message: 'Kayıt olundu, şimdi giriş yapabilirsiniz.', 
         success: true 
       });
-    } catch (error: any) {
+    } catch (err: any) {
+      const errorData = err.response?.data;
+      const debugInfo = errorData?.debug || errorData?.debug_error || err.message;
+      const stackInfo = errorData?.stack;
+      
       setModal({ 
         visible: true, 
         title: 'Kayıt Başarısız', 
-        message: error.response?.data?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.',
+        message: debugInfo 
+          ? `Sunucu hatası detayı:\n\n${debugInfo}${stackInfo ? `\n\nStack:\n${stackInfo.substring(0, 200)}...` : ''}`
+          : 'Bir hata oluştu. Lütfen tekrar deneyin.',
         success: false
       });
     } finally {
@@ -52,12 +59,8 @@ export default function RegisterScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <View style={styles.logoContainer}>
-            <Image 
-              source={require('../../assets/images/icon.png')} 
-              style={styles.logo} 
-              contentFit="contain"
-            />
+          <View style={styles.mascotContainer}>
+            <MascotBlob mood="happy" />
           </View>
           <Text style={styles.title}>Yeni Hesap</Text>
           <Text style={styles.subtitle}>Kendine giden yolculuğa buradan başla.</Text>
@@ -144,15 +147,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-  logoContainer: {
-    height: 100,
+  mascotContainer: {
+    height: 120,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  logo: {
-    width: 80,
-    height: 80,
+    marginBottom: 15,
+    transform: [{ scale: 0.8 }]
   },
   title: {
     fontSize: 28,

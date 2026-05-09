@@ -1,16 +1,17 @@
 export const Colors = {
   background: {
-    start: '#3A453E',
-    end: '#1E241F',
+    start: '#0F111A',
+    middle: '#1E1B4B', 
+    end: '#0F111A',
   },
   primary: '#A78BFA', // Lavender Purple
-  secondary: '#A5AD94', // Sage Green
+  secondary: '#C084FC', // Thistle Purple
   accent: '#A78BFA',
   text: {
-    primary: '#F8FAF5',
-    secondary: '#A5AD94',
+    primary: '#FFFFFF',
+    secondary: '#94A3B8',
   },
-  card: 'rgba(58, 69, 62, 0.4)',
+  card: 'rgba(255, 255, 255, 0.05)',
   moods: {
     happy: '#FCD34D',
     calm: '#A5AD94',

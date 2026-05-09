@@ -31,11 +31,17 @@ export default function LoginScreen() {
       const response = await client.post('/auth/login', { email, password });
       await setAuth(response.data.token, response.data.user);
       router.replace('/(tabs)');
-    } catch (error: any) {
+    } catch (err: any) {
+      const errorData = err.response?.data;
+      const debugInfo = errorData?.debug || errorData?.debug_error || err.message;
+      const stackInfo = errorData?.stack;
+      
       setModal({ 
         visible: true, 
         title: 'Giriş Başarısız', 
-        message: error.response?.data?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.' 
+        message: debugInfo 
+          ? `Sunucu hatası detayı:\n\n${debugInfo}${stackInfo ? `\n\nStack:\n${stackInfo.substring(0, 200)}...` : ''}`
+          : 'Bir hata oluştu. Lütfen tekrar deneyin.' 
       });
     } finally {
       setLoading(false);
@@ -85,12 +91,8 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <View style={styles.logoContainer}>
-            <Image 
-              source={require('../../assets/images/icon.png')} 
-              style={styles.logo} 
-              contentFit="contain"
-            />
+          <View style={styles.mascotContainer}>
+            <MascotBlob mood="calm" />
           </View>
 
           <Text style={styles.title}>Tekrar hoş geldin</Text>
@@ -171,15 +173,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-  logoContainer: {
-    height: 120,
+  mascotContainer: {
+    height: 140,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  logo: {
-    width: 100,
-    height: 100,
+    marginBottom: 10,
+    transform: [{ scale: 0.85 }]
   },
   title: {
     fontSize: 28,

@@ -127,7 +127,11 @@ exports.getDailyReflection = async (req, res) => {
 
   } catch (err) {
     console.error('[insightController] getDailyReflection error:', err.message);
-    res.status(500).json({ message: 'Günlük yansıma oluşturulurken bir hata oluştu.' });
+    res.status(500).json({ 
+      message: 'Günlük yansıma oluşturulurken bir hata oluştu.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
 
@@ -187,7 +191,11 @@ exports.getWeeklyInsight = async (req, res) => {
 
   } catch (err) {
     console.error('[insightController] getWeeklyInsight error:', err.message);
-    res.status(500).json({ message: 'İçgörü oluşturulurken bir hata oluştu.' });
+    res.status(500).json({ 
+      message: 'İçgörü oluşturulurken bir hata oluştu.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
 
@@ -221,7 +229,11 @@ exports.getStats = async (req, res) => {
 
   } catch (err) {
     console.error('[insightController] getStats error:', err.message);
-    res.status(500).json({ message: 'İstatistikler alınırken bir hata oluştu.' });
+    res.status(500).json({ 
+      message: 'İstatistikler alınırken bir hata oluştu.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
 // ---------------------------------------------------------------------------
@@ -352,6 +364,10 @@ exports.getPatterns = async (req, res) => {
 
   } catch (err) {
     console.error('[insightController] getPatterns error:', err.message);
-    res.status(500).json({ message: 'Farkındalıklar alınırken bir hata oluştu.' });
+    res.status(500).json({ 
+      message: 'Farkındalıklar alınırken bir hata oluştu.',
+      debug_error: err.message,
+      debug_code: err.code
+    });
   }
 };
