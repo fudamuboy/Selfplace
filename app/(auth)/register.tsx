@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientBackground } from '../../components/GradientBackground';
+import React, { useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import client from '../../api/client';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
-import { Colors } from '../../constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { GradientBackground } from '../../components/GradientBackground';
 import { MascotBlob } from '../../components/MascotBlob';
-import client from '../../api/client';
+import { Colors } from '../../constants/Colors';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -28,21 +27,21 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await client.post('/auth/register', { username, email, password });
-      setModal({ 
-        visible: true, 
-        title: 'Başarılı', 
-        message: 'Kayıt olundu, şimdi giriş yapabilirsiniz.', 
-        success: true 
+      setModal({
+        visible: true,
+        title: 'Başarılı',
+        message: 'Kayıt olundu, şimdi giriş yapabilirsiniz.',
+        success: true
       });
     } catch (err: any) {
       const errorData = err.response?.data;
       const debugInfo = errorData?.debug || errorData?.debug_error || err.message;
       const stackInfo = errorData?.stack;
-      
-      setModal({ 
-        visible: true, 
-        title: 'Kayıt Başarısız', 
-        message: debugInfo 
+
+      setModal({
+        visible: true,
+        title: 'Kayıt Başarısız',
+        message: debugInfo
           ? `Sunucu hatası detayı:\n\n${debugInfo}${stackInfo ? `\n\nStack:\n${stackInfo.substring(0, 200)}...` : ''}`
           : 'Bir hata oluştu. Lütfen tekrar deneyin.',
         success: false
@@ -54,7 +53,7 @@ export default function RegisterScreen() {
 
   return (
     <GradientBackground style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
@@ -68,7 +67,7 @@ export default function RegisterScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Kullanıcı Adı"
+              placeholder="Ad Soyadınızı girin"
               placeholderTextColor={Colors.text.secondary}
               value={username}
               onChangeText={setUsername}
@@ -78,7 +77,7 @@ export default function RegisterScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="E-posta"
+              placeholder="E-posta adresinizi girin"
               placeholderTextColor={Colors.text.secondary}
               value={email}
               onChangeText={setEmail}
@@ -90,28 +89,28 @@ export default function RegisterScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, { paddingRight: 50 }]}
-              placeholder="Şifre"
+              placeholder="Şifrenizi girin"
               placeholderTextColor={Colors.text.secondary}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity 
-              style={styles.eyeIcon} 
+            <TouchableOpacity
+              style={styles.eyeIcon}
               onPress={() => setShowPassword(!showPassword)}
             >
-              <Ionicons 
-                name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                size={22} 
-                color={Colors.text.secondary} 
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={Colors.text.secondary}
               />
             </TouchableOpacity>
           </View>
 
-          <CustomButton 
-            title="Kayıt Ol" 
-            onPress={handleRegister} 
-            loading={loading} 
+          <CustomButton
+            title="Kayıt Ol"
+            onPress={handleRegister}
+            loading={loading}
             style={{ marginTop: 20, width: '100%' }}
           />
 

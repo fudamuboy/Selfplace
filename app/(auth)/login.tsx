@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientBackground } from '../../components/GradientBackground';
+import React, { useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import client from '../../api/client';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
-import { Colors } from '../../constants/Colors';
-import { Image } from 'expo-image';
+import { GradientBackground } from '../../components/GradientBackground';
 import { MascotBlob } from '../../components/MascotBlob';
-import { Ionicons } from '@expo/vector-icons';
-import client from '../../api/client';
+import { Colors } from '../../constants/Colors';
 import useAuthStore from '../../store/useAuthStore';
 
 export default function LoginScreen() {
@@ -35,13 +34,13 @@ export default function LoginScreen() {
       const errorData = err.response?.data;
       const debugInfo = errorData?.debug || errorData?.debug_error || err.message;
       const stackInfo = errorData?.stack;
-      
-      setModal({ 
-        visible: true, 
-        title: 'Giriş Başarısız', 
-        message: debugInfo 
+
+      setModal({
+        visible: true,
+        title: 'Giriş Başarısız',
+        message: debugInfo
           ? `Sunucu hatası detayı:\n\n${debugInfo}${stackInfo ? `\n\nStack:\n${stackInfo.substring(0, 200)}...` : ''}`
-          : 'Bir hata oluştu. Lütfen tekrar deneyin.' 
+          : 'Bir hata oluştu. Lütfen tekrar deneyin.'
       });
     } finally {
       setLoading(false);
@@ -50,10 +49,10 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      setModal({ 
-        visible: true, 
-        title: 'E-posta Gerekli', 
-        message: 'Şifre sıfırlama kodu gönderebilmemiz için lütfen e-posta adresinizi girin.' 
+      setModal({
+        visible: true,
+        title: 'E-posta Gerekli',
+        message: 'Şifre sıfırlama kodu gönderebilmemiz için lütfen e-posta adresinizi girin.'
       });
       return;
     }
@@ -61,10 +60,10 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await client.post('/auth/forgot-password', { email });
-      setModal({ 
-        visible: true, 
-        title: 'Kod Gönderildi', 
-        message: '6 haneli sıfırlama kodu e-posta adresine gönderildi. Sıfırlama ekranına yönlendiriliyorsun.' 
+      setModal({
+        visible: true,
+        title: 'Kod Gönderildi',
+        message: '6 haneli sıfırlama kodu e-posta adresine gönderildi. Sıfırlama ekranına yönlendiriliyorsun.'
       });
       setTimeout(() => {
         setModal(prev => ({ ...prev, visible: false }));
@@ -74,10 +73,10 @@ export default function LoginScreen() {
         });
       }, 2000);
     } catch (error: any) {
-      setModal({ 
-        visible: true, 
-        title: 'Hata', 
-        message: error.response?.data?.message || 'Bağlantı gönderilirken bir sorun oluştu.' 
+      setModal({
+        visible: true,
+        title: 'Hata',
+        message: error.response?.data?.message || 'Bağlantı gönderilirken bir sorun oluştu.'
       });
     } finally {
       setLoading(false);
@@ -86,7 +85,7 @@ export default function LoginScreen() {
 
   return (
     <GradientBackground style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
@@ -101,7 +100,7 @@ export default function LoginScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="E-posta"
+              placeholder="E-posta adresinizi girin"
               placeholderTextColor={Colors.text.secondary}
               value={email}
               onChangeText={setEmail}
@@ -113,20 +112,20 @@ export default function LoginScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, { paddingRight: 50 }]}
-              placeholder="Şifre"
+              placeholder="Şifrenizi girin"
               placeholderTextColor={Colors.text.secondary}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity 
-              style={styles.eyeIcon} 
+            <TouchableOpacity
+              style={styles.eyeIcon}
               onPress={() => setShowPassword(!showPassword)}
             >
-              <Ionicons 
-                name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                size={22} 
-                color={Colors.text.secondary} 
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={Colors.text.secondary}
               />
             </TouchableOpacity>
           </View>
@@ -135,10 +134,10 @@ export default function LoginScreen() {
             <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
           </TouchableOpacity>
 
-          <CustomButton 
-            title="Giriş Yap" 
-            onPress={handleLogin} 
-            loading={loading} 
+          <CustomButton
+            title="Giriş Yap"
+            onPress={handleLogin}
+            loading={loading}
             style={{ marginTop: 10, width: '100%' }}
           />
 
