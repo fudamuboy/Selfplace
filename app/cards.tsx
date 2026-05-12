@@ -1,111 +1,664 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  ScrollView as RNScrollView,
+} from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withSequence,
+  withDelay,
+  withSpring,
+  interpolate,
+  Easing,
+  runOnJS,
+  useAnimatedScrollHandler,
+  Extrapolate,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { GradientBackground } from '../components/GradientBackground';
-import { CustomButton } from '../components/CustomButton';
 import { CustomModal } from '../components/CustomModal';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
 
-interface Card {
-  id: number;
-  title: string;
-  content: string;
-  category: string;
-}
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH * 0.72;
+const CARD_HEIGHT = CARD_WIDTH * 1.45;
+const GAP = 20;
+const SNAP_INTERVAL = CARD_WIDTH + GAP;
+const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
+// ─── Invitation messages pool ───────────────────────────────────────────────
+const INVITATION_CARDS = [
+  {
+    icon: '🌱',
+    title: 'Küçük Bir Adım',
+    message: 'Bugün sadece bir şeyi kendine iyi hissettirmek için yap. Küçük adımlar da ilerlemedir.',
+    cta: 'Başlayalım',
+  },
+  {
+    icon: '🌙',
+    title: 'Sessizlik Hediyesi',
+    message: 'Beş dakika sadece seninle ol. Ekranlar kapalı, nefes açık.',
+    cta: 'Bunu yapabilirim',
+  },
+  {
+    icon: '💜',
+    title: 'Kendine Nazik Ol',
+    message: 'Bugün en iyi arkadaşına davrandığın gibi kendine davran. O arkadaş sensin.',
+    cta: 'Kabul ediyorum',
+  },
+  {
+    icon: '✨',
+    title: 'Anı Yakala',
+    message: 'Şu an nasıl hissediyorsun? Kelimelerle ifade etmene gerek yok — sadece hisset.',
+    cta: 'Hissediyorum',
+  },
+  {
+    icon: '🫧',
+    title: 'Nefes Ritüeli',
+    message: 'Dört say, tut, dert say ver. Bu kadar. Bedene geri dön.',
+    cta: 'Derinlemesine nefes al',
+  },
+  {
+    icon: '🌸',
+    title: 'Minnettarlık',
+    message: 'Bugün sana iyi gelen bir şeyi düşün. Ne kadar küçük olursa olsun — o sayılır.',
+    cta: 'Bir şey geliyor aklıma',
+  },
+];
+
+// ─── Particle component ──────────────────────────────────────────────────────
+const Particle = ({ color, delay }: { color: string; delay: number }) => {
+  const x = useSharedValue(Math.random() * 200 - 100);
+  const startY = useSharedValue(Math.random() * 60 + 20);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: 1200, easing: Easing.out(Easing.quad) }),
+          withTiming(0, { duration: 1800, easing: Easing.in(Easing.quad) })
+        ),
+        -1,
+        false
+      )
+    );
+    scale.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1200 }),
+          withTiming(0.2, { duration: 1800 })
+        ),
+        -1,
+        false
+      )
+    );
+    startY.value = withDelay(
+      delay,
+      withRepeat(withTiming(startY.value - 120, { duration: 3000, easing: Easing.out(Easing.quad) }), -1, false)
+    );
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [
+      { translateX: x.value },
+      { translateY: startY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const size = Math.random() * 5 + 3;
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+// ─── Single Card Face (Back) ─────────────────────────────────────────────────
+const CardBack = ({
+  index,
+  theme,
+}: {
+  index: number;
+  theme: any;
+}) => {
+  const BACK_PATTERNS = ['✦', '◈', '⬡'];
+  return (
+    <LinearGradient
+      colors={[
+        index % 3 === 0
+          ? 'rgba(167,139,250,0.18)'
+          : index % 3 === 1
+          ? 'rgba(192,132,252,0.22)'
+          : 'rgba(139,92,246,0.16)',
+        'rgba(15,17,26,0.7)',
+      ]}
+      style={styles.cardFace}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View
+        style={[
+          styles.cardBackBorder,
+          { borderColor: theme.colors.primary + '55' },
+        ]}
+      >
+        <Text style={[styles.cardBackPattern, { color: theme.colors.primary + 'CC' }]}>
+          {BACK_PATTERNS[index % 3]}
+        </Text>
+        <View style={[styles.cardBackDot, { backgroundColor: theme.colors.primary + '40' }]} />
+        <View style={[styles.cardBackSubtext]}>
+          <Text style={{ color: theme.colors.primary + '88', fontSize: 10, letterSpacing: 2 }}>
+            SENİN İÇİN
+          </Text>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+};
+
+// ─── Single Card Face (Front / Revealed) ─────────────────────────────────────
+const CardFront = ({
+  data,
+  theme,
+  onCta,
+  submitting,
+}: {
+  data: (typeof INVITATION_CARDS)[0];
+  theme: any;
+  onCta: () => void;
+  submitting: boolean;
+}) => {
+  return (
+    <LinearGradient
+      colors={['rgba(167,139,250,0.28)', 'rgba(109,40,217,0.18)', 'rgba(15,17,26,0.85)']}
+      style={styles.cardFace}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0.6, y: 1 }}
+    >
+      <View style={styles.cardFrontInner}>
+        <Text style={styles.cardFrontIcon}>{data.icon}</Text>
+        <Text style={[styles.cardFrontTitle, { color: theme.colors.text.primary }]}>
+          {data.title}
+        </Text>
+        <Text style={[styles.cardFrontMessage, { color: theme.colors.text.secondary }]}>
+          {data.message}
+        </Text>
+        <TouchableOpacity
+          onPress={onCta}
+          disabled={submitting}
+          style={[
+            styles.ctaButton,
+            { borderColor: theme.colors.primary + 'AA', opacity: submitting ? 0.6 : 1 },
+          ]}
+        >
+          <Text style={[styles.ctaText, { color: theme.colors.primary }]}>{data.cta}</Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+};
+
+// ─── The Flippable Card ───────────────────────────────────────────────────────
+const FlipCard = ({
+  index,
+  scrollX,
+  selected,
+  hasSelection,
+  data,
+  theme,
+  onSelect,
+  onCta,
+  submitting,
+  floatDelay,
+}: {
+  index: number;
+  scrollX: Animated.SharedValue<number>;
+  selected: boolean;
+  hasSelection: boolean;
+  data: (typeof INVITATION_CARDS)[0];
+  theme: any;
+  onSelect: () => void;
+  onCta: () => void;
+  submitting: boolean;
+  floatDelay: number;
+}) => {
+  const flip = useSharedValue(0); // 0 = back, 1 = front
+  const floatY = useSharedValue(0);
+  const internalScale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0.3);
+  const [flipped, setFlipped] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
+
+  // Idle float animation
+  useEffect(() => {
+    floatY.value = withDelay(
+      floatDelay,
+      withRepeat(
+        withSequence(
+          withTiming(-8, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0, { duration: 2800, easing: Easing.inOut(Easing.sin) })
+        ),
+        -1,
+        false
+      )
+    );
+    glowOpacity.value = withDelay(
+      floatDelay,
+      withRepeat(
+        withSequence(
+          withTiming(0.6, { duration: 2400, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.2, { duration: 2400, easing: Easing.inOut(Easing.sin) })
+        ),
+        -1,
+        false
+      )
+    );
+  }, []);
+
+  // React to selection state
+  useEffect(() => {
+    if (selected) {
+      // Stop floating, scale up, then flip
+      floatY.value = withTiming(0, { duration: 400 });
+      internalScale.value = withSpring(1.08, { damping: 14, stiffness: 120 });
+      // Delay flip slightly for feel
+      flip.value = withDelay(
+        200,
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.cubic) }, (finished) => {
+          if (finished) {
+            runOnJS(setFlipped)(true);
+            runOnJS(setShowParticles)(true);
+          }
+        })
+      );
+    } else if (hasSelection && !selected) {
+      // Fade out non-selected
+      internalScale.value = withTiming(0.82, { duration: 500 });
+    } else if (!hasSelection) {
+      // Reset
+      internalScale.value = withSpring(1);
+      if (flip.value === 1) {
+        flip.value = withTiming(0, { duration: 600 });
+        setFlipped(false);
+        setShowParticles(false);
+      }
+    }
+  }, [selected, hasSelection]);
+
+  // Animated card container with dynamic scaling based on scroll position (Bug 5)
+  const containerStyle = useAnimatedStyle(() => {
+    const inputRange = [
+      (index - 1) * SNAP_INTERVAL,
+      index * SNAP_INTERVAL,
+      (index + 1) * SNAP_INTERVAL,
+    ];
+
+    // Scaling and opacity for carousel effect (Bug 5)
+    const scale = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.82, 1.0, 0.82],
+      Extrapolate.CLAMP
+    );
+
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.45, 1.0, 0.45],
+      Extrapolate.CLAMP
+    );
+
+    return {
+      transform: [
+        { translateY: floatY.value },
+        { scale: hasSelection ? internalScale.value : scale },
+      ],
+      opacity: hasSelection && !selected ? withTiming(0.35) : opacity,
+    };
+  });
+
+  // Front & back flip styles
+  const backStyle = useAnimatedStyle(() => ({
+    transform: [
+      { perspective: 1000 },
+      { rotateY: `${interpolate(flip.value, [0, 1], [0, 180])}deg` },
+    ],
+    backfaceVisibility: 'hidden',
+  }));
+
+  const frontStyle = useAnimatedStyle(() => ({
+    transform: [
+      { perspective: 1000 },
+      { rotateY: `${interpolate(flip.value, [0, 1], [180, 360])}deg` },
+    ],
+    backfaceVisibility: 'hidden',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
+
+  const particles = Array.from({ length: 8 });
+
+  return (
+    <Animated.View style={[styles.cardWrapper, containerStyle]}>
+      {/* Glow halo */}
+      <Animated.View
+        style={[
+          styles.cardGlow,
+          glowStyle,
+          {
+            shadowColor: theme.colors.primary,
+            backgroundColor: theme.colors.primary + '18',
+          },
+        ]}
+      />
+
+      {/* Particle burst on reveal */}
+      {showParticles && (
+        <View style={styles.particleContainer} pointerEvents="none">
+          {particles.map((_, i) => (
+            <Particle key={i} color={theme.colors.primary} delay={i * 120} />
+          ))}
+        </View>
+      )}
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onSelect}
+        disabled={hasSelection}
+        style={styles.cardTouchable}
+      >
+        {/* BACK face */}
+        <Animated.View style={[styles.cardInner, backStyle]}>
+          <CardBack index={index} theme={theme} />
+        </Animated.View>
+
+        {/* FRONT face */}
+        <Animated.View style={[styles.cardInner, frontStyle]}>
+          <CardFront data={data} theme={theme} onCta={onCta} submitting={submitting} />
+        </Animated.View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// ─── Pagination Dots (Bug 4) ──────────────────────────────────────────────────
+const PaginationDots = ({
+  count,
+  scrollX,
+  theme,
+}: {
+  count: number;
+  scrollX: Animated.SharedValue<number>;
+  theme: any;
+}) => {
+  return (
+    <View style={styles.dotsContainer}>
+      {Array.from({ length: count }).map((_, i) => {
+        const dotStyle = useAnimatedStyle(() => {
+          const inputRange = [
+            (i - 1) * SNAP_INTERVAL,
+            i * SNAP_INTERVAL,
+            (i + 1) * SNAP_INTERVAL,
+          ];
+          const opacity = interpolate(
+            scrollX.value,
+            inputRange,
+            [0.4, 1, 0.4],
+            Extrapolate.CLAMP
+          );
+          const scale = interpolate(
+            scrollX.value,
+            inputRange,
+            [0.8, 1.2, 0.8],
+            Extrapolate.CLAMP
+          );
+          return {
+            opacity,
+            transform: [{ scale }],
+            backgroundColor: opacity > 0.8 ? theme.colors.primary : theme.colors.text.muted,
+          };
+        });
+
+        return <Animated.View key={i} style={[styles.dot, dotStyle]} />;
+      })}
+    </View>
+  );
+};
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function CardsScreen() {
-  const [card, setCard] = useState<Card | null>(null);
+  const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const scrollX = useSharedValue(0);
 
-  const fetchCard = async () => {
-    setLoading(true);
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'Öz-Şefkat': return '💜';
+      case 'Alan Aç': return '🌙';
+      case 'Küçük Cesaret': return '🌱';
+      case 'Farkındalık': return '✨';
+      case 'Nefes': return '🫧';
+      default: return '🌸';
+    }
+  };
+
+  const fetchCards = async () => {
     try {
-      const response = await client.get('/cards/random');
-      setCard(response.data);
-    } catch (error: any) {
-      const debugInfo = error.response?.data?.debug_error;
-      setModal({ 
-        visible: true, 
-        title: 'Hata', 
-        message: debugInfo 
-          ? `Kart yüklenirken bir hata oluştu.\n\nDebug: ${debugInfo}`
-          : 'Kart yüklenirken bir hata oluştu.' 
-      });
+      const response = await client.get('/cards');
+      const allCards = response.data;
+      const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, 3).map(c => ({
+        id: c.id,
+        icon: getCategoryIcon(c.category),
+        title: c.title,
+        message: c.content,
+        cta: 'Kabul ediyorum', // Standard CTA
+      }));
+      setCards(selected);
+    } catch (error) {
+      console.error('Error fetching cards:', error);
+      // Fallback to local cards if backend fails or is empty
+      const fallback = [...INVITATION_CARDS].sort(() => Math.random() - 0.5).slice(0, 3);
+      setCards(fallback);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCard();
+    fetchCards();
   }, []);
 
-  const handleResponse = async (response: string) => {
-    if (!card) return;
-    
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
+
+  // Header shimmer
+  const shimmer = useSharedValue(0);
+  useEffect(() => {
+    shimmer.value = withRepeat(
+      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shimmer.value, [0, 1], [0.7, 1]),
+  }));
+
+  const handleSelect = (index: number) => {
+    if (selectedIndex !== null) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedIndex(index);
+  };
+
+  const handleCta = async () => {
     setSubmitting(true);
-    try {
-      await client.post(`/cards/${card.id}/response`, { response });
-      setModal({ visible: true, title: 'Harika ✨', message: 'Kendin için küçük bir adım attın.' });
-    } catch (error: any) {
-      const debugInfo = error.response?.data?.debug_error;
-      setModal({ 
-        visible: true, 
-        title: 'Hata', 
-        message: debugInfo 
-          ? `Yanıt kaydedilemedi.\n\nDebug: ${debugInfo}`
-          : 'Yanıt kaydedilemedi.' 
+    const selectedCard = cards[selectedIndex!];
+    if (!selectedCard?.id) {
+      // If it's a fallback card without ID, just show success
+      setSubmitting(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModal({
+        visible: true,
+        title: 'Harika ✨',
+        message: 'Kendin için küçük ama anlamlı bir adım attın. Gurur duy.',
       });
+      return;
+    }
+
+    try {
+      await client.post(`/cards/${selectedCard.id}/response`, {
+        response: 'Deneyeceğim', // Match backend expected response string
+      });
+    } catch (_) {
+      // Silent
     } finally {
       setSubmitting(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModal({
+        visible: true,
+        title: 'Harika ✨',
+        message: 'Kendin için küçük ama anlamlı bir adım attın. Gurur duy.',
+      });
     }
   };
 
-  if (loading) {
-    return (
-      <GradientBackground style={styles.center}>
-        <ActivityIndicator size="large" color={currentTheme.colors.primary} />
-      </GradientBackground>
-    );
-  }
+  const handleReset = () => {
+    setSelectedIndex(null);
+  };
 
   return (
-    <GradientBackground style={styles.container}>
-      <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>Davet Kartın</Text>
-      
-      {card ? (
-        <View style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-          <View style={[styles.categoryBadge, { backgroundColor: currentTheme.colors.glow }]}>
-            <Text style={[styles.categoryText, { color: currentTheme.colors.primary }]}>{card.category}</Text>
-          </View>
-          <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>{card.title}</Text>
-          <Text style={[styles.cardContent, { color: currentTheme.colors.text.secondary }]}>{card.content}</Text>
+    <GradientBackground>
+      <RNScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <Animated.Text style={[styles.headerEyebrow, { color: currentTheme.colors.primary }, shimmerStyle]}>
+            Davet Kartın
+          </Animated.Text>
+          <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>
+            Bir kart seç
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: currentTheme.colors.text.secondary }]}>
+            {loading 
+              ? 'Kartların hazırlanıyor...' 
+              : selectedIndex === null
+                ? 'Sana özel bir davet seni bekliyor'
+                : 'Senin için bir şey bulduk ✨'}
+          </Text>
         </View>
-      ) : (
-        <Text style={[styles.errorText, { color: currentTheme.colors.text.secondary }]}>Henüz davet kartı bulunmuyor.</Text>
-      )}
 
-      <View style={styles.actions}>
-        <CustomButton 
-          title="Kendim için deneyeyim" 
-          onPress={() => handleResponse('Kendim için deneyeyim')} 
-          loading={submitting}
-        />
-        <CustomButton 
-          title="Şu an ihtiyacım yok" 
-          onPress={() => handleResponse('Şu an ihtiyacım yok')} 
-          variant="outline"
-          loading={submitting}
-        />
-        <TouchableOpacity onPress={() => router.back()} style={styles.laterButton}>
-          <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Daha sonra dönerim</Text>
-        </TouchableOpacity>
-      </View>
+        {loading ? (
+          <View style={[styles.carouselContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ color: currentTheme.colors.text.muted }}>Yükleniyor...</Text>
+          </View>
+        ) : (
+          <>
+            {/* ── Carousel Row (Bug 1, 2, 5) ── */}
+            <View style={styles.carouselContainer}>
+              <Animated.ScrollView
+                horizontal
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={SNAP_INTERVAL}
+                decelerationRate="fast"
+                snapToAlignment="center"
+                contentContainerStyle={styles.carouselContent}
+                clipChildren={false} // Bug 2
+              >
+                {cards.map((card, i) => (
+                  <FlipCard
+                    key={i}
+                    index={i}
+                    scrollX={scrollX}
+                    selected={selectedIndex === i}
+                    hasSelection={selectedIndex !== null}
+                    data={card}
+                    theme={currentTheme}
+                    onSelect={() => handleSelect(i)}
+                    onCta={handleCta}
+                    submitting={submitting}
+                    floatDelay={i * 400}
+                  />
+                ))}
+              </Animated.ScrollView>
+            </View>
+
+            {/* ── Pagination Dots (Bug 4) ── */}
+            {selectedIndex === null && (
+              <PaginationDots count={cards.length} scrollX={scrollX} theme={currentTheme} />
+            )}
+          </>
+        )}
+
+        {/* ── Hint text ── */}
+        {selectedIndex === null && (
+          <Text style={[styles.hintText, { color: currentTheme.colors.text.muted }]}>
+            Sezgilerine güven — doğru kart seni bulur
+          </Text>
+        )}
+
+        {/* ── Bottom actions (Bug 3) ── */}
+        <View style={styles.bottomActions}>
+          {selectedIndex !== null && (
+            <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
+              <Text style={[styles.resetText, { color: currentTheme.colors.text.secondary }]}>
+                ← Başka bir kart seç
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => router.back()} style={styles.laterBtn}>
+            <Text style={[styles.laterText, { color: currentTheme.colors.text.muted }]}>
+              Daha sonra dönerim
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </RNScrollView>
 
       <CustomModal
         visible={modal.visible}
@@ -120,65 +673,201 @@ export default function CardsScreen() {
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
+  scrollContent: {
     paddingTop: 60,
+    paddingBottom: 40,
+    paddingHorizontal: 0, // Header is centered by its own View
     alignItems: 'center',
+    // Removed minHeight: '100%' to fix Bug 3
   },
-  center: {
-    justifyContent: 'center',
+
+  // Header
+  header: {
     alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
     marginBottom: 40,
+    paddingHorizontal: 20,
   },
-  card: {
-    width: '100%',
-    padding: 30,
-    borderRadius: 30,
-    alignItems: 'center',
-    minHeight: 300,
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  categoryBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  categoryText: {
+  headerEyebrow: {
     fontSize: 12,
     fontWeight: '700',
+    letterSpacing: 3,
     textTransform: 'uppercase',
+    marginBottom: 8,
   },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 10,
     textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    opacity: 0.85,
+  },
+
+  // Carousel Row
+  carouselContainer: {
+    width: '100%',
+    height: CARD_HEIGHT + 60, // Sufficient height for floating and scaling (Bug 2)
+    marginBottom: 10,
+  },
+  carouselContent: {
+    paddingHorizontal: SIDE_PADDING, // Snap to center for first/last (Bug 1)
+    alignItems: 'center',
+    gap: GAP,
+  },
+
+  // Individual card
+  cardWrapper: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    position: 'relative',
+  },
+  cardGlow: {
+    position: 'absolute',
+    top: -15,
+    left: -15,
+    right: -15,
+    bottom: -15,
+    borderRadius: 32,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 25,
+    elevation: 20,
+  },
+  cardTouchable: {
+    width: '100%',
+    height: '100%',
+  },
+  cardInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+
+  // Card back face
+  cardFace: {
+    flex: 1,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+  },
+  cardBackBorder: {
+    flex: 1,
+    margin: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  cardBackPattern: {
+    fontSize: 40,
+  },
+  cardBackDot: {
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+  },
+  cardBackSubtext: {
+    position: 'absolute',
+    bottom: 20,
+    alignItems: 'center',
+  },
+
+  // Card front face
+  cardFrontInner: {
+    flex: 1,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  cardFrontIcon: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  cardFrontTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  cardFrontMessage: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  ctaButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  ctaText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  // Particles
+  particleContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    zIndex: 10,
+  },
+
+  // Dots (Bug 4)
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    height: 20,
     marginBottom: 20,
   },
-  cardContent: {
-    fontSize: 18,
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // Hint & bottom
+  hintText: {
+    fontSize: 13,
+    fontStyle: 'italic',
     textAlign: 'center',
-    lineHeight: 28,
+    marginBottom: 24,
+    letterSpacing: 0.2,
   },
-  errorText: {
-    fontSize: 16,
-    marginVertical: 40,
-  },
-  actions: {
-    width: '100%',
-    marginTop: 40,
-  },
-  laterButton: {
+  bottomActions: {
     alignItems: 'center',
-    marginTop: 20,
+    gap: 8,
+    // No forced spacer here to fix Bug 3
+  },
+  resetBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  resetText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  laterBtn: {
+    paddingVertical: 12,
   },
   laterText: {
-    fontSize: 16,
+    fontSize: 14,
   },
 });

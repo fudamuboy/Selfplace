@@ -1,0 +1,24 @@
+
+> backend@1.0.0 start
+> node server.js
+
+◇ injected env (15) from .env // tip: ⌘ suppress logs { quiet: true }
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+--- DATABASE CONFIG AUDIT ---
+DATABASE_URL exists: false
+NODE_ENV: undefined
+[DB] No DATABASE_URL found, falling back to local PG config
+------------------------------
+[ENV-AUDIT] Found JWT_SECRET: 3ce8...6068
+[ENV-AUDIT] Found DB_HOST: loca...host
+[ENV-AUDIT] Found DB_NAME: ****
+[ENV-AUDIT] Found DB_USER: ****
+[ENV-AUDIT] Found DB_PASSWORD: ****
+[ENV-AUDIT] NODE_ENV: undefined
+[ENV-AUDIT] PORT: 5001
+[ENV-AUDIT] OPENAI_API_KEY exists: true
+Server is running on port 5001
+[DATABASE] Successfully connected to PostgreSQL
+[MIGRATION] Checking schema integrity...
+[MIGRATION] Schema check complete.
+[DATABASE] Migrations completed

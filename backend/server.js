@@ -37,6 +37,14 @@ requiredEnvs.forEach(env => {
 console.log(`[ENV-AUDIT] NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(`[ENV-AUDIT] PORT: ${PORT}`);
 
+// AI Check
+const aiKey = process.env.OPENAI_API_KEY;
+if (!aiKey || aiKey === 'your_openai_api_key_here') {
+  console.log('[ENV-AUDIT] OPENAI_API_KEY exists: false (Using rule-based fallbacks)');
+} else {
+  console.log('[ENV-AUDIT] OPENAI_API_KEY exists: true');
+}
+
 // Database connection test
 const db = require('./src/config/db');
 const { runMigrations } = require('./src/config/migrations');

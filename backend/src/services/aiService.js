@@ -49,7 +49,8 @@ Kullanıcının haftalık verilerine dayanarak tam olarak 2 ÇOK KISA cümlelik 
  */
 async function generateDailyReflection() {
   try {
-    const completion = await getClient().chat.completions.create({
+    const client = getClient();
+    const completion = await client.chat.completions.create({
       model:      'gpt-4o-mini',
       messages:   [
         { role: 'system', content: DAILY_REFLECTION_PROMPT },
@@ -60,11 +61,14 @@ async function generateDailyReflection() {
     });
 
     const result = completion.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, '');
-    if (!result) throw new Error('[aiService] OpenAI returned empty content.');
+    if (!result) throw new Error('OpenAI returned empty content.');
 
     return result;
   } catch (err) {
-    console.error('[aiService] generateDailyReflection error:', err.message);
+    // Only log actual API errors, not "key missing" which is expected if not configured
+    if (!err.message.includes('OPENAI_API_KEY')) {
+      console.error('[aiService] generateDailyReflection error:', err.message);
+    }
     throw err;
   }
 }
@@ -82,43 +86,47 @@ async function generateDailyReflection() {
  * @returns {Promise<string>} A 2-3 sentence Turkish reflection
  */
 async function generateWeeklyInsight(userData) {
-  const { checkIns = [], cardResponses = [] } = userData;
+  try {
+    const { checkIns = [], cardResponses = [] } = userData;
+    const client = getClient();
 
-  // --- Build a compact, sanitised data summary ---
-  const moodSummary     = checkIns.map(c => c.mood).filter(Boolean).join(', ') || 'bilinmiyor';
-  const notesSummary    = checkIns.map(c => c.note).filter(Boolean).slice(0, 5).join(' | ') || null;
-  const questionsSummary = checkIns.map(c => c.reflection_question).filter(Boolean).slice(0, 5).join(' | ') || null;
+    // --- Build a compact summary ---
+    const moodSummary     = checkIns.map(c => c.mood).filter(Boolean).join(', ') || 'bilinmiyor';
+    const notesSummary    = checkIns.map(c => c.note).filter(Boolean).slice(0, 5).join(' | ') || null;
+    const questionsSummary = checkIns.map(c => c.reflection_question).filter(Boolean).slice(0, 5).join(' | ') || null;
 
-  const acceptedCategories = [...new Set(
-    cardResponses.filter(r => r.response === 'Deneyeceğim').map(r => r.category).filter(Boolean)
-  )];
+    const acceptedCategories = [...new Set(
+      cardResponses.filter(r => r.response === 'Deneyeceğim').map(r => r.category).filter(Boolean)
+    )];
 
-  // --- Compose prompt ---
-  const lines = [`Bu haftaki ruh halleri: ${moodSummary}.`];
-  if (questionsSummary)           lines.push(`Yansıma soruları: ${questionsSummary}.`);
-  if (notesSummary)               lines.push(`Günlük notlar: ${notesSummary}.`);
-  if (acceptedCategories.length)  lines.push(`İlgi duyduğu kart kategorileri: ${acceptedCategories.join(', ')}.`);
-  lines.push('Bu verilere dayanarak kişiye nazik, kısa bir haftalık öz-yansıma yaz.');
+    const lines = [`Bu haftaki ruh halleri: ${moodSummary}.`];
+    if (questionsSummary)           lines.push(`Yansıma soruları: ${questionsSummary}.`);
+    if (notesSummary)               lines.push(`Günlük notlar: ${notesSummary}.`);
+    if (acceptedCategories.length)  lines.push(`İlgi duyduğu kart kategorileri: ${acceptedCategories.join(', ')}.`);
+    lines.push('Bu verilere dayanarak kişiye nazik, kısa bir haftalık öz-yansıma yaz.');
 
-  const userMessage = lines.join('\n');
+    const userMessage = lines.join('\n');
 
-  // --- Call API ---
-  const completion = await getClient().chat.completions.create({
-    model:      'gpt-4o-mini',
-    messages:   [
-      { role: 'system', content: WEEKLY_INSIGHT_PROMPT },
-      { role: 'user',   content: userMessage },
-    ],
-    max_tokens:  150,
-    temperature: 0.8,
-  });
+    const completion = await client.chat.completions.create({
+      model:      'gpt-4o-mini',
+      messages:   [
+        { role: 'system', content: WEEKLY_INSIGHT_PROMPT },
+        { role: 'user',   content: userMessage },
+      ],
+      max_tokens:  150,
+      temperature: 0.8,
+    });
 
-  const result = completion.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, '');
+    const result = completion.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, '');
+    if (!result) throw new Error('OpenAI returned empty content.');
 
-  if (!result) throw new Error('[aiService] OpenAI returned empty content.');
-
-  console.log('[aiService] Weekly AI response:', result);
-  return result;
+    return result;
+  } catch (err) {
+    if (!err.message.includes('OPENAI_API_KEY')) {
+      console.error('[aiService] generateWeeklyInsight error:', err.message);
+    }
+    throw err;
+  }
 }
 
 module.exports = { 

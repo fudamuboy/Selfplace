@@ -28,7 +28,16 @@ client.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method?.toUpperCase(),
     };
-    console.error('[API ERROR] Detailed info:', JSON.stringify(errorDetail, null, 2));
+
+    // Auto-logout if user is not found or session is invalid (Bug fix for multi-user/multi-env)
+    if (error.response?.status === 401 || 
+       (error.response?.status === 404 && error.response?.data?.message === 'Kullanıcı bulunamadı.')) {
+      useAuthStore.getState().logout();
+    }
+
+    if (__DEV__) {
+      console.error('[API ERROR] Detailed info:', JSON.stringify(errorDetail, null, 2));
+    }
     return Promise.reject(error);
   }
 );

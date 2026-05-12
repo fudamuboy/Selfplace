@@ -11,7 +11,14 @@ const isProd = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL
 let poolConfig;
 
 if (process.env.DATABASE_URL) {
-  console.log('[DB] Using connectionString from DATABASE_URL');
+  try {
+    const url = new URL(process.env.DATABASE_URL);
+    console.log('[DB] Using connectionString from DATABASE_URL');
+    console.log('[DB] Target Host:', url.hostname);
+  } catch (e) {
+    console.error('[DB-ERROR] Failed to parse DATABASE_URL. It might be malformed.');
+  }
+  
   poolConfig = {
     connectionString: process.env.DATABASE_URL,
     ssl: isProd ? { rejectUnauthorized: false } : false,

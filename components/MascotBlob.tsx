@@ -154,39 +154,39 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 350,
-    width: 350,
+    height: 280, // Reduced from 350
+    width: 280,
   },
   blob: {
-    width: 180,
-    height: 180,
+    width: 150, // Reduced from 180
+    height: 150,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
   faceContainer: {
-    width: 100,
-    height: 100,
+    width: 90,
+    height: 90,
     justifyContent: 'center',
     alignItems: 'center',
   },
   outerGlow: {
     position: 'absolute',
-    borderRadius: 180,
+    borderRadius: 140,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.8,
   },
   glowLarge: {
-    width: 320,
-    height: 320,
-    shadowRadius: 120,
-    elevation: 60,
+    width: 260, // Reduced from 320
+    height: 260,
+    shadowRadius: 80, // Reduced from 120
+    elevation: 40,
   },
   glowMedium: {
-    width: 240,
-    height: 240,
-    shadowRadius: 80,
-    elevation: 45,
+    width: 200, // Reduced from 240
+    height: 200,
+    shadowRadius: 50, // Reduced from 80
+    elevation: 30,
   },
 });
 

@@ -69,11 +69,27 @@ exports.getRandomCard = async (req, res) => {
 exports.respondToCard = async (req, res) => {
   const { id } = req.params;
   const { response } = req.body;
-  const userId = req.user.id;
+  const userId = req.user?.id;
+  
+  console.log(`[respondToCard] ENTRY - CardID: ${id}, UserID: ${userId}, Response: ${response}`);
 
   try {
-    // Get card category first
-    const cardInfo = await db.query('SELECT category FROM invitation_cards WHERE id = $1', [id]);
+    const cardId = parseInt(id);
+    const uId = parseInt(userId);
+
+    // 1. Verify user exists (Foreign Key safety)
+    const userCheck = await db.query('SELECT id FROM users WHERE id = $1', [uId]);
+    if (userCheck.rows.length === 0) {
+      console.warn(`[respondToCard] User ${uId} not found in database.`);
+      return res.status(404).json({ 
+        message: 'Kullanıcı bulunamadı.', 
+        error: 'User ID in token does not exist in database.',
+        userId: uId 
+      });
+    }
+
+    // 2. Get card category
+    const cardInfo = await db.query('SELECT category FROM invitation_cards WHERE id = $1', [cardId]);
     if (cardInfo.rows.length === 0) {
       return res.status(404).json({ message: 'Kart bulunamadı.' });
     }
@@ -81,11 +97,24 @@ exports.respondToCard = async (req, res) => {
 
     const result = await db.query(
       'INSERT INTO card_responses (user_id, card_id, response, category) VALUES ($1, $2, $3, $4) RETURNING *',
-      [userId, id, response, category]
+      [uId, cardId, response, category]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Yanıt kaydedilemedi.' });
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    console.error('[respondToCard] ERROR:', err.message);
+    console.error('[respondToCard] Params:', { 
+      userId: req.user?.id, 
+      id: req.params?.id, 
+      response, 
+      category: 'CHECK_LOGS_ABOVE' 
+    });
+    console.error(err.stack);
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    res.status(500).json({ 
+      message: 'Yanıt kaydedilemedi.', 
+      error: err.message,
+      debug_info: { userId: req.user?.id, cardId: req.params?.id }
+    });
   }
 };

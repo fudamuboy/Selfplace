@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform, Dimensions, SafeAreaView, Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,30 +27,30 @@ const { width, height } = Dimensions.get('window');
 const THEMES = [
   {
     step: 1,
-    colors: ['#1A1625', '#2E1065', '#A78BFA'],
+    colors: ['#0F111A', '#1A1625', '#2E1B4B'],
+    accent: '#8B7CFF',
     mascotColor: 'purple' as const,
-    mood: 'calm' as const,
-    title: 'Yolculuğunu sana göre şekillendirelim',
-    subtitle: 'Küçük tercihlerle Selfplace daha kişisel hissedebilir.',
-    buttonGlow: '#A78BFA',
+    mood: 'neutral' as const,
+    title: 'Yolculuğunu sana göre\nşekillendirelim',
+    subtitle: 'Küçük tercihlerle Selfplace\ndaha kişisel hissedebilir.',
   },
   {
     step: 2,
-    colors: ['#1A1625', '#1E1B4B', '#7C3AED'],
-    mascotColor: 'purple' as const,
+    colors: ['#0F111A', '#2D1B2E', '#4A2D3C'],
+    accent: '#FFD166',
+    mascotColor: 'yellow' as const,
     mood: 'happy' as const,
-    title: 'Sana nazikçe hatırlatalım',
-    subtitle: 'Sadece seçtiğin zamanda, huzurunu bozmadan küçük bir bildirim.',
-    buttonGlow: '#7C3AED',
+    title: 'Sana nazikçe\nhatırlatalım',
+    subtitle: 'Sadece seçtiğin zamanda,\nhuzurunu bozmadan küçük\nbir bildirim.',
   },
   {
     step: 3,
-    colors: ['#1A1625', '#2E1065', '#A78BFA'],
-    mascotColor: 'purple' as const,
+    colors: ['#0F111A', '#0C1621', '#1A2A3A'],
+    accent: '#55E6C1',
+    mascotColor: 'green' as const,
     mood: 'happy' as const,
     title: 'Hazırsın',
-    subtitle: 'Bu alan tamamen senin. Kendine ayıracağın küçük bir anla başlayabilirsin.',
-    buttonGlow: '#A78BFA',
+    subtitle: 'Bu alan tamamen senin.\nKendine ayıracağın küçük\nbir anla başlayabilirsin.',
   }
 ];
 
@@ -58,7 +59,6 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export default function PostAuthOnboardingScreen() {
   const [step, setStep] = useState(1);
   const router = useRouter();
-  const { currentTheme } = useThemeStore();
   const { setPostAuthOnboardingCompleted } = useAuthStore();
 
   const { 
@@ -84,25 +84,23 @@ export default function PostAuthOnboardingScreen() {
 
   useEffect(() => {
     floatAnim.value = withRepeat(
-      withTiming(-10, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-8, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
       -1,
       true
     );
   }, []);
 
   const handleNext = async () => {
-    buttonPressScale.value = withSequence(withTiming(0.95, { duration: 100 }), withTiming(1, { duration: 100 }));
-    
     if (step < 3) {
-      fadeAnim.value = withTiming(0, { duration: 300 });
-      slideAnim.value = withTiming(-20, { duration: 300 });
+      fadeAnim.value = withTiming(0, { duration: 400 });
+      slideAnim.value = withTiming(-20, { duration: 400 });
       
       setTimeout(() => {
         setStep(prev => prev + 1);
         slideAnim.value = 20;
-        fadeAnim.value = withTiming(1, { duration: 400 });
-        slideAnim.value = withTiming(0, { duration: 400 });
-      }, 300);
+        fadeAnim.value = withTiming(1, { duration: 500 });
+        slideAnim.value = withTiming(0, { duration: 500 });
+      }, 400);
 
       if (step === 2 && remindersEnabled) {
         await storeToggleReminders(true);
@@ -113,10 +111,6 @@ export default function PostAuthOnboardingScreen() {
       router.replace('/(tabs)');
     }
   };
-
-  const mascotStyle = useAnimatedStyle(() => ({
-    transform: [],
-  }));
 
   const floatingStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: floatAnim.value }],
@@ -133,26 +127,13 @@ export default function PostAuthOnboardingScreen() {
 
   const currentThemeData = THEMES[step - 1];
 
-  const renderCTAButton = (title: string) => (
-    <AnimatedPressable 
-      onPress={handleNext}
-      onPressIn={() => { buttonPressScale.value = withTiming(0.97, { duration: 100 }); }}
-      onPressOut={() => { buttonPressScale.value = withTiming(1, { duration: 100 }); }}
-      style={[styles.ctaButton, buttonStyle, { shadowColor: currentThemeData.buttonGlow }]}
-    >
-      <LinearGradient
-        colors={[currentThemeData.buttonGlow, currentThemeData.colors[1]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.ctaGradient}
-      >
-        <Text style={styles.ctaText}>{title}</Text>
-      </LinearGradient>
-    </AnimatedPressable>
-  );
-
   return (
-    <LinearGradient colors={[currentThemeData.colors[0], currentThemeData.colors[1], currentThemeData.colors[2]]} style={styles.container}>
+    <LinearGradient 
+      colors={currentThemeData.colors} 
+      style={styles.container}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+    >
       <SafeAreaView style={styles.safeArea}>
         
         {/* TOP: TEXT SECTION */}
@@ -163,32 +144,20 @@ export default function PostAuthOnboardingScreen() {
 
         {/* MIDDLE: MASCOT AREA */}
         <View style={styles.mascotContainer}>
-          <View style={[styles.glowBackground, { backgroundColor: currentThemeData.buttonGlow }]} />
+          <View style={[styles.glowBackground, { backgroundColor: currentThemeData.accent }]} />
           
-          {step === 2 && (
-            <Animated.View style={[styles.topIcon, floatingStyle]}>
-              <View style={styles.iconGlow}>
-                <Ionicons name="notifications" size={32} color="#FFF" />
-              </View>
-            </Animated.View>
-          )}
+          <Animated.View style={[styles.topIcon, floatingStyle]}>
+            {step === 1 && <View style={styles.messyLines}><Ionicons name="infinite" size={40} color={currentThemeData.accent} opacity={0.3} /></View>}
+            {step === 2 && <Ionicons name="notifications-outline" size={32} color={currentThemeData.accent} />}
+            {step === 3 && <Ionicons name="heart-outline" size={32} color={currentThemeData.accent} />}
+          </Animated.View>
 
-          {step === 3 && (
-            <Animated.View style={[styles.topIcon, floatingStyle]}>
-              <View style={styles.iconGlow}>
-                <Ionicons name="heart" size={32} color="#FFF" />
-              </View>
-            </Animated.View>
-          )}
-
-          <View>
-            <MascotBlob mood={currentThemeData.mood} color={currentThemeData.mascotColor} />
-          </View>
+          <MascotBlob mood={currentThemeData.mood} color={currentThemeData.mascotColor} />
         </View>
 
         {/* BOTTOM: INTERACTION AREA */}
         <Animated.View style={[styles.bottomSection, contentStyle]}>
-          <View style={styles.glassCard}>
+          <View style={[styles.glassCard, { backgroundColor: 'rgba(255,255,255,0.03)' }]}>
             {step === 1 && (
               <>
                 <View style={styles.controlRow}>
@@ -198,38 +167,31 @@ export default function PostAuthOnboardingScreen() {
                   </View>
                   <Switch 
                     value={remindersEnabled} 
-                    onValueChange={(val) => { storeToggleReminders(val); }}
-                    trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.buttonGlow }}
+                    onValueChange={(val) => storeToggleReminders(val)}
+                    trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.accent }}
                     thumbColor="#FFF"
+                    ios_backgroundColor="rgba(255,255,255,0.1)"
                   />
                 </View>
-
-                {remindersEnabled && (
-                  <TouchableOpacity 
-                    style={[styles.timeBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}
-                    onPress={() => setShowTimePicker(true)}
-                  >
-                    <Ionicons name="time-outline" size={20} color="#FFF" />
-                    <Text style={styles.timeBtnText}>
-                      {reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                  </TouchableOpacity>
-                )}
 
                 <View style={styles.divider} />
 
                 <Text style={[styles.cardLabel, { marginBottom: 12 }]}>Günlük Hedefin</Text>
+                <Text style={[styles.cardSubLabel, { marginBottom: 16 }]}>Günde kaç dakika kendine ayırmak istersin?</Text>
                 <View style={styles.goalRow}>
                   {[5, 10, 15].map(val => (
                     <TouchableOpacity 
                       key={val}
-                      onPress={() => setDailyGoal(val)}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setDailyGoal(val);
+                      }}
                       style={[
                         styles.goalItem,
-                        dailyGoal === val && { backgroundColor: currentThemeData.buttonGlow }
+                        dailyGoal === val && { backgroundColor: currentThemeData.accent, borderColor: currentThemeData.accent }
                       ]}
                     >
-                      <Text style={[styles.goalText, dailyGoal === val && { color: '#000' }]}>{val} dk</Text>
+                      <Text style={[styles.goalText, dailyGoal === val && { color: '#0F111A' }]}>{val} dk</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -244,24 +206,34 @@ export default function PostAuthOnboardingScreen() {
                 </View>
                 <Switch 
                   value={remindersEnabled} 
-                  onValueChange={(val) => { storeToggleReminders(val); }}
-                  trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.buttonGlow }}
+                  onValueChange={(val) => storeToggleReminders(val)}
+                  trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.accent }}
                   thumbColor="#FFF"
+                  ios_backgroundColor="rgba(255,255,255,0.1)"
                 />
               </View>
             )}
 
             {step === 3 && (
               <View style={styles.welcomeRow}>
-                <View style={styles.welcomeIconCircle}>
-                   <Ionicons name="sparkles" size={20} color={currentThemeData.buttonGlow} />
+                <View style={[styles.welcomeIconCircle, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+                   <Ionicons name="heart" size={20} color={currentThemeData.accent} />
                 </View>
                 <Text style={styles.welcomeText}>Selfplace&apos;e hoş geldin, seni burada görmek çok güzel.</Text>
               </View>
             )}
           </View>
 
-          {renderCTAButton(step === 3 ? "Uygulamaya Gir" : step === 2 ? "İzin Ver ve Devam Et" : "Devam Et")}
+          <AnimatedPressable 
+            onPress={handleNext}
+            onPressIn={() => { buttonPressScale.value = withTiming(0.97, { duration: 100 }); }}
+            onPressOut={() => { buttonPressScale.value = withTiming(1, { duration: 100 }); }}
+            style={[styles.ctaButton, buttonStyle, { backgroundColor: step === 1 ? '#FFF' : '#1A1625' }]}
+          >
+            <Text style={[styles.ctaText, { color: step === 1 ? '#0F111A' : '#FFF' }]}>
+              {step === 3 ? "Uygulamaya Gir" : step === 2 ? "İzin Ver ve Devam Et" : "Devam Et"}
+            </Text>
+          </AnimatedPressable>
 
           {step === 2 && (
             <TouchableOpacity onPress={() => handleNext()} style={styles.skipBtn}>
@@ -275,7 +247,7 @@ export default function PostAuthOnboardingScreen() {
                 key={i} 
                 style={[
                   styles.dot, 
-                  { backgroundColor: i === step ? '#FFF' : 'rgba(255,255,255,0.2)' },
+                  { backgroundColor: i === step ? currentThemeData.accent : 'rgba(255,255,255,0.1)' },
                   i === step && { width: 16 }
                 ]} 
               />
@@ -306,64 +278,59 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    paddingHorizontal: 24,
   },
   topSection: {
-    marginTop: height * 0.05,
+    marginTop: height * 0.07, // Slightly reduced to give more air below
     alignItems: 'center',
+    paddingHorizontal: 40,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#FFF',
     textAlign: 'center',
-    marginBottom: 12,
+    lineHeight: 34,
+    marginBottom: 16, // Increased breathing space
   },
   subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.5)', // Slightly more muted for air
     textAlign: 'center',
-    paddingHorizontal: 20,
-    lineHeight: 22,
+    lineHeight: 24, // Increased line height for breathability
   },
   mascotContainer: {
-    flex: 1,
+    flex: 1.2, // Give more room to mascot area
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: 20, // Separation from text and cards
   },
   glowBackground: {
     position: 'absolute',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    opacity: 0.15,
+    width: width * 0.6, // Reduced from 0.8
+    height: width * 0.6,
+    borderRadius: width * 0.3,
+    opacity: 0.08, // More subtle
   },
   topIcon: {
     position: 'absolute',
-    top: 40,
+    top: height * 0.02, // Lowered slightly
     zIndex: 10,
-  },
-  iconGlow: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+  },
+  messyLines: {
+    opacity: 0.3,
   },
   bottomSection: {
-    marginBottom: 40,
-    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingBottom: height * 0.05, // Dynamic bottom padding
   },
   glassCard: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 24,
+    borderRadius: 32,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    marginBottom: 20,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 24, // Increased spacing
   },
   controlRow: {
     flexDirection: 'row',
@@ -371,107 +338,86 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardLabel: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
   },
   cardSubLabel: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.4)',
     marginTop: 4,
     maxWidth: width * 0.6,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     marginVertical: 20,
-  },
-  timeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  timeBtnText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 8,
   },
   goalRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   goalItem: {
     flex: 1,
-    marginHorizontal: 4,
-    paddingVertical: 12,
+    height: 48,
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   goalText: {
     color: '#FFF',
     fontWeight: '600',
+    fontSize: 14,
   },
   welcomeRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   welcomeIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
   welcomeText: {
     flex: 1,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 15,
     lineHeight: 22,
   },
   ctaButton: {
-    height: 56,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  ctaGradient: {
-    flex: 1,
+    height: 60,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   ctaText: {
-    color: '#FFF',
     fontSize: 17,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
+    fontWeight: '700',
   },
   skipBtn: {
     alignItems: 'center',
-    marginTop: 20,
-    padding: 10,
+    marginTop: 16,
   },
   skipText: {
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.3)',
     fontSize: 15,
     fontWeight: '500',
   },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 32,
   },
   dot: {
     width: 8,
