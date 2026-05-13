@@ -186,13 +186,9 @@ const CardBack = ({
 const CardFront = ({
   data,
   theme,
-  onCta,
-  submitting,
 }: {
   data: (typeof INVITATION_CARDS)[0];
   theme: any;
-  onCta: () => void;
-  submitting: boolean;
 }) => {
   return (
     <LinearGradient
@@ -209,34 +205,13 @@ const CardFront = ({
         <Text style={[styles.cardFrontMessage, { color: theme.colors.text.secondary }]}>
           {data.message}
         </Text>
-        <TouchableOpacity
-          onPress={onCta}
-          disabled={submitting}
-          style={[
-            styles.ctaButton,
-            { borderColor: theme.colors.primary + 'AA', opacity: submitting ? 0.6 : 1 },
-          ]}
-        >
-          <Text style={[styles.ctaText, { color: theme.colors.primary }]}>{data.cta}</Text>
-        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
 };
 
 // ─── The Flippable Card ───────────────────────────────────────────────────────
-const FlipCard = ({
-  index,
-  scrollX,
-  selected,
-  hasSelection,
-  data,
-  theme,
-  onSelect,
-  onCta,
-  submitting,
-  floatDelay,
-}: {
+const FlipCard = (props: {
   index: number;
   scrollX: Animated.SharedValue<number>;
   selected: boolean;
@@ -244,16 +219,27 @@ const FlipCard = ({
   data: (typeof INVITATION_CARDS)[0];
   theme: any;
   onSelect: () => void;
-  onCta: () => void;
-  submitting: boolean;
+  onFlipComplete: () => void;
   floatDelay: number;
 }) => {
+  const { index, scrollX, selected, hasSelection, data, theme, onSelect, floatDelay } = props;
   const flip = useSharedValue(0); // 0 = back, 1 = front
   const floatY = useSharedValue(0);
   const internalScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
   const [flipped, setFlipped] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
+
+  const handleFlipFinish = () => {
+    setFlipped(true);
+    setShowParticles(true);
+  };
+
+  useEffect(() => {
+    if (flipped && props.onFlipComplete) {
+      props.onFlipComplete();
+    }
+  }, [flipped]);
 
   // Idle float animation
   useEffect(() => {
@@ -292,8 +278,7 @@ const FlipCard = ({
         200,
         withTiming(1, { duration: 800, easing: Easing.inOut(Easing.cubic) }, (finished) => {
           if (finished) {
-            runOnJS(setFlipped)(true);
-            runOnJS(setShowParticles)(true);
+            runOnJS(handleFlipFinish)();
           }
         })
       );
@@ -394,22 +379,24 @@ const FlipCard = ({
         </View>
       )}
 
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onSelect}
-        disabled={hasSelection}
-        style={styles.cardTouchable}
-      >
-        {/* BACK face */}
-        <Animated.View style={[styles.cardInner, backStyle]}>
-          <CardBack index={index} theme={theme} />
-        </Animated.View>
+      <View style={styles.cardTouchable} pointerEvents={hasSelection && !flipped ? "none" : "auto"}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={onSelect}
+          disabled={hasSelection}
+          style={{ width: '100%', height: '100%' }}
+        >
+          {/* BACK face */}
+          <Animated.View style={[styles.cardInner, backStyle]}>
+            <CardBack index={index} theme={theme} />
+          </Animated.View>
 
-        {/* FRONT face */}
-        <Animated.View style={[styles.cardInner, frontStyle]}>
-          <CardFront data={data} theme={theme} onCta={onCta} submitting={submitting} />
-        </Animated.View>
-      </TouchableOpacity>
+          {/* FRONT face */}
+          <Animated.View style={[styles.cardInner, frontStyle]}>
+            <CardFront data={data} theme={theme} />
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 };
@@ -463,6 +450,7 @@ export default function CardsScreen() {
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [alreadySelected, setAlreadySelected] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
@@ -480,22 +468,32 @@ export default function CardsScreen() {
     }
   };
 
+  const getLocalDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
   const fetchCards = async () => {
     try {
-      const response = await client.get('/cards');
-      const allCards = response.data;
-      const shuffled = [...allCards].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, 3).map(c => ({
+      const res = await client.get(`/cards/interactive?localDate=${getLocalDate()}`);
+      const data = res.data;
+      // Handle both old (array) and new (object) backend formats
+      const fetchedCards = Array.isArray(data) ? data : (data.cards || []);
+      const isSel = Array.isArray(data) ? false : !!data.alreadySelected;
+      
+      const mapped = fetchedCards.map((c: any) => ({
         id: c.id,
         icon: getCategoryIcon(c.category),
         title: c.title,
         message: c.content,
-        cta: 'Kabul ediyorum', // Standard CTA
       }));
-      setCards(selected);
+      
+      setCards(mapped);
+      setAlreadySelected(isSel);
+      if (isSel) {
+        setSelectedIndex(0);
+      }
     } catch (error) {
       console.error('Error fetching cards:', error);
-      // Fallback to local cards if backend fails or is empty
       const fallback = [...INVITATION_CARDS].sort(() => Math.random() - 0.5).slice(0, 3);
       setCards(fallback);
     } finally {
@@ -533,35 +531,26 @@ export default function CardsScreen() {
     setSelectedIndex(index);
   };
 
-  const handleCta = async () => {
-    setSubmitting(true);
-    const selectedCard = cards[selectedIndex!];
-    if (!selectedCard?.id) {
-      // If it's a fallback card without ID, just show success
-      setSubmitting(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setModal({
-        visible: true,
-        title: 'Harika ✨',
-        message: 'Kendin için küçük ama anlamlı bir adım attın. Gurur duy.',
-      });
-      return;
-    }
+  const handleComplete = async () => {
+    if (selectedIndex === null) return;
+    const selectedCard = cards[selectedIndex];
+    if (!selectedCard) return;
 
+    setSubmitting(true);
+    
     try {
-      await client.post(`/cards/${selectedCard.id}/response`, {
-        response: 'Deneyeceğim', // Match backend expected response string
-      });
+      if (!alreadySelected && selectedCard.id) {
+        await client.post(`/cards/interactive/select`, { 
+          cardId: selectedCard.id,
+          localDate: getLocalDate()
+        });
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
     } catch (_) {
-      // Silent
+      router.back();
     } finally {
       setSubmitting(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setModal({
-        visible: true,
-        title: 'Harika ✨',
-        message: 'Kendin için küçük ama anlamlı bir adım attın. Gurur duy.',
-      });
     }
   };
 
@@ -581,15 +570,22 @@ export default function CardsScreen() {
             Davet Kartın
           </Animated.Text>
           <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>
-            Bir kart seç
+            {alreadySelected ? 'Bugünkü Davetin ✨' : 'Bir kart seç'}
           </Text>
           <Text style={[styles.headerSubtitle, { color: currentTheme.colors.text.secondary }]}>
             {loading 
               ? 'Kartların hazırlanıyor...' 
-              : selectedIndex === null
-                ? 'Sana özel bir davet seni bekliyor'
-                : 'Senin için bir şey bulduk ✨'}
+              : alreadySelected
+                ? 'Bugün kendin için seçtiğin küçük adım burada.'
+                : selectedIndex === null
+                  ? 'Sana özel bir davet seni bekliyor'
+                  : 'Senin için bir şey bulduk ✨'}
           </Text>
+          {!alreadySelected && selectedIndex === null && (
+            <Text style={[styles.helperText, { color: currentTheme.colors.text.muted }]}>
+              Her gün yalnızca 1 kart seçebilirsin ✨
+            </Text>
+          )}
         </View>
 
         {loading ? (
@@ -621,8 +617,7 @@ export default function CardsScreen() {
                     data={card}
                     theme={currentTheme}
                     onSelect={() => handleSelect(i)}
-                    onCta={handleCta}
-                    submitting={submitting}
+                    onFlipComplete={() => {}}
                     floatDelay={i * 400}
                   />
                 ))}
@@ -643,20 +638,37 @@ export default function CardsScreen() {
           </Text>
         )}
 
-        {/* ── Bottom actions (Bug 3) ── */}
+        {/* ── Bottom actions ── */}
         <View style={styles.bottomActions}>
           {selectedIndex !== null && (
-            <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
-              <Text style={[styles.resetText, { color: currentTheme.colors.text.secondary }]}>
-                ← Başka bir kart seç
+            <>
+              <TouchableOpacity 
+                onPress={handleComplete} 
+                disabled={submitting}
+                style={[styles.primaryActionBtn, { backgroundColor: currentTheme.colors.primary }]}
+              >
+                <Text style={[styles.primaryActionText, { color: currentTheme.colors.button.text }]}>
+                  {submitting ? 'Kaydediliyor...' : alreadySelected ? 'Tamam' : 'Tamamladım ✨'}
+                </Text>
+              </TouchableOpacity>
+
+              {!alreadySelected && (
+                <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
+                  <Text style={[styles.resetText, { color: currentTheme.colors.text.secondary }]}>
+                    ← Başka bir kart seç
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+          
+          {selectedIndex === null && (
+            <TouchableOpacity onPress={() => router.back()} style={styles.laterBtn}>
+              <Text style={[styles.laterText, { color: currentTheme.colors.text.muted }]}>
+                Daha sonra dönerim
               </Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => router.back()} style={styles.laterBtn}>
-            <Text style={[styles.laterText, { color: currentTheme.colors.text.muted }]}>
-              Daha sonra dönerim
-            </Text>
-          </TouchableOpacity>
         </View>
       </RNScrollView>
 
@@ -686,8 +698,14 @@ const styles = StyleSheet.create({
   // Header
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
     paddingHorizontal: 20,
+  },
+  helperText: {
+    fontSize: 13,
+    marginTop: 12,
+    fontStyle: 'italic',
+    opacity: 0.8,
   },
   headerEyebrow: {
     fontSize: 12,
@@ -852,20 +870,37 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   bottomActions: {
+    width: '100%',
+    paddingHorizontal: 40,
     alignItems: 'center',
-    gap: 8,
-    // No forced spacer here to fix Bug 3
+    gap: 15,
+    marginTop: 20,
+  },
+  primaryActionBtn: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  primaryActionText: {
+    fontSize: 18,
+    fontWeight: '700',
   },
   resetBtn: {
     paddingVertical: 10,
-    paddingHorizontal: 20,
   },
   resetText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   laterBtn: {
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   laterText: {
     fontSize: 14,

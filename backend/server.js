@@ -3,12 +3,37 @@ const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
 
+// Global error handlers (AT THE TOP) to prevent crashes
+process.on('uncaughtException', (err) => {
+  console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.error('[CRITICAL] Uncaught Exception:', err.message);
+  console.error(err.stack);
+  console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+});
+
+process.on('exit', (code) => {
+  console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.log(`[PROCESS] Exiting with code: ${code}`);
+  console.trace();
+  console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+});
+
 const authRoutes = require('./src/routes/authRoutes');
 const checkInRoutes = require('./src/routes/checkInRoutes');
+const advancedCheckInRoutes = require('./src/routes/advancedCheckInRoutes');
+const journalRoutes = require('./src/routes/journalRoutes');
 const cardRoutes = require('./src/routes/cardRoutes');
 const insightRoutes = require('./src/routes/insightRoutes');
 const reflectionRoutes = require('./src/routes/reflectionRoutes');
 const userRoutes = require('./src/routes/userRoutes');
+const aiRoutes = require('./src/routes/aiRoutes');
+const emotionalRoutes = require('./src/routes/emotionalRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -45,26 +70,19 @@ if (!aiKey || aiKey === 'your_openai_api_key_here') {
   console.log('[ENV-AUDIT] OPENAI_API_KEY exists: true');
 }
 
-// Database connection test
-const db = require('./src/config/db');
 const { runMigrations } = require('./src/config/migrations');
 
-db.pool.connect(async (err, client, release) => {
-  if (err) {
-    console.error('[DATABASE] Connection failed:', err.message);
-  } else {
-    console.log('[DATABASE] Successfully connected to PostgreSQL');
-    release();
-    
-    // Run migrations after successful connection
-    try {
-      await runMigrations();
-      console.log('[DATABASE] Migrations completed');
-    } catch (migErr) {
-      console.error('[DATABASE] Migrations failed:', migErr.message);
-    }
+// Database and Migrations initialization
+(async () => {
+  try {
+    // Run migrations (db.query handles connections automatically)
+    await runMigrations();
+    console.log('[DATABASE] Migrations completed and verified');
+  } catch (err) {
+    console.error('[DATABASE] Initialization error:', err.message);
+    // We don't exit here, allowing the server to potentially recover or be debugged
   }
-});
+})();
 
 // Middleware
 app.use(cors());
@@ -90,10 +108,13 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/check-ins', checkInRoutes);
+app.use('/api/journal', journalRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/reflections', reflectionRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/emotional', emotionalRoutes); // Unified Emotional Architecture
 
 
 
@@ -103,6 +124,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Bir şeyler ters gitti!' });
 });
 
+
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log("🌐 SERVER RUNNING LOCAL");
+  console.log("🌐 PORT:", PORT);
+  console.log("🌐 DATABASE:", process.env.DB_HOST || "SUPABASE (Remote)");
+  console.log(`[SERVER] Selfplace API active on port ${PORT}`);
+  
+  // Keep alive interval to prevent Event Loop from emptying if something closes the handles
+  setInterval(() => {
+    // This just keeps the process alive
+  }, 60000);
 });

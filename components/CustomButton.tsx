@@ -44,7 +44,7 @@ export const CustomButton: React.FC<Props> = ({
   const getTextStyle = () => {
     switch (variant) {
       case 'outline': return { color: currentTheme.colors.button.primary };
-      case 'secondary': return { color: currentTheme.colors.button.primary };
+      case 'secondary': return { color: currentTheme.colors.text.primary };
       default: return { color: currentTheme.colors.button.text };
     }
   };

@@ -29,16 +29,18 @@ Kullanıcıya günü için çok kısa, yumuşak ve yargısız bir cümle yaz.
 - Her zaman Türkçe yaz.
 Örnek: "Bugün duygularını fark etmek için küçük bir alan açabilirsin."`;
 
-const WEEKLY_INSIGHT_PROMPT = `Sen nazik ve sakin bir haftalık öz-yansıma rehberisin.
-Kullanıcının haftalık verilerine dayanarak tam olarak 2 ÇOK KISA cümlelik bir içgörü oluştur.
-- SADECE 2 kısa cümle yaz.
+const WEEKLY_INSIGHT_PROMPT = `Sen nazik, sakin ve hafızası güçlü bir haftalık öz-yansıma rehberisin.
+Kullanıcının haftalık verilerine dayanarak tam olarak 2-3 cümlelik kişisel bir içgörü oluştur.
+- Verilerdeki özel isimleri, olayları (sınavlar, iş, taşınma vb.) ve tekrarlayan durumları nazikçe fark et.
+- SADECE 2-3 kısa cümle yaz.
 - Her cümle basit, hafif ve kolay okunur olmalı.
 - Sadece olasılıksal bir dil kullan ("olabilir", "görünüyor", "fark etmiş olabilirsin", "ihtiyaç duymuş olabilirsin", "gibi").
-- Kesin teşhis, analiz veya güçlü iddialarda bulunma (Asla "sen ...sin", "şöylesin" veya "şunu yap" deme).
+- Kesin teşhis, analiz veya güçlü iddialarda bulunma.
 - Tavsiye verme, komut verme, rehberlik taslama.
 - Ton: sakin, güvenli, hafif, minimal, insancıl.
+- Kullanıcıya ismen hitap etme, ama paylaştığı detaylara (örneğin bir arkadaş ismi veya bir sınav stresi) nazikçe değin.
 - Her zaman Türkçe yaz.
-Örnek: "Bu hafta duygularının biraz değişken olduğu bir dönemden geçmiş olabilirsin. Bazı anlarda kendine alan açmanın sana iyi geldiğini fark etmiş olabilirsin."`;
+Örnek: "Bu hafta sınavlarınla ilgili paylaştığın detaylar, zihninin biraz yorgun olduğunu gösteriyor olabilir. Sosyal anlarda hissettiğin o küçük neşenin sana iyi geldiğini fark etmiş olabilirsin."`;
 
 // ---------------------------------------------------------------------------
 // generateDailyReflection
@@ -87,13 +89,19 @@ async function generateDailyReflection() {
  */
 async function generateWeeklyInsight(userData) {
   try {
-    const { checkIns = [], cardResponses = [] } = userData;
+    const { checkIns = [], cardResponses = [], advancedCheckIns = [] } = userData;
     const client = getClient();
 
     // --- Build a compact summary ---
     const moodSummary     = checkIns.map(c => c.mood).filter(Boolean).join(', ') || 'bilinmiyor';
     const notesSummary    = checkIns.map(c => c.note).filter(Boolean).slice(0, 5).join(' | ') || null;
     const questionsSummary = checkIns.map(c => c.reflection_question).filter(Boolean).slice(0, 5).join(' | ') || null;
+    
+    // Add advanced check-in responses for deeper AI context
+    const advancedSummary = advancedCheckIns
+      .map(a => `${a.question_id}: ${a.answer}`)
+      .slice(0, 8)
+      .join(' | ') || null;
 
     const acceptedCategories = [...new Set(
       cardResponses.filter(r => r.response === 'Deneyeceğim').map(r => r.category).filter(Boolean)
@@ -102,6 +110,7 @@ async function generateWeeklyInsight(userData) {
     const lines = [`Bu haftaki ruh halleri: ${moodSummary}.`];
     if (questionsSummary)           lines.push(`Yansıma soruları: ${questionsSummary}.`);
     if (notesSummary)               lines.push(`Günlük notlar: ${notesSummary}.`);
+    if (advancedSummary)            lines.push(`Detaylı paylaşımlar: ${advancedSummary}.`);
     if (acceptedCategories.length)  lines.push(`İlgi duyduğu kart kategorileri: ${acceptedCategories.join(', ')}.`);
     lines.push('Bu verilere dayanarak kişiye nazik, kısa bir haftalık öz-yansıma yaz.');
 

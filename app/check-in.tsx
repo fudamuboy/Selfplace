@@ -1,302 +1,376 @@
 import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, interpolate, withTiming } from 'react-native-reanimated';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Pressable, 
+  ScrollView, 
+  StyleSheet, 
+  Text, 
+  TextInput, 
+  View, 
+  ActivityIndicator, 
+  KeyboardAvoidingView, 
+  Platform, 
+  LayoutAnimation, 
+  UIManager,
+  Dimensions
+} from 'react-native';
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeOut, 
+  SlideInRight,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
 import client from '../api/client';
 import { CustomButton } from '../components/CustomButton';
 import { CustomModal } from '../components/CustomModal';
 import { GradientBackground } from '../components/GradientBackground';
+import { MascotBlob } from '../components/MascotBlob';
 import useThemeStore from '../store/useThemeStore';
+import { Ionicons } from '@expo/vector-icons';
 
-const MOOD_DATA = [
-  { id: 'Mutlu', label: 'Mutlu', image: require('../assets/images/stickers/mutlu.png') },
-  { id: 'Sakin', label: 'Sakin', image: require('../assets/images/stickers/sakin.png') },
-  { id: 'Yorgun', label: 'Yorgun', image: require('../assets/images/stickers/yorgun.png') },
-  { id: 'Üzgün', label: 'Üzgün', image: require('../assets/images/stickers/uzgun.png') },
-  { id: 'Kaygılı', label: 'Kaygılı', image: require('../assets/images/stickers/kaygili.png') },
-];
+const { width } = Dimensions.get('window');
 
-function MoodCard({ mood, isSelected, onSelect, theme }: { mood: any, isSelected: boolean, onSelect: () => void, theme: any }) {
-  const scale = useSharedValue(1);
-  const glowOpacity = useSharedValue(0);
-
-  useEffect(() => {
-    glowOpacity.value = withTiming(isSelected ? 1 : 0, { duration: 300 });
-  }, [isSelected]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: withSpring(isSelected ? 1.05 : scale.value) }],
-      backgroundColor: isSelected ? theme.colors.glow : 'transparent',
-      borderColor: withSpring(isSelected ? theme.colors.primary : theme.colors.cardBorder),
-      borderWidth: 1.5,
-      shadowColor: theme.colors.primary,
-      shadowOpacity: interpolate(glowOpacity.value, [0, 1], [0, 0.2]),
-      shadowRadius: 15,
-      elevation: interpolate(glowOpacity.value, [0, 1], [0, 5]),
-    };
-  });
-
-  const handlePressIn = () => {
-    scale.value = 0.94;
-  };
-
-  const handlePressOut = () => {
-    scale.value = 1;
-  };
-
-  const handleSelect = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onSelect();
-  };
-
-  return (
-    <Pressable
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={handleSelect}
-      style={styles.moodCardWrapper}
-    >
-      <Animated.View style={[styles.moodCard, animatedStyle]}>
-        <Image 
-          source={mood.image} 
-          style={styles.sticker} 
-          contentFit="contain"
-          transition={200}
-        />
-        <Text style={[
-          styles.moodLabel, 
-          { color: isSelected ? theme.colors.text.primary : theme.colors.text.secondary },
-          isSelected && { fontWeight: '700' }
-        ]}>{mood.label}</Text>
-      </Animated.View>
-    </Pressable>
-  );
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const MOODS = [
+  { id: 'happy', emoji: '😊', label: 'Mutlu' },
+  { id: 'upset', emoji: '😔', label: 'Üzgün' },
+  { id: 'angry', emoji: '😡', label: 'Kızgın' },
+  { id: 'anxious', emoji: '😰', label: 'Kaygılı' },
+  { id: 'tired', emoji: '😴', label: 'Yorgun' },
+  { id: 'sensitive', emoji: '🥹', label: 'Hassas' },
+  { id: 'motivated', emoji: '✨', label: 'Motive' },
+  { id: 'calm', emoji: '🤍', label: 'Sakin' },
+];
+
+const QUESTIONS_MAP: Record<string, any[]> = {
+  happy: [
+    { id: 'happy_q1', text: 'Bugün seni ne mutlu etti?', type: 'text' },
+    { id: 'happy_q2', text: 'Bu anı tekrar yaşamak ister misin?', type: 'text' },
+    { id: 'happy_q3', text: 'Bu duygu kimle bağlantılıydı?', type: 'text' },
+  ],
+  anxious: [
+    { id: 'anxious_q1', text: 'Seni ne kaygılandırdı?', type: 'text' },
+    { id: 'anxious_q2', text: 'Bu duygu bugün kaç kez geldi?', type: 'text' },
+    { id: 'anxious_q3', text: 'Bunun sebebi ne olabilir?', type: 'text' },
+  ],
+  upset: [
+    { id: 'upset_q1', text: 'Bugün seni ne üzdü?', type: 'text' },
+    { id: 'upset_q2', text: 'Bu duygu şu an nerede hissediliyor?', type: 'text' },
+    { id: 'upset_q3', text: 'Kendine nasıl bir destek verebilirsin?', type: 'text' },
+  ],
+  angry: [
+    { id: 'angry_q1', text: 'Seni ne kızdırdı?', type: 'text' },
+    { id: 'angry_q2', text: 'Bu öfke sana ne söylemek istiyor?', type: 'text' },
+    { id: 'angry_q3', text: 'Sakinleşmek için neye ihtiyacın var?', type: 'text' },
+  ],
+  tired: [
+    { id: 'tired_q1', text: 'Bugün seni en çok ne yordu?', type: 'text' },
+    { id: 'tired_q2', text: 'Bedeninin hangi bölgesi dinlenmek istiyor?', type: 'text' },
+    { id: 'tired_q3', text: 'Kendine 5 dakika mola verebilir misin?', type: 'text' },
+  ],
+  sensitive: [
+    { id: 'sensitive_q1', text: 'Bugün seni ne hassaslaştırdı?', type: 'text' },
+    { id: 'sensitive_q2', text: 'Bu duyguya biraz alan açmak ister misin?', type: 'text' },
+    { id: 'sensitive_q3', text: 'Şu an sana ne iyi gelirdi?', type: 'text' },
+  ],
+  motivated: [
+    { id: 'motivated_q1', text: 'Seni ne motive etti?', type: 'text' },
+    { id: 'motivated_q2', text: 'Bu enerjiyi nasıl koruyabilirsin?', type: 'text' },
+    { id: 'motivated_q3', text: 'Bir sonraki küçük adımın ne olacak?', type: 'text' },
+  ],
+  calm: [
+    { id: 'calm_q1', text: 'Bu sakinliği neye borçlusun?', type: 'text' },
+    { id: 'calm_q2', text: 'Şu anki sessizliği nasıl tarif edersin?', type: 'text' },
+    { id: 'calm_q3', text: 'Bu huzuru içine çekmek ister misin?', type: 'text' },
+  ],
+};
+
+const DEFAULT_QUESTIONS = [
+  { id: 'grateful', text: 'Bugün neye minnettarsın?', type: 'text' },
+  { id: 'other', text: 'Paylaşmak istediğin başka bir şey var mı?', type: 'text' },
+];
+
 export default function CheckInScreen() {
-  const [selectedMood, setSelectedMood] = useState('');
-  const [question, setQuestion] = useState('');
-  const [note, setNote] = useState('');
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [currentStep, setCurrentStep] = useState(0); // 0: Mood, 1: Questions
   const [loading, setLoading] = useState(false);
-  const [fetchingQuestion, setFetchingQuestion] = useState(true);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
-  const [placeholder, setPlaceholder] = useState('');
   const router = useRouter();
   const { currentTheme } = useThemeStore();
-  const submitScale = useSharedValue(1);
-  const modalOpacity = useSharedValue(0);
 
-  const PLACEHOLDERS = [
-    'Bugün içinden geçen küçük bir şey...',
-    'Aklında kalan bir duygu, düşünce ya da an...',
-    'Kısaca kendine not bırakabilirsin.',
-  ];
+  const activeQuestions = selectedMood 
+    ? [...QUESTIONS_MAP[selectedMood], ...DEFAULT_QUESTIONS]
+    : DEFAULT_QUESTIONS;
 
-  useEffect(() => {
-    fetchQuestion();
-    setPlaceholder(PLACEHOLDERS[Math.floor(Math.random() * PLACEHOLDERS.length)]);
-  }, []);
+  const handleMoodSelect = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedMood(id);
+    // Smoothly transition to questions after a short delay
+    setTimeout(() => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setCurrentStep(1);
+    }, 400);
+  };
 
-  const fetchQuestion = async () => {
-    setFetchingQuestion(true);
-    try {
-      const response = await client.get('/check-ins/question');
-      setQuestion(response.data.text);
-    } catch (error) {
-      setQuestion('Bugün seni en çok ne etkiledi?');
-    } finally {
-      setFetchingQuestion(false);
-    }
+  const updateAnswer = (id: string, text: string) => {
+    setAnswers(prev => ({ ...prev, [id]: text }));
   };
 
   const handleSubmit = async () => {
-    if (!selectedMood) {
-      setModal({ visible: true, title: 'Hata', message: 'Lütfen bir mod seçin.' });
-      return;
-    }
-
     setLoading(true);
-    submitScale.value = withSpring(0.95, { damping: 10, stiffness: 100 });
-
     try {
-      await client.post('/check-ins', {
-        mood: selectedMood,
-        reflection_question: question,
-        note: note
-      });
-      
-      // Artificial delay for emotional satisfaction
-      setTimeout(() => {
-        submitScale.value = withSpring(1);
-        setModal({ visible: true, title: 'Teşekkürler', message: 'Check-in tamamlandı. Kendine zaman ayırdığın için teşekkürler.' });
-        modalOpacity.value = withTiming(1, { duration: 500 });
-      }, 800);
-      
+      // 1. Format answers as a safe array for the backend
+      const formattedAnswers = activeQuestions.map(q => ({
+        question: q.text,
+        answer: answers[q.id] || ""
+      }));
+
+      // 2. Prepare payload with safety fallbacks
+      const payload = {
+        emotion: MOODS.find(m => m.id === selectedMood)?.label || selectedMood || "Sakin",
+        answers: formattedAnswers,
+        created_at: new Date()
+      };
+
+      await client.post('/check-ins/advanced', payload);
+      setModal({ visible: true, title: 'Teşekkürler', message: 'Paylaştığın her şey burada güvende. Kendine vakit ayırdığın için teşekkürler.' });
     } catch (error: any) {
-      const debugInfo = error.response?.data?.debug_error;
-      setModal({ 
-        visible: true, 
-        title: 'Hata', 
-        message: debugInfo 
-          ? `Kaydedilirken bir sorun oluştu.\n\nDebug: ${debugInfo}`
-          : 'Kaydedilirken bir sorun oluştu.' 
-      });
+      console.error('[CheckIn] Submit error:', error);
+      setModal({ visible: true, title: 'Hata', message: 'Kaydedilirken bir sorun oluştu.' });
     } finally {
       setLoading(false);
     }
   };
 
+  const MascotMessage = () => {
+    const message = !selectedMood 
+      ? "Bugün nasıl hissediyorsun?" 
+      : `Anlıyorum... ${MOODS.find(m => m.id === selectedMood)?.label} bir gün mü?`;
+    
+    return (
+      <Animated.View entering={FadeInDown.delay(200)} style={styles.mascotArea}>
+        <MascotBlob mood={selectedMood as any || 'neutral'} scale={0.6} />
+        <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>
+          "{message}"
+        </Text>
+      </Animated.View>
+    );
+  };
+
   return (
     <GradientBackground>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <Animated.ScrollView 
-        contentContainerStyle={styles.container} 
-        showsVerticalScrollIndicator={false}
-        style={{ transform: [{ scale: submitScale }] }}
-      >
-        <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Bugün nasıl hissediyorsun?</Text>
-        
-        <View style={styles.dailyQuestionCard}>
-          <Text style={[styles.dailyQuestionText, { color: currentTheme.colors.text.secondary }]}>Bugün kendine nasıl yaklaştığını fark edebilirsin.</Text>
-        </View>
-
-        <View style={styles.gridContainer}>
-          <View style={styles.row}>
-            {MOOD_DATA.slice(0, 3).map((mood) => (
-              <MoodCard
-                key={mood.id}
-                mood={mood}
-                isSelected={selectedMood === mood.id}
-                onSelect={() => setSelectedMood(mood.id)}
-                theme={currentTheme}
-              />
-            ))}
-          </View>
-          <View style={[styles.row, { paddingHorizontal: 40 }]}>
-            {MOOD_DATA.slice(3).map((mood) => (
-              <MoodCard
-                key={mood.id}
-                mood={mood}
-                isSelected={selectedMood === mood.id}
-                onSelect={() => setSelectedMood(mood.id)}
-                theme={currentTheme}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.questionSection}>
-          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.primary }]}>{question || "İstersen birkaç kelime bırak"}</Text>
-          <View style={[styles.inputContainer, { backgroundColor: currentTheme.colors.input.background, borderColor: currentTheme.colors.input.border }]}>
-            <TextInput
-              style={[styles.input, { color: currentTheme.colors.input.text }]}
-              placeholder={placeholder}
-              placeholderTextColor={currentTheme.colors.input.placeholder}
-              multiline
-              value={note}
-              onChangeText={setNote}
-            />
-          </View>
-        </View>
-
-        <View style={styles.actions}>
-          <CustomButton
-            title="Tamamla"
-            onPress={handleSubmit}
-            loading={loading}
-            style={styles.submitButton}
-          />
-          <Pressable onPress={() => router.back()} style={styles.laterButton}>
-            <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Daha sonra</Text>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={styles.topHeader}>
+          <Pressable onPress={() => router.back()} style={styles.topBackButton}>
+            <Ionicons name="arrow-back" size={26} color={currentTheme.colors.text.secondary} />
           </Pressable>
         </View>
-      </Animated.ScrollView>
+        <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+          <MascotMessage />
 
-      <CustomModal
-        visible={modal.visible}
-        title={modal.title}
-        message={modal.message}
-        onClose={() => {
-          setModal({ ...modal, visible: false });
-          if (modal.title === 'Teşekkürler') router.back();
-        }}
-      />
+          {currentStep === 0 ? (
+            <Animated.View entering={FadeInDown} exiting={FadeOut} style={styles.moodSection}>
+              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Duygunu Seç</Text>
+              <View style={styles.moodGrid}>
+                {MOODS.map((mood) => {
+                  const isSelected = selectedMood === mood.id;
+                  return (
+                    <Pressable
+                      key={mood.id}
+                      onPress={() => handleMoodSelect(mood.id)}
+                      style={[
+                        styles.moodCard,
+                        { 
+                          backgroundColor: currentTheme.colors.card, 
+                          borderColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder,
+                          shadowColor: isSelected ? currentTheme.colors.primary : 'transparent',
+                        },
+                        isSelected && styles.selectedMoodCard
+                      ]}
+                    >
+                      <Text style={styles.moodEmoji}>{mood.emoji}</Text>
+                      <Text style={[styles.moodLabel, { color: isSelected ? currentTheme.colors.primary : currentTheme.colors.text.primary }]}>
+                        {mood.label}
+                      </Text>
+                      {isSelected && (
+                        <Animated.View entering={FadeIn} style={[styles.glow, { backgroundColor: currentTheme.colors.primary }]} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Animated.View>
+          ) : (
+            <Animated.View entering={FadeInDown} style={styles.questionsSection}>
+              <View style={styles.questionHeader}>
+                <Pressable onPress={() => setCurrentStep(0)} style={styles.backButton}>
+                  <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.secondary} />
+                </Pressable>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>Biraz Daha Anlat...</Text>
+              </View>
+
+              {activeQuestions.map((q, idx) => (
+                <Animated.View 
+                  key={q.id} 
+                  entering={FadeInDown.delay(idx * 100)}
+                  style={[styles.questionCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
+                >
+                  <Text style={[styles.questionText, { color: currentTheme.colors.text.primary }]}>{q.text}</Text>
+                  <TextInput
+                    style={[styles.input, { color: currentTheme.colors.text.primary, backgroundColor: currentTheme.colors.background }]}
+                    placeholder="Buraya yazabilirsin..."
+                    placeholderTextColor={currentTheme.colors.text.secondary}
+                    multiline
+                    value={answers[q.id] || ''}
+                    onChangeText={(t) => updateAnswer(q.id, t)}
+                  />
+                </Animated.View>
+              ))}
+
+              <View style={styles.actions}>
+                <CustomButton title="Tamamla" onPress={handleSubmit} loading={loading} style={styles.submitButton} />
+                <Pressable onPress={() => router.back()} style={styles.laterButton}>
+                  <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Vazgeç</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          )}
+        </ScrollView>
+
+        <CustomModal
+          visible={modal.visible}
+          title={modal.title}
+          message={modal.message}
+          onClose={() => {
+            setModal({ ...modal, visible: false });
+            if (modal.title === 'Teşekkürler') router.back();
+          }}
+        />
       </KeyboardAvoidingView>
     </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    paddingBottom: 60,
+  topHeader: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
+    zIndex: 10,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  gridContainer: {
-    gap: 16,
-    marginBottom: 48,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  moodCardWrapper: {
-    width: 100,
-    aspectRatio: 0.85,
-  },
-  moodCard: {
-    flex: 1,
-    borderRadius: 24,
+  topBackButton: {
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 12,
+    borderRadius: 22,
   },
-  sticker: {
-    width: 70,
-    height: 70,
-    marginBottom: 8,
-    backgroundColor: 'transparent',
+  container: { padding: 24, paddingBottom: 60, paddingTop: 10 },
+  mascotArea: {
+    alignItems: 'center',
+    marginBottom: 30,
+    marginTop: 20,
+  },
+  mascotText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: -10,
+    paddingHorizontal: 40,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  moodSection: {
+    flex: 1,
+  },
+  moodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  moodCard: {
+    width: (width - 48 - 12) / 2,
+    height: 100,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  selectedMoodCard: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  moodEmoji: {
+    fontSize: 32,
+    marginBottom: 4,
   },
   moodLabel: {
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  questionSection: {
-    marginBottom: 40,
-  },
-  sectionLabel: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 16,
   },
-  inputContainer: {
+  glow: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    opacity: 0.1,
+    zIndex: -1,
+  },
+  questionsSection: {
+    flex: 1,
+  },
+  questionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 16,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 12,
+  },
+  questionCard: {
     borderRadius: 24,
     padding: 20,
-    minHeight: 140,
+    marginBottom: 16,
     borderWidth: 1,
   },
-  input: {
+  questionText: {
     fontSize: 16,
-    lineHeight: 24,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  input: {
+    borderRadius: 16,
+    padding: 16,
+    minHeight: 100,
     textAlignVertical: 'top',
+    fontSize: 15,
   },
   actions: {
-    gap: 20,
+    marginTop: 20,
+    gap: 16,
   },
   submitButton: {
-    borderRadius: 24,
+    borderRadius: 30,
     height: 60,
   },
   laterButton: {
@@ -305,16 +379,5 @@ const styles = StyleSheet.create({
   },
   laterText: {
     fontSize: 16,
-  },
-  dailyQuestionCard: {
-    paddingHorizontal: 24,
-    marginBottom: 32,
-    alignItems: 'center',
-  },
-  dailyQuestionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  }
 });

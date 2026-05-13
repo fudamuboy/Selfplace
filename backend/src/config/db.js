@@ -5,34 +5,32 @@ console.log('--- DATABASE CONFIG AUDIT ---');
 console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
-// In production or when using Supabase, we MUST use connectionString and SSL
+if (!process.env.DATABASE_URL) {
+  // Try to construct DATABASE_URL from individual variables if they exist
+  if (process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_HOST && process.env.DB_NAME) {
+    const port = process.env.DB_PORT || 5432;
+    process.env.DATABASE_URL = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${port}/${process.env.DB_NAME}`;
+    console.log('[DB-INFO] Constructed DATABASE_URL from individual DB_ variables.');
+  } else {
+    console.error('[DB-ERROR] DATABASE_URL is missing in .env!');
+    throw new Error("DATABASE_URL missing. Stabilization requires a valid database connection string.");
+  }
+}
+
+try {
+  const url = new URL(process.env.DATABASE_URL);
+  console.log('[DB] Using connectionString from DATABASE_URL');
+  console.log('[DB] Target Host:', url.hostname);
+} catch (e) {
+  console.error('[DB-ERROR] Failed to parse DATABASE_URL. It might be malformed.');
+}
+
 const isProd = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('supabase.co');
 
-let poolConfig;
-
-if (process.env.DATABASE_URL) {
-  try {
-    const url = new URL(process.env.DATABASE_URL);
-    console.log('[DB] Using connectionString from DATABASE_URL');
-    console.log('[DB] Target Host:', url.hostname);
-  } catch (e) {
-    console.error('[DB-ERROR] Failed to parse DATABASE_URL. It might be malformed.');
-  }
-  
-  poolConfig = {
-    connectionString: process.env.DATABASE_URL,
-    ssl: isProd ? { rejectUnauthorized: false } : false,
-  };
-} else {
-  console.log('[DB] No DATABASE_URL found, falling back to local PG config');
-  poolConfig = {
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST || 'localhost',
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT || 5432,
-  };
-}
+const poolConfig = {
+  connectionString: process.env.DATABASE_URL,
+  ssl: isProd ? { rejectUnauthorized: false } : false,
+};
 
 console.log('------------------------------');
 

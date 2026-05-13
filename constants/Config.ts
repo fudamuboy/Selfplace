@@ -1,23 +1,12 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const PROD_URL = 'https://selfplacebackend.onrender.com/api';
-
-// For local development with Expo
-const debuggerHost = Constants.expoConfig?.hostUri;
-const localhost = debuggerHost ? debuggerHost.split(':')[0] : 'localhost';
-const DEV_URL = `http://${localhost}:5001/api`;
-
-// Force production for final testing on real devices (Expo Go)
-// SET THIS TO TRUE to test the Render backend on your phone before TestFlight
-const FORCE_PROD = true; 
-
-const useProd = !__DEV__ || FORCE_PROD; 
+export const API_URL = 'http://192.168.1.125:5001/api';
 
 export const Config = {
-  API_URL: useProd ? PROD_URL : DEV_URL,
-  IS_PROD: useProd,
-  ENV: __DEV__ ? 'development' : 'production',
+  API_URL: API_URL,
+  IS_PROD: false,
+  ENV: 'development',
   PLATFORM: Platform.OS,
 };
 

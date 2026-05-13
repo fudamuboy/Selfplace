@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const emotionalController = require('./emotionalController');
 
 exports.getAllCards = async (req, res) => {
   try {
@@ -66,6 +67,138 @@ exports.getRandomCard = async (req, res) => {
   }
 };
 
+exports.getInteractiveCards = async (req, res) => {
+  const userId = req.user.id;
+  const { localDate } = req.query; // Expecting YYYY-MM-DD
+  
+  try {
+    // 1. Check if user already selected a card TODAY (using localDate if provided)
+    const dateToCompare = localDate || new Date().toISOString().split('T')[0];
+    
+    const todaySelection = await db.query(
+      `SELECT cr.*, ic.title, ic.content, ic.category as card_category 
+       FROM card_responses cr
+       JOIN invitation_cards ic ON cr.card_id = ic.id
+       WHERE cr.user_id = $1 
+         AND cr.response = 'Seçildi' 
+         AND cr.local_date::date = $2::date`,
+      [userId, dateToCompare]
+    );
+
+    if (todaySelection.rows.length > 0) {
+      const sel = todaySelection.rows[0];
+      return res.json({
+        alreadySelected: true,
+        cards: [{
+          id: sel.card_id,
+          title: sel.title,
+          content: sel.content,
+          category: sel.card_category
+        }]
+      });
+    }
+
+    // 2. If no selection today, pick 3 random distinct cards using weights
+    const [cardsRes, prefRes] = await Promise.all([
+      db.query('SELECT * FROM invitation_cards'),
+      db.query(
+        `SELECT category, 
+                SUM(CASE WHEN response = 'Deneyeceğim' THEN 2 WHEN response = 'Bana göre değil' THEN -1 ELSE 0 END) as score
+         FROM card_responses
+         WHERE user_id = $1
+         GROUP BY category`,
+        [userId]
+      )
+    ]);
+
+    const allCards = cardsRes.rows;
+    if (allCards.length < 3) {
+      return res.status(404).json({ message: 'Yeterli kart bulunamadı.' });
+    }
+
+    const preferences = prefRes.rows.reduce((acc, curr) => {
+      acc[curr.category] = parseInt(curr.score);
+      return acc;
+    }, {});
+
+    const weightedCards = allCards.map(card => {
+      const score = preferences[card.category] || 0;
+      const weight = Math.max(1, 10 + score);
+      return { ...card, weight };
+    });
+
+    const selectedCards = [];
+    const availableCards = [...weightedCards];
+
+    for (let i = 0; i < 3; i++) {
+      const totalWeight = availableCards.reduce((sum, card) => sum + card.weight, 0);
+      let random = Math.random() * totalWeight;
+      
+      let selectedIdx = 0;
+      for (let j = 0; j < availableCards.length; j++) {
+        if (random < availableCards[j].weight) {
+          selectedIdx = j;
+          break;
+        }
+        random -= availableCards[j].weight;
+      }
+      
+      selectedCards.push(availableCards[selectedIdx]);
+      availableCards.splice(selectedIdx, 1);
+    }
+
+    res.json({
+      alreadySelected: false,
+      cards: selectedCards
+    });
+  } catch (err) {
+    console.error('[cardController] getInteractiveCards error:', err);
+    res.status(500).json({ message: 'Kartlar getirilemedi.' });
+  }
+};
+
+exports.selectInteractiveCard = async (req, res) => {
+  const { cardId, localDate } = req.body;
+  const userId = req.user.id;
+  const dateToSave = localDate || new Date().toISOString().split('T')[0];
+
+  try {
+    // 1. Check if user already selected a card TODAY (prevention)
+    const existing = await db.query(
+      "SELECT id FROM card_responses WHERE user_id = $1 AND response = 'Seçildi' AND local_date::date = $2::date",
+      [userId, dateToSave]
+    );
+
+    if (existing.rows.length > 0) {
+      console.warn(`[cardController] User ${userId} attempted double selection for ${dateToSave}`);
+      return res.status(409).json({ message: 'Bugün zaten bir kart seçtin.' });
+    }
+
+    // 2. Record the selection
+    const result = await db.query(
+      'INSERT INTO card_responses (user_id, card_id, response, category, local_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userId, cardId, 'Seçildi', 'Interactive', dateToSave]
+    );
+
+    // Sync to unified emotional timeline
+    const cardInfo = await db.query('SELECT title, content FROM invitation_cards WHERE id = $1', [cardId]);
+    await emotionalController.syncEntry(
+      userId,
+      'card',
+      'Motive',
+      cardInfo.rows[0]?.title || 'Kart Seçildi',
+      'Bu kartı bugün için seçtim.',
+      { card_id: cardId, action: 'select' }
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('[cardController] selectInteractiveCard error:', err);
+    res.status(500).json({ message: 'Seçim kaydedilemedi.' });
+  }
+};
+
+
 exports.respondToCard = async (req, res) => {
   const { id } = req.params;
   const { response } = req.body;
@@ -99,6 +232,18 @@ exports.respondToCard = async (req, res) => {
       'INSERT INTO card_responses (user_id, card_id, response, category) VALUES ($1, $2, $3, $4) RETURNING *',
       [uId, cardId, response, category]
     );
+
+    // Sync to unified emotional timeline
+    const cardInfoDetail = await db.query('SELECT title FROM invitation_cards WHERE id = $1', [cardId]);
+    await emotionalController.syncEntry(
+      uId,
+      'card',
+      'Motive',
+      cardInfoDetail.rows[0]?.title || 'Kart Yanıtı',
+      response,
+      { card_id: cardId, action: 'respond' }
+    );
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
@@ -116,5 +261,23 @@ exports.respondToCard = async (req, res) => {
       error: err.message,
       debug_info: { userId: req.user?.id, cardId: req.params?.id }
     });
+  }
+};
+
+exports.getCardResponses = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await db.query(
+      `SELECT cr.*, ic.title, ic.content 
+       FROM card_responses cr
+       JOIN invitation_cards ic ON cr.card_id = ic.id
+       WHERE cr.user_id = $1
+       ORDER BY cr.created_at DESC`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[cardController] getCardResponses error:', err);
+    res.status(500).json({ message: 'Kart yanıtları getirilemedi.' });
   }
 };

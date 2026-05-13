@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const emotionalController = require('./emotionalController');
 
 exports.getRandomQuestion = async (req, res) => {
   try {
@@ -23,6 +24,17 @@ exports.createCheckIn = async (req, res) => {
       'INSERT INTO check_ins (user_id, mood, reflection_question, note) VALUES ($1, $2, $3, $4) RETURNING *',
       [userId, mood, reflection_question, note]
     );
+
+    // Sync to unified emotional timeline
+    await emotionalController.syncEntry(
+      userId, 
+      'checkin', 
+      mood, 
+      reflection_question || 'Günlük Check-in', 
+      note, 
+      { check_in_id: result.rows[0].id }
+    );
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('[checkInController] createCheckIn error:', err.message);
@@ -84,5 +96,94 @@ exports.deleteCheckIn = async (req, res) => {
       debug_error: err.message,
       debug_code: err.code
     });
+  }
+};
+exports.createAdvancedCheckIn = async (req, res) => {
+  // STEP 3 — LOG REQUEST BODY
+  console.log("📦 CHECKIN BODY:");
+  console.log(JSON.stringify(req.body, null, 2));
+
+  const { emotion } = req.body;
+  const userId = req.user.id;
+
+  // STEP 1 — FORCE SAFE ANSWERS
+  const safeAnswers = Array.isArray(req.body.answers) ? req.body.answers : [];
+  
+  // STEP 4 — LOG SQL VALUES
+  console.log("📦 SAFE ANSWERS:", safeAnswers);
+  console.log("📦 TYPE:", typeof safeAnswers);
+
+  const selectedMoodLabel = emotion || 'Sakin';
+
+  try {
+    // 2. Create a base check-in entry for this advanced session
+    const baseResult = await db.query(
+      'INSERT INTO check_ins (user_id, mood, reflection_question, note) VALUES ($1, $2, $3, $4) RETURNING id',
+      [userId, selectedMoodLabel, 'Gelişmiş Paylaşım', 'Detaylı duygusal yansıma.']
+    );
+    const checkInId = baseResult.rows[0].id;
+
+    // 3. Insert all answers into advanced_check_ins
+    // STEP 7 — FINAL SAFE NORMALIZATION
+    const normalizedAnswers = safeAnswers.map(item => ({
+      question: typeof item.question === "string" ? item.question.trim() : "",
+      answer: typeof item.answer === "string" ? item.answer.trim() : ""
+    }));
+
+    const queries = normalizedAnswers.map((item) => {
+      return db.query(
+        'INSERT INTO advanced_check_ins (user_id, check_in_id, question_id, question_text, answer, answers) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, checkInId, 'advanced', item.question, item.answer, JSON.stringify(normalizedAnswers)]
+      );
+    });
+
+    await Promise.all(queries);
+
+    // 4. Sync to unified emotional timeline
+    const summaryContent = normalizedAnswers.map(a => `${a.question}: ${a.answer}`).join('\n');
+    
+    await emotionalController.syncEntry(
+      userId,
+      'reflection',
+      selectedMoodLabel,
+      'Gelişmiş Paylaşım',
+      summaryContent,
+      { check_in_id: checkInId }
+    );
+
+    res.status(201).json({ success: true, checkInId });
+
+  } catch (err) {
+    // STEP 2 — ADD FULL ERROR LOGGING
+    console.error("❌ ADVANCED CHECKIN ERROR:");
+    console.error(err);
+    console.error(err.message);
+    console.error(err.stack);
+
+    return res.status(500).json({
+      message: "Kaydedilirken bir hata oluştu.",
+      debug_error: err.message,
+      stack: err.stack,
+    });
+  }
+};
+
+exports.getAdvancedCheckIns = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await db.query(
+      `SELECT a.*, c.mood 
+       FROM advanced_check_ins a
+       JOIN check_ins c ON a.check_in_id = c.id
+       WHERE a.user_id = $1 
+       AND a.question_id != 'selected_mood'
+       ORDER BY a.created_at DESC 
+       LIMIT 30`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[checkInController] getAdvancedCheckIns error:', err.message);
+    res.status(500).json({ message: 'Veriler getirilemedi.' });
   }
 };

@@ -66,26 +66,25 @@ function ruleBasedWeekly(checkIns, cardResponses) {
 // ---------------------------------------------------------------------------
 
 async function fetchUserWeeklyData(userId) {
-  const [checkInsRes, cardRes] = await Promise.all([
-    db.query(
-      `SELECT mood, reflection_question, note, created_at
-       FROM check_ins
+  try {
+    const result = await db.query(
+      `SELECT source_type, emotion, prompt, content, created_at
+       FROM emotional_entries
        WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
        ORDER BY created_at ASC`,
       [userId]
-    ),
-    db.query(
-      `SELECT category, response
-       FROM card_responses
-       WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days'`,
-      [userId]
-    ),
-  ]);
+    );
 
-  return {
-    checkIns:      checkInsRes.rows,
-    cardResponses: cardRes.rows,
-  };
+    return {
+      entries: result.rows,
+      checkIns: result.rows.filter(r => r.source_type === 'checkin').map(r => ({ mood: r.emotion, note: r.content })),
+      advancedCheckIns: result.rows.filter(r => r.source_type === 'reflection').map(r => ({ question_id: r.prompt, answer: r.content })),
+      cardResponses: result.rows.filter(r => r.source_type === 'card').map(r => ({ response: r.content, category: 'General' }))
+    };
+  } catch (err) {
+    console.error('[insightController] fetchUserWeeklyData error:', err.message);
+    return { entries: [], checkIns: [], cardResponses: [], advancedCheckIns: [] };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +95,19 @@ exports.getDailyReflection = async (req, res) => {
   const userId = req.user.id;
   
   try {
+    // 1. Fetch Context: Recent Emotional Entry & Memories
+    const [lastEntryRes, memoriesRes] = await Promise.all([
+      db.query(
+        "SELECT emotion FROM emotional_entries WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
+        [userId]
+      ),
+      db.query(
+        'SELECT memory_key, memory_value FROM emotional_memories WHERE user_id = $1',
+        [userId]
+      )
+    ]);
+
+    const mood = lastEntryRes.rows[0]?.emotion;
     // 1. Check if reflection exists for today
     const existing = await db.query(
       'SELECT text FROM daily_reflections WHERE user_id = $1 AND created_at = CURRENT_DATE LIMIT 1',
@@ -160,7 +172,17 @@ exports.getWeeklyInsight = async (req, res) => {
     }
 
     // 2. Generate new one
-    const userData = await fetchUserWeeklyData(userId);
+    let userData;
+    try {
+      userData = await fetchUserWeeklyData(userId);
+    } catch (dataErr) {
+      console.error('[insightController] fetch error, using fallback:', dataErr.message);
+      return res.json({ 
+        insight: ruleBasedWeekly([], []), 
+        source: 'error-fallback' 
+      });
+    }
+
     const { checkIns, cardResponses } = userData;
 
     // Not enough data fallback
@@ -191,10 +213,10 @@ exports.getWeeklyInsight = async (req, res) => {
 
   } catch (err) {
     console.error('[insightController] getWeeklyInsight error:', err.message);
-    res.status(500).json({ 
-      message: 'İçgörü oluşturulurken bir hata oluştu.',
-      debug_error: err.message,
-      debug_code: err.code
+    // Absolute final fallback to prevent 500
+    res.json({ 
+      insight: "Bu hafta kendine biraz daha alan açmaya ihtiyaç duymuş olabilirsin. Sakinlik ve denge arayışı bu günlerde daha görünür görünüyor.", 
+      source: 'final-fallback' 
     });
   }
 };
@@ -244,130 +266,67 @@ exports.getPatterns = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // 1. Fetch data from last 14 days
-    const [checkInsRes, cardRes] = await Promise.all([
-      db.query(
-        `SELECT mood, note, created_at
-         FROM check_ins
-         WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '14 days'`,
-        [userId]
-      ),
-      db.query(
-        `SELECT category, response
-         FROM card_responses
-         WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '14 days'`,
-        [userId]
-      ),
-    ]);
+    // Fetch data from unified entries last 14 days
+    const result = await db.query(
+      `SELECT source_type, emotion, prompt, content, created_at
+       FROM emotional_entries
+       WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '14 days'
+       ORDER BY created_at ASC`,
+      [userId]
+    );
 
-    const checkIns = checkInsRes.rows;
-    const cardResponses = cardRes.rows;
+    const entries = result.rows;
 
-    if (checkIns.length < 3) {
+    if (entries.length < 5) {
       return res.json({
         patterns: [],
-        checkInCount: checkIns.length,
+        checkInCount: entries.length,
         message: "Kendini anlamaya başlıyorsun...",
-        subtitle: "Devam ettikçe seni daha iyi anlayacak."
+        subtitle: "Biraz daha paylaştıkça burada sana özel küçük farkındalıklar oluşacak ✨"
       });
     }
 
     const patterns = [];
+    const moods = entries.map(e => e.emotion).filter(Boolean);
+    const content = entries.map(e => e.content).filter(Boolean).join(' ').toLowerCase();
 
     // --- Logic for Mood Patterns ---
-    const moodCounts = checkIns.reduce((acc, curr) => {
-      acc[curr.mood] = (acc[curr.mood] || 0) + 1;
+    const moodCounts = moods.reduce((acc, mood) => {
+      acc[mood] = (acc[mood] || 0) + 1;
       return acc;
     }, {});
 
-    const entriesCount = checkIns.length;
-    
-    if (moodCounts['Sakin'] > entriesCount * 0.4) {
-      const variations = [
-        "Sakin hissettiğin anlar bu hafta daha fazla öne çıkmış olabilir.",
-        "İç huzuru bulduğun anlar son zamanlarda daha sık uğramış görünüyor.",
-        "Sakinlik teması son günlerinde daha belirgin hale gelmiş olabilir."
-      ];
-      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    if (moodCounts['Sakin'] > moods.length * 0.4) {
+      patterns.push("Sakinlik ve iç huzur son günlerinde daha belirgin hale gelmiş olabilir.");
+    }
+    if (moodCounts['Yorgun'] > moods.length * 0.4) {
+      patterns.push("Bu günlerde bedenin biraz daha fazla dinlenmeye ihtiyaç duyuyor olabilir.");
+    }
+    if (moodCounts['Kaygılı'] > moods.length * 0.3) {
+      patterns.push("Zihnini meşgul eden bazı düşüncelerin son zamanlarda daha sık uğradığı görünüyor.");
     }
 
-    if (moodCounts['Yorgun'] > entriesCount * 0.4) {
-      const variations = [
-        "Yorgunluk teması son check-inlerinde biraz daha görünür olmuş olabilir.",
-        "Bu günlerde bedenin veya zihnin biraz daha fazla dinlenmeye ihtiyaç duyuyor olabilir.",
-        "Son zamanlarda enerjinin biraz düşük olduğu anlar daha çok dikkat çekmiş görünüyor."
-      ];
-      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
+    // --- Content Based Patterns ---
+    if (content.includes('zaman') || content.includes('alan')) {
+      patterns.push("Kendine alan açma ve zaman ayırma isteği son paylaşımlarında öne çıkıyor.");
+    }
+    if (content.includes('arkadaş') || content.includes('aile')) {
+      patterns.push("Sosyal etkileşimlerin ve ilişkilerin bu hafta senin için önemli bir yer tutmuş olabilir.");
     }
 
-    if (Object.keys(moodCounts).length >= 4) {
-      const variations = [
-        "Son günlerde enerjinin biraz dalgalı olduğu görünüyor olabilir.",
-        "Duygularının biraz daha değişken olduğu bir dönemden geçiyor olabilirsin.",
-        "Farklı duyguların iç içe geçtiği bir hafta olmuş olabilir."
-      ];
-      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
-    }
-
-    // --- Logic for Card Interactions ---
-    const favoriteCategory = cardResponses
-      .filter(r => r.response === 'Deneyeceğim')
-      .reduce((acc, curr) => {
-        acc[curr.category] = (acc[curr.category] || 0) + 1;
-        return acc;
-      }, {});
-
-    const topCategory = Object.keys(favoriteCategory).reduce(
-      (a, b) => (favoriteCategory[a] > favoriteCategory[b] ? a : b),
-      null
-    );
-
-    if (topCategory === 'Dinlenme') {
-      const variations = [
-        "Dinlenme davetlerine daha açık olduğun bir dönemden geçiyor olabilirsin.",
-        "Durup nefes alma ihtiyacı son zamanlarda daha çok karşılık bulmuş görünüyor.",
-        "Kendine mola verme teması senin için daha öncelikli hale gelmiş olabilir."
-      ];
-      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
-    }
-
-    if (topCategory === 'Küçük Cesaret') {
-      const variations = [
-        "Küçük cesaret kartları sende daha fazla karşılık bulmuş olabilir.",
-        "Yeni adımlar atma isteği son günlerde daha görünür olmuş görünüyor.",
-        "Kendine doğru küçük ama cesur adımlar attığın bir hafta olmuş olabilir."
-      ];
-      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
-    }
-
-    // --- Journaling Patterns (Simple keyword check) ---
-    const allNotes = checkIns.map(c => c.note).filter(Boolean).join(' ').toLowerCase();
-    if (allNotes.includes('zaman') || allNotes.includes('alan')) {
-      const variations = [
-        "Kendine alan açma teması son zamanlarda daha çok karşına çıkmış olabilir.",
-        "Zamanı kendine ayırma isteği düşüncelerinde daha sık yer bulmuş görünüyor.",
-        "Kendinle baş başa kalma ihtiyacı son notlarında daha görünür olmuş olabilir."
-      ];
-      patterns.push(variations[Math.floor(Math.random() * variations.length)]);
-    }
-
-    // Limit to 3 patterns and ensure variation
+    // Limit to 3 patterns
     const selectedPatterns = patterns
       .sort(() => 0.5 - Math.random())
       .slice(0, 3);
 
     res.json({
       patterns: selectedPatterns,
-      message: selectedPatterns.length === 0 ? "Biraz daha paylaştıkça burada sana özel küçük farkındalıklar oluşacak ✨" : null,
-      subtitle: selectedPatterns.length === 0 ? "Devam ettikçe seni daha iyi anlayacak." : null
+      message: selectedPatterns.length === 0 ? "Duygularını dinlemeye devam ediyoruz ✨" : null,
+      subtitle: "Küçük adımlar büyük değişimler getirir."
     });
 
   } catch (err) {
     console.error('[insightController] getPatterns error:', err.message);
-    res.status(500).json({ 
-      message: 'Farkındalıklar alınırken bir hata oluştu.',
-      debug_error: err.message,
-      debug_code: err.code
-    });
+    res.json({ patterns: [] });
   }
 };

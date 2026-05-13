@@ -168,6 +168,7 @@ export default function ProfileScreen() {
 
         {/* Menu */}
         <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+          {renderMenuItem('calendar-clear-outline', 'Duygusal Arşiv', 'Tüm geçmiş paylaşımlarını gör', () => router.push('/history-full'))}
           {renderMenuItem('settings-outline', 'Ayarlar', undefined, () => router.push('/settings'))}
           {renderMenuItem(
             'notifications-outline', 

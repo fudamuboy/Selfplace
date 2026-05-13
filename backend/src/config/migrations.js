@@ -72,6 +72,210 @@ exports.runMigrations = async () => {
       )
     `);
 
+    // 7. Ensure advanced_check_ins table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS advanced_check_ins (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        check_in_id INTEGER REFERENCES check_ins(id) ON DELETE CASCADE,
+        question_id VARCHAR(100),
+        question_text TEXT,
+        answer TEXT,
+        answers JSONB, -- Keep for future flexibility
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
+      ALTER TABLE advanced_check_ins 
+      ADD COLUMN IF NOT EXISTS check_in_id INTEGER REFERENCES check_ins(id) ON DELETE CASCADE,
+      ADD COLUMN IF NOT EXISTS question_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS question_text TEXT,
+      ADD COLUMN IF NOT EXISTS answer TEXT
+    `);
+
+    // 8. Ensure journal_entries table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS journal_entries (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255),
+        content TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 9. Ensure journal_drawings table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS journal_drawings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        journal_entry_id INTEGER REFERENCES journal_entries(id) ON DELETE CASCADE,
+        image_url TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 10. Ensure personality_tests and results tables exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS personality_tests (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        test_type VARCHAR(100) NOT NULL,
+        answers JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS personality_results (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        test_type VARCHAR(100) NOT NULL,
+        traits JSONB NOT NULL,
+        score INTEGER,
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 11. Ensure AI chat tables exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS ai_conversations (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        summary TEXT,
+        started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        ended_at TIMESTAMP WITH TIME ZONE
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS ai_messages (
+        id SERIAL PRIMARY KEY,
+        conversation_id INTEGER REFERENCES ai_conversations(id) ON DELETE CASCADE,
+        sender VARCHAR(50) NOT NULL, -- 'user' or 'ai'
+        message TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 13. Ensure card_responses has local_date for daily ritual
+    await db.query(`
+      ALTER TABLE card_responses 
+      ADD COLUMN IF NOT EXISTS local_date DATE DEFAULT CURRENT_DATE,
+      ADD COLUMN IF NOT EXISTS completion_status VARCHAR(50) DEFAULT 'Seçildi'
+    `);
+
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS emotional_memories (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        memory_key VARCHAR(255) NOT NULL, -- e.g. 'friend_name', 'fear'
+        memory_value TEXT NOT NULL,
+        category VARCHAR(100), -- 'relationships', 'work', 'health'
+        importance INTEGER DEFAULT 1,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, memory_key)
+      )
+    `);
+
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS personality_profiles (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        traits JSONB DEFAULT '{}',
+        communication_style VARCHAR(100) DEFAULT 'gentle',
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id)
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS ai_reflections (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL, -- 'daily', 'weekly'
+        content TEXT NOT NULL,
+        insights JSONB,
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS daily_emotional_states (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        date DATE DEFAULT CURRENT_DATE,
+        state_data JSONB NOT NULL, -- { mood_avg, fluctuations, triggers }
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, date)
+      )
+    `);
+
+    // 15. Ensure card_tasks and card_history tables exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS card_tasks (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        duration_minutes INTEGER,
+        task_type VARCHAR(100),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS card_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        card_id INTEGER REFERENCES card_tasks(id) ON DELETE CASCADE,
+        status VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 16. Ensure subscription_status table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS subscription_status (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        plan_type VARCHAR(50) NOT NULL DEFAULT 'free',
+        is_active BOOLEAN DEFAULT true,
+        expires_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS emotional_entries (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        source_type VARCHAR(50) NOT NULL, -- 'checkin', 'card', 'journal', 'reflection', 'ai'
+        emotion VARCHAR(50),
+        prompt TEXT,
+        content TEXT,
+        metadata JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Migration fix for advanced_check_ins NOT NULL constraint on answers
+    await db.query(`
+      ALTER TABLE advanced_check_ins 
+      ALTER COLUMN answers SET DEFAULT '[]'::jsonb;
+      
+      UPDATE advanced_check_ins SET answers = '[]'::jsonb WHERE answers IS NULL;
+      
+      ALTER TABLE advanced_check_ins 
+      ALTER COLUMN answers SET NOT NULL;
+    `);
+
     console.log('[MIGRATION] Schema check complete.');
   } catch (err) {
     console.error('[MIGRATION] Error during schema check:', err.message);

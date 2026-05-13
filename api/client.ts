@@ -2,6 +2,8 @@ import axios from 'axios';
 import useAuthStore from '../store/useAuthStore';
 import { Config } from '../constants/Config';
 
+console.log("🌐 ACTIVE API:", Config.API_URL);
+
 const client = axios.create({
   baseURL: Config.API_URL,
 });
@@ -38,6 +40,12 @@ client.interceptors.response.use(
     if (__DEV__) {
       console.error('[API ERROR] Detailed info:', JSON.stringify(errorDetail, null, 2));
     }
+
+    // Graceful error handling for Network Errors
+    if (!error.response) {
+      error.message = "Bağlantı kurulamadı. Lütfen internet bağlantınızı kontrol edin.";
+    }
+
     return Promise.reject(error);
   }
 );

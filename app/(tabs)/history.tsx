@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { GradientBackground } from '../../components/GradientBackground';
 import client from '../../api/client';
 import { CustomModal } from '../../components/CustomModal';
+import { CustomButton } from '../../components/CustomButton';
 import { Image } from 'expo-image';
 import useThemeStore from '../../store/useThemeStore';
 
@@ -23,8 +24,20 @@ interface CheckIn {
   created_at: string;
 }
 
+const MOOD_EMOJIS: { [key: string]: string } = {
+  'Mutlu': '😊',
+  'Üzgün': '😔',
+  'Kızgın': '😡',
+  'Kaygılı': '😰',
+  'Yorgun': '😴',
+  'Hassas': '🥹',
+  'Motive': '✨',
+  'Sakin': '🤍',
+};
+
 export default function HistoryScreen() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [advancedAnswers, setAdvancedAnswers] = useState<any[]>([]);
   const [insight, setInsight] = useState<string | null>(null);
   const [patterns, setPatterns] = useState<string[]>([]);
   const [patternMessage, setPatternMessage] = useState<string | null>(null);
@@ -35,31 +48,29 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const { currentTheme } = useThemeStore();
+  const router = useRouter();
 
   const fetchData = async () => {
     setLoading(true);
     
     try {
-      const [historyRes, dailyRes, weeklyRes, patternsRes] = await Promise.allSettled([
-        client.get('/check-ins'),
+      const [timelineRes, dailyRes, weeklyRes, patternsRes] = await Promise.allSettled([
+        client.get('/emotional/timeline'),
         client.get('/reflections/daily'),
         client.get('/insights/weekly'),
         client.get('/insights/patterns')
       ]);
 
-      if (historyRes.status === 'fulfilled') {
-        setCheckIns(historyRes.value.data);
-      } else {
-        if (historyRes.reason.response?.status !== 404) {
-          const debugInfo = historyRes.reason.response?.data?.debug_error;
-          setModal({ 
-            visible: true, 
-            title: 'Hata', 
-            message: debugInfo 
-              ? `Geçmiş yüklenirken bir sorun oluştu.\n\nDebug: ${debugInfo}`
-              : 'Geçmiş yüklenirken bir sorun oluştu.' 
-          });
-        }
+      if (timelineRes.status === 'fulfilled') {
+        const mappedList = timelineRes.value.data.map((entry: any) => ({
+          ...entry,
+          id: entry.id,
+          mood: entry.emotion || 'Sakin',
+          question_text: entry.prompt || 'Yansıma',
+          answer: entry.content,
+          type: entry.source_type
+        }));
+        setAdvancedAnswers(mappedList);
       }
 
       if (dailyRes.status === 'fulfilled') {
@@ -84,7 +95,7 @@ export default function HistoryScreen() {
       }
 
     } catch (error: any) {
-      // Handle unexpected errors silently or with error reporting service
+      // Handle unexpected errors silently
     }
 
     setLoading(false);
@@ -107,29 +118,6 @@ export default function HistoryScreen() {
     return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const renderItem = ({ item }: { item: CheckIn }) => (
-    <View style={[styles.historyCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.headerLeft}>
-          <Image 
-            source={MOOD_IMAGES[item.mood]} 
-            style={styles.cardSticker} 
-            contentFit="contain"
-          />
-          <Text style={[styles.date, { color: currentTheme.colors.text.secondary }]}>{formatDate(item.created_at)}</Text>
-        </View>
-        <View style={[styles.moodBadge, { backgroundColor: currentTheme.colors.glow }]}>
-          <Text style={[styles.moodText, { color: currentTheme.colors.primary }]}>{item.mood}</Text>
-        </View>
-      </View>
-      {item.note ? (
-        <Text style={[styles.note, { color: currentTheme.colors.text.primary }]} numberOfLines={2}>{item.note}</Text>
-      ) : (
-        <Text style={[styles.noNote, { color: currentTheme.colors.text.secondary }]}>Not bırakılmamış.</Text>
-      )}
-    </View>
-  );
-
   return (
     <GradientBackground>
       <View style={styles.container}>
@@ -139,8 +127,8 @@ export default function HistoryScreen() {
           <ActivityIndicator size="large" color={currentTheme.colors.primary} style={{ marginTop: 40 }} />
         ) : (
           <FlatList
-            data={checkIns}
-            keyExtractor={(item) => item.id.toString()}
+            data={[]} // We use ListHeaderComponent for everything to keep it simple and unified
+            keyExtractor={() => 'dummy'}
             ListHeaderComponent={
               <View style={styles.headerComponent}>
                 {dailyReflection && (
@@ -188,12 +176,40 @@ export default function HistoryScreen() {
                   )}
                 </View>
 
-                {checkIns.length > 0 && (
-                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary, marginTop: 24 }]}>Paylaşımların</Text>
+                {advancedAnswers.length > 0 && (
+                  <View style={[styles.advancedSection, { marginTop: 32 }]}>
+                    <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 4 }]}>Paylaşımların ✨</Text>
+                    <Text style={[styles.sectionSubtitle, { color: currentTheme.colors.text.secondary, marginBottom: 16 }]}>Duygusal yolculuğundan dökülen küçük yansımalar.</Text>
+                    
+                    <View style={styles.verticalTimeline}>
+                      {advancedAnswers.slice(0, 10).map((ans, idx) => (
+                        <View key={ans.id || idx} style={styles.timelineItem}>
+                          <View style={[styles.timelineDot, { backgroundColor: currentTheme.colors.primary }]} />
+                          <View style={[styles.advancedVerticalCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                            <View style={styles.cardTopRow}>
+                              <Text style={styles.snippetEmoji}>{MOOD_EMOJIS[ans.mood] || '🤍'}</Text>
+                              <View style={[styles.tag, { backgroundColor: currentTheme.colors.glow }]}>
+                                <Text style={[styles.tagText, { color: currentTheme.colors.primary }]}>{ans.question_text || 'Günlük Not'}</Text>
+                              </View>
+                            </View>
+                            <Text style={[styles.snippetText, { color: currentTheme.colors.text.primary }]}>“{ans.answer}”</Text>
+                            <Text style={[styles.snippetDate, { color: currentTheme.colors.text.secondary }]}>{formatDate(ans.created_at)}</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+
+                    <CustomButton 
+                      title="Tüm Geçmişi Gör" 
+                      onPress={() => router.push('/history-full')} 
+                      style={styles.seeAllButton}
+                      textStyle={styles.seeAllButtonText}
+                    />
+                  </View>
                 )}
               </View>
             }
-            renderItem={renderItem}
+            renderItem={() => null}
             contentContainerStyle={styles.list}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={currentTheme.colors.primary} />
@@ -368,5 +384,88 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     lineHeight: 22,
+  },
+  advancedSection: {
+    marginBottom: 8,
+  },
+  verticalTimeline: {
+    marginLeft: 12,
+    borderLeftWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    paddingLeft: 24,
+    paddingVertical: 10,
+  },
+  timelineItem: {
+    marginBottom: 24,
+    position: 'relative',
+  },
+  timelineDot: {
+    position: 'absolute',
+    left: -32.5,
+    top: 24,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    zIndex: 1,
+  },
+  advancedVerticalCard: {
+    borderRadius: 28,
+    padding: 24,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    gap: 12,
+  },
+  tag: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    lineHeight: 14,
+  },
+  snippetText: {
+    fontSize: 16,
+    lineHeight: 26,
+    fontStyle: 'italic',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  snippetEmoji: {
+    fontSize: 32,
+    marginTop: -4,
+  },
+  snippetDate: {
+    fontSize: 12,
+    marginTop: 16,
+    opacity: 0.5,
+    fontWeight: '500',
+  },
+  seeAllButton: {
+    marginTop: 12,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  seeAllButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
