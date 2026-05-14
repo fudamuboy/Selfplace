@@ -5,6 +5,8 @@ import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
+import { sanitizeText } from '../utils/textSanitizer';
+
 
 const MOOD_EMOJIS: { [key: string]: string } = {
   'Mutlu': '😊',
@@ -75,7 +77,8 @@ export default function HistoryFull() {
         <Text style={[styles.date, { color: currentTheme.colors.text.secondary }]}>{formatDate(item.created_at)}</Text>
       </View>
       <Text style={[styles.question, { color: currentTheme.colors.primary }]}>{item.question_text || 'Yansıma'}</Text>
-      <Text style={[styles.answer, { color: currentTheme.colors.text.primary }]}>“{item.answer}”</Text>
+      <Text style={[styles.answer, { color: currentTheme.colors.text.primary }]}>“{sanitizeText(item.answer, 'Paylaşım bulunamadı.')}”</Text>
+
     </View>
   );
 

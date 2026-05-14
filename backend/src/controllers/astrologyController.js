@@ -5,27 +5,29 @@ const { getZodiacSign } = require('../utils/zodiac');
  * Get current astrology events and personalized zodiac guidance
  */
 exports.getCurrentAstrology = async (req, res) => {
+  const userId = req.user?.id;
+  const now = new Date();
+
   try {
-    // 1. Get user zodiac sign if authenticated
-    let userZodiac = null;
-    if (req.user) {
-      const userRes = await pool.query('SELECT zodiac_sign FROM users WHERE id = $1', [req.user.id]);
-      userZodiac = userRes.rows[0]?.zodiac_sign;
-    }
+    // Parallelize all queries for maximum speed
+    const [userRes, eventsRes] = await Promise.all([
+      userId ? pool.query('SELECT zodiac_sign FROM users WHERE id = $1', [userId]) : Promise.resolve({ rows: [] }),
+      pool.query(`
+        SELECT event_type, message_tr, symbol, priority 
+        FROM astrology_events 
+        WHERE (start_date <= $1 AND (end_date IS NULL OR end_date >= $1))
+        ORDER BY created_at ASC
+      `, [now])
+    ]);
 
-    // 2. Fetch active collective events
-    const now = new Date();
-    const eventsRes = await pool.query(`
-      SELECT * FROM astrology_events 
-      WHERE (start_date <= $1 AND (end_date IS NULL OR end_date >= $1))
-      ORDER BY created_at ASC
-    `, [now]);
+    const userZodiac = userRes.rows[0]?.zodiac_sign;
 
-    // 3. Fetch monthly zodiac guidance if zodiac is set
+    // Fetch guidance only if zodiac is available (second stage if needed, but keeping it fast)
     let zodiacGuidance = null;
     if (userZodiac) {
       const guidanceRes = await pool.query(`
-        SELECT * FROM zodiac_guidance 
+        SELECT guidance_tr, period_name 
+        FROM zodiac_guidance 
         WHERE zodiac_sign = $1
         ORDER BY created_at DESC LIMIT 1
       `, [userZodiac]);
@@ -33,10 +35,9 @@ exports.getCurrentAstrology = async (req, res) => {
       zodiacGuidance = guidanceRes.rows[0];
     }
 
-    // Success response with energy mock if empty (to satisfy verification)
     res.status(200).json({
       success: true,
-      events: eventsRes.rows.length > 0 ? eventsRes.rows : [],
+      events: eventsRes.rows,
       zodiacGuidance: zodiacGuidance || null,
       userZodiac,
       energy: {
@@ -45,7 +46,6 @@ exports.getCurrentAstrology = async (req, res) => {
       }
     });
   } catch (err) {
-    // Fallback for production safety
     res.status(200).json({
       success: true,
       events: [],

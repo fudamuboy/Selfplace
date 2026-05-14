@@ -69,6 +69,19 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Performance Middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (duration > 500) {
+      console.log(`[PERF-SLOW] ${req.method} ${req.originalUrl} -> ${duration}ms`);
+    }
+  });
+  next();
+});
+
+
 // Root route for Render health monitoring
 app.get('/', (req, res) => {
   res.status(200).json({

@@ -8,6 +8,8 @@ import { CustomButton } from '../../components/CustomButton';
 import useAuthStore from '../../store/useAuthStore';
 import useThemeStore from '../../store/useThemeStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import { sanitizeText } from '../../utils/textSanitizer';
+
 import client from '../../api/client';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
@@ -208,7 +210,8 @@ export default function HomeScreen() {
                     style={[styles.eventMessage, { color: currentTheme.colors.text.primary }]}
                     numberOfLines={2}
                   >
-                    {insight.message}
+                    {sanitizeText(insight.message)}
+
                   </Text>
                 </View>
               ))}

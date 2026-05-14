@@ -7,6 +7,8 @@ import { CustomModal } from '../../components/CustomModal';
 import { CustomButton } from '../../components/CustomButton';
 import { Image } from 'expo-image';
 import useThemeStore from '../../store/useThemeStore';
+import { sanitizeText } from '../../utils/textSanitizer';
+
 
 const MOOD_IMAGES: { [key: string]: any } = {
   'Mutlu': require('../../assets/images/stickers/mutlu.png'),
@@ -134,7 +136,8 @@ export default function HistoryScreen() {
                 {dailyReflection && (
                   <View style={[styles.dailyCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                     <Text style={[styles.dailyTitle, { color: currentTheme.colors.text.secondary }]}>Günlük Küçük Yansıma 🌿</Text>
-                    <Text style={[styles.dailyText, { color: currentTheme.colors.text.primary }]}>{dailyReflection}</Text>
+                    <Text style={[styles.dailyText, { color: currentTheme.colors.text.primary }]}>{sanitizeText(dailyReflection)}</Text>
+
                   </View>
                 )}
                 
@@ -142,7 +145,7 @@ export default function HistoryScreen() {
                   <View style={[styles.insightCard, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder, marginTop: 24 }]}>
                     <Text style={[styles.insightTitle, { color: currentTheme.colors.primary }]}>Haftalık İçgörü ✨</Text>
                     <Text style={[styles.insightHook, { color: currentTheme.colors.text.secondary }]}>Bu hafta senin için küçük bir bakış ✨</Text>
-                    <Text style={[styles.insightText, { color: currentTheme.colors.text.primary }]}>{insight}</Text>
+                    <Text style={[styles.insightText, { color: currentTheme.colors.text.primary }]}>{sanitizeText(insight)}</Text>
                   </View>
                 )}
 
@@ -155,7 +158,8 @@ export default function HistoryScreen() {
                       <View key={index} style={styles.patternItem}>
                         <Text style={[styles.patternLabel, { color: currentTheme.colors.primary }]}>Senin için oluştu ✨</Text>
                         <View style={[styles.patternCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-                          <Text style={[styles.patternText, { color: currentTheme.colors.text.primary }]}>{pattern}</Text>
+                          <Text style={[styles.patternText, { color: currentTheme.colors.text.primary }]}>{sanitizeText(pattern, 'Paylaşım bulunamadı.')}</Text>
+
                         </View>
                       </View>
                     ))
@@ -192,7 +196,8 @@ export default function HistoryScreen() {
                                 <Text style={[styles.tagText, { color: currentTheme.colors.primary }]}>{ans.question_text || 'Günlük Not'}</Text>
                               </View>
                             </View>
-                            <Text style={[styles.snippetText, { color: currentTheme.colors.text.primary }]}>“{ans.answer}”</Text>
+                             <Text style={[styles.snippetText, { color: currentTheme.colors.text.primary }]}>“{sanitizeText(ans.answer, 'Paylaşım bulunamadı.')}”</Text>
+
                             <Text style={[styles.snippetDate, { color: currentTheme.colors.text.secondary }]}>{formatDate(ans.created_at)}</Text>
                           </View>
                         </View>

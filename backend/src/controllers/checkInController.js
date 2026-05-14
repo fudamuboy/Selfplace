@@ -3,7 +3,8 @@ const emotionalController = require('./emotionalController');
 
 exports.getRandomQuestion = async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM reflection_questions ORDER BY RANDOM() LIMIT 1');
+    const result = await db.query('SELECT id, question_text FROM reflection_questions ORDER BY RANDOM() LIMIT 1');
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[checkInController] getRandomQuestion error:', err.message);
@@ -47,7 +48,8 @@ exports.createCheckIn = async (req, res) => {
 exports.getCheckIns = async (req, res) => {
   const userId = req.user.id;
   try {
-    const result = await db.query('SELECT * FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+    const result = await db.query('SELECT id, mood, reflection_question, note, created_at FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId]);
+
     res.json(result.rows);
   } catch (err) {
     console.error('[checkInController] getCheckIns error:', err.message);

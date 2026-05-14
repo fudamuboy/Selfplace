@@ -317,7 +317,21 @@ exports.runMigrations = async () => {
     `);
 
 
+    // 17. Add Indexes for Performance
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_check_ins_user_id ON check_ins(user_id);
+      CREATE INDEX IF NOT EXISTS idx_check_ins_created_at ON check_ins(created_at);
+      CREATE INDEX IF NOT EXISTS idx_advanced_check_ins_user_id ON advanced_check_ins(user_id);
+      CREATE INDEX IF NOT EXISTS idx_advanced_check_ins_check_in_id ON advanced_check_ins(check_in_id);
+      CREATE INDEX IF NOT EXISTS idx_emotional_entries_user_id ON emotional_entries(user_id);
+      CREATE INDEX IF NOT EXISTS idx_emotional_entries_created_at ON emotional_entries(created_at);
+      CREATE INDEX IF NOT EXISTS idx_card_responses_user_id ON card_responses(user_id);
+      CREATE INDEX IF NOT EXISTS idx_card_responses_local_date ON card_responses(local_date);
+    `);
+
   } catch (err) {
+
     console.error('[MIGRATION] Error during schema check:', err.message);
     throw err;
   }

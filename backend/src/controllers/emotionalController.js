@@ -8,7 +8,7 @@ exports.getTimeline = async (req, res) => {
   const userId = req.user.id;
   try {
     const result = await db.query(
-      'SELECT * FROM emotional_entries WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
+      'SELECT id, source_type, emotion, prompt, content, created_at FROM emotional_entries WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
       [userId]
     );
     res.json(result.rows);
