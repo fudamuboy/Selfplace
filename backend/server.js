@@ -87,7 +87,6 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/astrology', astrologyRoutes);
-console.log('[ROUTES] Astrology routes mounted');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/check-ins', checkInRoutes);

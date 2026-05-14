@@ -3,7 +3,7 @@ const router = express.Router();
 const astrologyController = require('../controllers/astrologyController');
 const authMiddleware = require('../middleware/auth');
 
-// Get current guidance and active events (OPEN FOR VERIFICATION)
+// Get current guidance and active events
 router.get('/current', astrologyController.getCurrentAstrology);
 
 // Update user zodiac/birth date (PROTECTED)
