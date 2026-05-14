@@ -8,9 +8,8 @@ exports.getRandomQuestion = async (req, res) => {
   } catch (err) {
     console.error('[checkInController] getRandomQuestion error:', err.message);
     res.status(500).json({ 
-      message: 'Soru getirilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Soru getirilemedi.'
+
     });
   }
 };
@@ -39,9 +38,8 @@ exports.createCheckIn = async (req, res) => {
   } catch (err) {
     console.error('[checkInController] createCheckIn error:', err.message);
     res.status(500).json({ 
-      message: 'Check-in kaydedilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Check-in kaydedilemedi.'
+
     });
   }
 };
@@ -54,9 +52,8 @@ exports.getCheckIns = async (req, res) => {
   } catch (err) {
     console.error('[checkInController] getCheckIns error:', err.message);
     res.status(500).json({ 
-      message: 'Veriler getirilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Veriler getirilemedi.'
+
     });
   }
 };
@@ -73,9 +70,8 @@ exports.getCheckInById = async (req, res) => {
   } catch (err) {
     console.error('[checkInController] getCheckInById error:', err.message);
     res.status(500).json({ 
-      message: 'Veri getirilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Veri getirilemedi.'
+
     });
   }
 };
@@ -92,16 +88,13 @@ exports.deleteCheckIn = async (req, res) => {
   } catch (err) {
     console.error('[checkInController] deleteCheckIn error:', err.message);
     res.status(500).json({ 
-      message: 'Kayıt silinemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Kayıt silinemedi.'
+
     });
   }
 };
 exports.createAdvancedCheckIn = async (req, res) => {
-  // STEP 3 — LOG REQUEST BODY
-  console.log("📦 CHECKIN BODY:");
-  console.log(JSON.stringify(req.body, null, 2));
+
 
   const { emotion } = req.body;
   const userId = req.user.id;
@@ -109,9 +102,7 @@ exports.createAdvancedCheckIn = async (req, res) => {
   // STEP 1 — FORCE SAFE ANSWERS
   const safeAnswers = Array.isArray(req.body.answers) ? req.body.answers : [];
   
-  // STEP 4 — LOG SQL VALUES
-  console.log("📦 SAFE ANSWERS:", safeAnswers);
-  console.log("📦 TYPE:", typeof safeAnswers);
+
 
   const selectedMoodLabel = emotion || 'Sakin';
 
@@ -152,21 +143,13 @@ exports.createAdvancedCheckIn = async (req, res) => {
     );
 
     res.status(201).json({ success: true, checkInId });
-
   } catch (err) {
-    // STEP 2 — ADD FULL ERROR LOGGING
-    console.error("❌ ADVANCED CHECKIN ERROR:");
-    console.error(err);
-    console.error(err.message);
-    console.error(err.stack);
-
     return res.status(500).json({
-      message: "Kaydedilirken bir hata oluştu.",
-      debug_error: err.message,
-      stack: err.stack,
+      message: "Kaydedilirken bir hata oluştu."
     });
   }
 };
+
 
 exports.getAdvancedCheckIns = async (req, res) => {
   const userId = req.user.id;

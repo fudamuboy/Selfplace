@@ -138,11 +138,8 @@ exports.getDailyReflection = async (req, res) => {
     res.json({ reflection, source });
 
   } catch (err) {
-    console.error('[insightController] getDailyReflection error:', err.message);
     res.status(500).json({ 
-      message: 'Günlük yansıma oluşturulurken bir hata oluştu.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Günlük yansıma oluşturulurken bir hata oluştu.'
     });
   }
 };
@@ -250,11 +247,8 @@ exports.getStats = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('[insightController] getStats error:', err.message);
     res.status(500).json({ 
-      message: 'İstatistikler alınırken bir hata oluştu.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'İstatistikler alınırken bir hata oluştu.'
     });
   }
 };
@@ -326,7 +320,6 @@ exports.getPatterns = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('[insightController] getPatterns error:', err.message);
-    res.json({ patterns: [] });
+    res.status(500).json({ message: 'Örüntüler analiz edilirken bir hata oluştu.' });
   }
 };

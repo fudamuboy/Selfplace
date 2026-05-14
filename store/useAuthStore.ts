@@ -5,6 +5,8 @@ interface User {
   id: number;
   username: string;
   email: string;
+  zodiac_sign?: string;
+  birth_date?: string;
   createdAt?: string;
 }
 
@@ -18,9 +20,10 @@ interface AuthState {
   setOnboardingCompleted: (completed: boolean) => Promise<void>;
   setPostAuthOnboardingCompleted: (completed: boolean) => Promise<void>;
   resetAll: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
 }
 
-const useAuthStore = create<AuthState>((set) => ({
+const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
   onboardingCompleted: null,
@@ -29,6 +32,14 @@ const useAuthStore = create<AuthState>((set) => ({
     await AsyncStorage.setItem('token', token);
     await AsyncStorage.setItem('user', JSON.stringify(user));
     set({ token, user });
+  },
+  updateUser: async (updates) => {
+    const currentUser = get().user;
+    if (currentUser) {
+      const updatedUser = { ...currentUser, ...updates };
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      set({ user: updatedUser });
+    }
   },
   logout: async () => {
     await AsyncStorage.removeItem('token');

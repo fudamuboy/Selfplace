@@ -1,8 +1,8 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import useThemeStore from '../store/useThemeStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import useThemeStore from '../store/useThemeStore';
 
 interface Props {
   children: React.ReactNode;
@@ -13,7 +13,7 @@ interface Props {
 
 export const GradientBackground: React.FC<Props> = ({ children, style, edges = ['top', 'bottom'], noSafeArea = false }) => {
   const { currentTheme } = useThemeStore();
-  
+
   const content = (
     <>
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]} />

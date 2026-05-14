@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { getZodiacSign } = require('../utils/zodiac');
+
 
 // Email Transporter (Flexible SMTP configuration)
 const transporter = nodemailer.createTransport({
@@ -16,32 +18,30 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.register = async (req, res) => {
-  const { username, email, password } = req.body;
-  console.log('----------------------------------------------------');
-  console.log('[DEBUG-AUTH] REGISTER ROUTE HIT');
-  console.log(`[DEBUG-AUTH] Data: ${email} (${username})`);
+  const { username, email, password, birth_date } = req.body;
+
+
 
   try {
-    console.log('[DEBUG-DB] Checking if user exists...');
     const userExist = await db.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
-    console.log(`[DEBUG-DB] Check completed. Found: ${userExist.rows.length}`);
+
     
     if (userExist.rows.length > 0) {
-      console.log('[DEBUG-AUTH] Register failed: User already exists');
+
       return res.status(400).json({ message: 'Bu e-posta veya kullanıcı adı zaten kullanımda.' });
     }
 
-    console.log('[DEBUG-AUTH] Hashing password...');
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    console.log('[DEBUG-AUTH] Hashing complete');
 
-    console.log('[DEBUG-DB] Inserting new user...');
+    const zodiacSign = birth_date ? getZodiacSign(birth_date) : null;
+    
     const newUser = await db.query(
-      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at',
-      [username, email, hashedPassword]
+      'INSERT INTO users (username, email, password, birth_date, zodiac_sign) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, birth_date, zodiac_sign, created_at',
+      [username, email, hashedPassword, birth_date, zodiacSign]
     );
-    console.log('[DEBUG-DB] Insertion complete');
+
+
 
     const user = newUser.rows[0];
     res.status(201).json({
@@ -50,71 +50,57 @@ exports.register = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        birth_date: user.birth_date,
+        zodiac_sign: user.zodiac_sign,
         createdAt: user.created_at
       }
+
     });
-    console.log('[DEBUG-AUTH] Register response sent successfully');
   } catch (err) {
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    console.error('[CRITICAL-REGISTER-ERROR] Stack Trace:');
-    console.error(err.stack);
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    
-    res.status(500).json({ 
-      message: 'REGISTER_BACKEND_ERROR', 
-      debug: err.message,
-      stack: err.stack
-    });
-  } finally {
-    console.log('----------------------------------------------------');
+    res.status(500).json({ message: 'Hesap oluşturulurken bir sorun oluştu.' });
   }
 };
 
+
 exports.login = async (req, res) => {
   const { email, password } = req.body;
-  console.log('----------------------------------------------------');
-  console.log('[DEBUG-AUTH] LOGIN ROUTE HIT');
-  console.log(`[DEBUG-AUTH] Email received: ${email}`);
+
 
   try {
-    console.log('[DEBUG-DB] Attempting user lookup...');
     const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    console.log(`[DEBUG-DB] Query completed. Rows found: ${userResult.rows.length}`);
+
 
     if (userResult.rows.length === 0) {
-      console.log('[DEBUG-AUTH] Login failed: User not found');
       return res.status(400).json({ message: 'E-posta veya şifre hatalı.' });
     }
+
 
     const user = userResult.rows[0];
-    console.log(`[DEBUG-AUTH] User found: ${user.username} (ID: ${user.id})`);
     
     if (!user.password) {
-      console.log('[DEBUG-ERROR] user.password is UNDEFINED. Check DB column names.');
-      throw new Error("Database record missing 'password' field. Check if column was renamed correctly.");
+      throw new Error("Internal consistency error.");
     }
 
-    console.log('[DEBUG-AUTH] Comparing passwords with bcrypt...');
+
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log(`[DEBUG-AUTH] Bcrypt compare result: ${isMatch}`);
+
 
     if (!isMatch) {
-      console.log('[DEBUG-AUTH] Login failed: Password mismatch');
       return res.status(400).json({ message: 'E-posta veya şifre hatalı.' });
     }
 
+
     if (!process.env.JWT_SECRET) {
-      console.log('[DEBUG-ERROR] JWT_SECRET is MISSING in environment variables!');
-      throw new Error("Internal Server Error: JWT_SECRET not configured.");
+      throw new Error("Internal configuration error.");
     }
 
-    console.log('[DEBUG-AUTH] Generating JWT...');
+
     const token = jwt.sign(
       { id: user.id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    console.log('[DEBUG-AUTH] JWT generated successfully');
+
 
     res.json({
       token,
@@ -122,24 +108,13 @@ exports.login = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        birth_date: user.birth_date,
+        zodiac_sign: user.zodiac_sign,
         createdAt: user.created_at
       }
     });
-    console.log('[DEBUG-AUTH] Login response sent successfully');
   } catch (err) {
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    console.error('[CRITICAL-LOGIN-ERROR] Stack Trace:');
-    console.error(err.stack);
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    
-    res.status(500).json({ 
-      message: 'LOGIN_BACKEND_ERROR', 
-      debug: err.message,
-      stack: err.stack,
-      hint: "Check DB connection or JWT_SECRET"
-    });
-  } finally {
-    console.log('----------------------------------------------------');
+    res.status(500).json({ message: 'Giriş işlemi sırasında bir hata oluştu.' });
   }
 };
 

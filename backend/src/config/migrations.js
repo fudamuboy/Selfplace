@@ -5,7 +5,7 @@ const db = require('./db');
  * This runs on every server startup to prevent 'column does not exist' errors.
  */
 exports.runMigrations = async () => {
-  console.log('[MIGRATION] Checking schema integrity...');
+
   
   try {
     // 1. Rename users.password_hash if it exists (migration to 'password')
@@ -24,8 +24,11 @@ exports.runMigrations = async () => {
     await db.query(`
       ALTER TABLE users 
       ADD COLUMN IF NOT EXISTS reset_password_token TEXT,
-      ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMP WITH TIME ZONE
+      ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS birth_date DATE,
+      ADD COLUMN IF NOT EXISTS zodiac_sign VARCHAR(50)
     `);
+
 
     // 3. Ensure check_ins table exists
     await db.query(`
@@ -167,6 +170,43 @@ exports.runMigrations = async () => {
       ADD COLUMN IF NOT EXISTS completion_status VARCHAR(50) DEFAULT 'Seçildi'
     `);
 
+    // Ensure invitation_cards table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS invitation_cards (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Ensure astrology_events table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS astrology_events (
+        id SERIAL PRIMARY KEY,
+        event_type VARCHAR(50) NOT NULL,
+        message_tr TEXT NOT NULL,
+        symbol VARCHAR(50),
+        priority INTEGER DEFAULT 1,
+        active_from DATE,
+        active_until DATE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Ensure zodiac_guidance table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS zodiac_guidance (
+        id SERIAL PRIMARY KEY,
+        zodiac_sign VARCHAR(50) NOT NULL,
+        guidance_tr TEXT NOT NULL,
+        period_name VARCHAR(100),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS emotional_memories (
@@ -276,7 +316,7 @@ exports.runMigrations = async () => {
       ALTER COLUMN answers SET NOT NULL;
     `);
 
-    console.log('[MIGRATION] Schema check complete.');
+
   } catch (err) {
     console.error('[MIGRATION] Error during schema check:', err.message);
     throw err;

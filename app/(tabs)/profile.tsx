@@ -226,6 +226,36 @@ export default function ProfileScreen() {
                   <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>E-posta</Text>
                   <Text style={[styles.infoValue, { color: currentTheme.colors.text.primary }]}>{user?.email}</Text>
                </View>
+
+               <View style={styles.infoGroup}>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>Burç</Text>
+                  <View style={[styles.zodiacDisplay, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder }]}>
+                    <Text style={styles.zodiacSymbol}>✨</Text>
+                    <Text style={[styles.zodiacValue, { color: currentTheme.colors.text.primary }]}>
+                      {user?.zodiac_sign || 'Henüz belirlenmedi'}
+                    </Text>
+                  </View>
+                  <Text style={[styles.infoSubLabel, { color: currentTheme.colors.text.muted, marginTop: 8 }]}>
+                    Doğum tarihinizi güncelleyerek burcunuzun otomatik hesaplanmasını sağlayabilirsiniz.
+                  </Text>
+               </View>
+
+               <View style={styles.infoGroup}>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>Doğum Tarihi</Text>
+                  <TouchableOpacity 
+                    style={[styles.dateInput, { borderColor: currentTheme.colors.cardBorder, backgroundColor: currentTheme.colors.card }]}
+                    onPress={() => {
+                      // In a real app, this would open a DatePicker
+                      // For now, we'll use a simple prompt or modal
+                      alert('Gerçek uygulamada burada bir Tarih Seçici açılır. Şimdilik test için backend API üzerinden güncellenebilir.');
+                    }}
+                  >
+                    <Text style={[styles.dateValue, { color: user?.birth_date ? currentTheme.colors.text.primary : currentTheme.colors.text.muted }]}>
+                      {user?.birth_date ? new Date(user.birth_date).toLocaleDateString('tr-TR') : 'Tarih Seçin'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={20} color={currentTheme.colors.primary} />
+                  </TouchableOpacity>
+               </View>
             </View>
 
             <CustomButton 
@@ -475,5 +505,38 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 17,
     fontWeight: '600',
+  },
+  infoSubLabel: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  zodiacDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  zodiacSymbol: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  zodiacValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  dateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  dateValue: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

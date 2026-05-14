@@ -2,7 +2,7 @@ import axios from 'axios';
 import useAuthStore from '../store/useAuthStore';
 import { Config } from '../constants/Config';
 
-console.log("🌐 ACTIVE API:", Config.API_URL);
+
 
 const client = axios.create({
   baseURL: Config.API_URL,
@@ -13,15 +13,15 @@ client.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
+
   return config;
 });
 
 client.interceptors.response.use(
   (response) => {
-    console.log(`[API SUCCESS] ${response.config.method?.toUpperCase()} ${response.config.url} - Status ${response.status}`);
     return response;
   },
+
   (error) => {
     const errorDetail = {
       message: error.message,

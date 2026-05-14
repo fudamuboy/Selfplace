@@ -152,7 +152,6 @@ exports.getInteractiveCards = async (req, res) => {
       cards: selectedCards
     });
   } catch (err) {
-    console.error('[cardController] getInteractiveCards error:', err);
     res.status(500).json({ message: 'Kartlar getirilemedi.' });
   }
 };
@@ -193,7 +192,6 @@ exports.selectInteractiveCard = async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('[cardController] selectInteractiveCard error:', err);
     res.status(500).json({ message: 'Seçim kaydedilemedi.' });
   }
 };
@@ -246,20 +244,8 @@ exports.respondToCard = async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    console.error('[respondToCard] ERROR:', err.message);
-    console.error('[respondToCard] Params:', { 
-      userId: req.user?.id, 
-      id: req.params?.id, 
-      response, 
-      category: 'CHECK_LOGS_ABOVE' 
-    });
-    console.error(err.stack);
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
     res.status(500).json({ 
-      message: 'Yanıt kaydedilemedi.', 
-      error: err.message,
-      debug_info: { userId: req.user?.id, cardId: req.params?.id }
+      message: 'Yanıt kaydedilemedi.'
     });
   }
 };

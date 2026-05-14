@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useRouter } from 'expo-router';
 import { GradientBackground } from '../../components/GradientBackground';
 import { MascotBlob } from '../../components/MascotBlob';
-import { MascotMood } from '../../utils/mascotThemeEngine';
+import { MascotMood, getMascotMessage, EmotionalContext } from '../../utils/mascotThemeEngine';
 import { CustomButton } from '../../components/CustomButton';
 import useAuthStore from '../../store/useAuthStore';
 import useThemeStore from '../../store/useThemeStore';
@@ -19,9 +19,13 @@ export default function HomeScreen() {
   const [showToast, setShowToast] = React.useState(false);
   const [latestMood, setLatestMood] = React.useState<MascotMood>('neutral');
   const [stressLevel, setStressLevel] = React.useState(0);
+  const [emotionalContext, setEmotionalContext] = React.useState<EmotionalContext>({
+    recentMoods: [],
+    intensity: 0,
+    isDistressed: false
+  });
   
-  const hour = new Date().getHours();
-  const isNight = hour >= 21 || hour < 6;
+
 
   const getLocalDate = () => {
     return new Date().toISOString().split('T')[0];
@@ -35,25 +39,30 @@ export default function HomeScreen() {
     if (m.includes('yorgun') || m.includes('bitkin') || m.includes('tired')) return 'tired';
     if (m.includes('düşünceli') || m.includes('reflective')) return 'reflective';
     if (m.includes('heyecanlı') || m.includes('excited')) return 'excited';
-    return isNight ? 'sleepy' : 'neutral';
+    
+    const h = new Date().getHours();
+    if (h >= 22 || h < 5) return 'sleepy';
+    return 'neutral';
   };
+
+  const [astrologyData, setAstrologyData] = React.useState<{
+    events: any[],
+    zodiacGuidance: any,
+    userZodiac: string | null
+  } | null>(null);
 
   const fetchData = async () => {
     try {
       // 1. Check card status
       const cardRes = await client.get(`/cards/interactive?localDate=${getLocalDate()}`);
-      if (cardRes.data.alreadySelected) {
-        setCardUsedToday(true);
-      }
+      setCardUsedToday(!!cardRes.data.alreadySelected);
 
-      // 2. Get latest mood for mascot
+      // 2. Get latest mood and emotional history for mascot
       const checkInRes = await client.get('/check-ins');
       if (checkInRes.data && checkInRes.data.length > 0) {
         const lastCheckIn = checkInRes.data[0];
         const mappedMood = mapMoodToMascot(lastCheckIn.mood);
         
-        // If the last check-in is recent (today), use its mood
-        // Otherwise, use 'neutral' to let the time-of-day engine decide the expression
         const checkInDate = new Date(lastCheckIn.created_at).toISOString().split('T')[0];
         if (checkInDate === getLocalDate()) {
           setLatestMood(mappedMood);
@@ -61,7 +70,24 @@ export default function HomeScreen() {
           setLatestMood('neutral');
         }
         
-        // Calculate stress level based on mood keywords
+        // Calculate emotional context from last 24h
+        const now = new Date();
+        const last24h = checkInRes.data.filter((ci: any) => {
+          const ciDate = new Date(ci.created_at);
+          return (now.getTime() - ciDate.getTime()) < 24 * 60 * 60 * 1000;
+        });
+
+        const recentMoods = last24h.map((ci: any) => ci.mood.toLowerCase());
+        const negativeKeywords = ['anxious', 'sad', 'exhausted', 'tired', 'upset', 'angry', 'kaygılı', 'üzgün', 'yorgun', 'kızgın', 'stres'];
+        const isDistressed = recentMoods.some((m: string) => negativeKeywords.some(kw => m.includes(kw)));
+        
+        setEmotionalContext({
+          recentMoods,
+          intensity: last24h.length / 5, // Normalize 0-1
+          isDistressed
+        });
+
+        // Calculate stress level
         if (lastCheckIn.mood.toLowerCase().includes('stres') || lastCheckIn.mood.toLowerCase().includes('kaygı')) {
           setStressLevel(0.8);
         } else {
@@ -69,15 +95,33 @@ export default function HomeScreen() {
         }
       } else {
         setLatestMood('neutral');
+        setEmotionalContext({ recentMoods: [], intensity: 0, isDistressed: false });
       }
-    } catch (err) {
-      console.error('Home: Error fetching data:', err);
+
+      // 3. Fetch Astrology Data
+      const astroRes = await client.get('/astrology/current');
+      setAstrologyData(astroRes.data);
+
+    } catch (err: any) {
+      if (err.response?.status !== 401) {
+        console.warn('Home: Data fetch error');
+      }
     }
   };
 
-  React.useEffect(() => {
-    fetchData();
-  }, []);
+
+  const token = useAuthStore(state => state.token);
+
+  // Use useFocusEffect to refresh state every time user returns to Home
+  // This ensures the card button locks instantly after returning from the selection screen
+  const { useFocusEffect } = require('expo-router');
+  useFocusEffect(
+    React.useCallback(() => {
+      if (token) {
+        fetchData();
+      }
+    }, [token])
+  );
 
   const handleCardPress = () => {
     if (cardUsedToday) {
@@ -87,6 +131,43 @@ export default function HomeScreen() {
     }
     router.push('/cards');
   };
+
+  const getPriorityInsights = () => {
+    if (!astrologyData) return [];
+    
+    const candidates: { symbol: string, message: string, priority: number }[] = [];
+    
+    // Priority 1: Major Collective Events (Moon, Solstice)
+    astrologyData.events.forEach(e => {
+      if (e.event_type === 'moon' || e.event_type === 'solstice') {
+        candidates.push({ symbol: e.symbol || '🌙', message: e.message_tr, priority: 1 });
+      }
+    });
+    
+    // Priority 2: Zodiac Monthly Guidance
+    if (astrologyData.zodiacGuidance) {
+      candidates.push({ 
+        symbol: '✨', 
+        message: astrologyData.zodiacGuidance.guidance_tr, 
+        priority: 2 
+      });
+    }
+    
+    // Priority 3: Seasonal / Cultural Insights
+    astrologyData.events.forEach(e => {
+      if (e.event_type !== 'moon' && e.event_type !== 'solstice') {
+        candidates.push({ symbol: e.symbol || '🌿', message: e.message_tr, priority: 3 });
+      }
+    });
+    
+    // Sort by priority and remove duplicates by message content
+    const sorted = candidates.sort((a, b) => a.priority - b.priority);
+    const unique = Array.from(new Map(sorted.map(item => [item.message, item])).values());
+    
+    return unique.slice(0, 2);
+  };
+
+  const activeInsights = getPriorityInsights();
 
   return (
     <GradientBackground>
@@ -104,11 +185,36 @@ export default function HomeScreen() {
           <MascotBlob 
             mood={latestMood} 
             stressLevel={stressLevel}
+            emotionalContext={emotionalContext}
           />
           <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>
-            {isNight ? "Huzurlu geceler..." : '"Buradayım, seni dinliyorum."'}
+            "{getMascotMessage(new Date().getHours(), emotionalContext)}"
           </Text>
         </TouchableOpacity>
+
+        {/* Energy Guidance Section */}
+        {activeInsights.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(200)} style={styles.energySection}>
+            <View style={[styles.energyCard, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder }]}>
+              <View style={styles.energyHeader}>
+                <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary }]}>Günün Enerjisi</Text>
+                <Text style={styles.energySymbol}>✨</Text>
+              </View>
+              
+              {activeInsights.map((insight, idx) => (
+                <View key={idx} style={[styles.eventRow, idx > 0 && { marginTop: 16 }]}>
+                  <Text style={styles.eventSymbol}>{insight.symbol}</Text>
+                  <Text 
+                    style={[styles.eventMessage, { color: currentTheme.colors.text.primary }]}
+                    numberOfLines={2}
+                  >
+                    {insight.message}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
 
         <View style={styles.actions}>
           <CustomButton 
@@ -120,7 +226,8 @@ export default function HomeScreen() {
             title={cardUsedToday ? "Bugünkü Kartını Çektin ✨" : "Bir Davet Kartı Çek"} 
             onPress={handleCardPress}
             variant="secondary"
-            style={cardUsedToday ? { opacity: 0.5, marginBottom: 12 } : { marginBottom: 12 }}
+            disabled={cardUsedToday}
+            style={[{ marginBottom: 12 }, cardUsedToday && { opacity: 0.4 }]}
           />
           <TouchableOpacity 
             onPress={() => router.push('/ai-chat')}
@@ -222,5 +329,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
     lineHeight: 20,
+  },
+  energySection: {
+    marginBottom: 32,
+    width: '100%',
+  },
+  energyCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+  },
+  energyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    justifyContent: 'space-between',
+  },
+  energyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  energySymbol: {
+    fontSize: 20,
+  },
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventSymbol: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  eventMessage: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
 });

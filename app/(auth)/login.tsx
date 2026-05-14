@@ -38,10 +38,9 @@ export default function LoginScreen() {
       setModal({
         visible: true,
         title: 'Giriş Başarısız',
-        message: debugInfo
-          ? `Sunucu hatası detayı:\n\n${debugInfo}${stackInfo ? `\n\nStack:\n${stackInfo.substring(0, 200)}...` : ''}`
-          : 'Bir hata oluştu. Lütfen tekrar deneyin.'
+        message: errorData?.message || 'E-posta veya şifre hatalı. Lütfen kontrol edin.'
       });
+
     } finally {
       setLoading(false);
     }

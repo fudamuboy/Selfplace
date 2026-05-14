@@ -17,12 +17,7 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 });
 
-process.on('exit', (code) => {
-  console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-  console.log(`[PROCESS] Exiting with code: ${code}`);
-  console.trace();
-  console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-});
+
 
 const authRoutes = require('./src/routes/authRoutes');
 const checkInRoutes = require('./src/routes/checkInRoutes');
@@ -34,6 +29,7 @@ const reflectionRoutes = require('./src/routes/reflectionRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const aiRoutes = require('./src/routes/aiRoutes');
 const emotionalRoutes = require('./src/routes/emotionalRoutes');
+const astrologyRoutes = require('./src/routes/astrologyRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -47,28 +43,12 @@ if (process.env.DATABASE_URL) {
 }
 
 requiredEnvs.forEach(env => {
-  const value = process.env[env];
-  if (!value) {
+  if (!process.env[env]) {
     console.error(`[CRITICAL-ENV] Missing environment variable: ${env}`);
-  } else {
-    // Log presence and masked value for debugging
-    const masked = value.length > 8 
-      ? `${value.substring(0, 4)}...${value.substring(value.length - 4)}` 
-      : '****';
-    console.log(`[ENV-AUDIT] Found ${env}: ${masked}`);
   }
 });
 
-console.log(`[ENV-AUDIT] NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`[ENV-AUDIT] PORT: ${PORT}`);
 
-// AI Check
-const aiKey = process.env.OPENAI_API_KEY;
-if (!aiKey || aiKey === 'your_openai_api_key_here') {
-  console.log('[ENV-AUDIT] OPENAI_API_KEY exists: false (Using rule-based fallbacks)');
-} else {
-  console.log('[ENV-AUDIT] OPENAI_API_KEY exists: true');
-}
 
 const { runMigrations } = require('./src/config/migrations');
 
@@ -106,8 +86,12 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
+app.use('/api/astrology', astrologyRoutes);
+console.log('[ROUTES] Astrology routes mounted');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/check-ins', checkInRoutes);
+
 app.use('/api/journal', journalRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/insights', insightRoutes);
@@ -115,6 +99,7 @@ app.use('/api/reflections', reflectionRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/emotional', emotionalRoutes); // Unified Emotional Architecture
+
 
 
 
@@ -126,9 +111,6 @@ app.use((err, req, res, next) => {
 
 
 app.listen(PORT, () => {
-  console.log("🌐 SERVER RUNNING LOCAL");
-  console.log("🌐 PORT:", PORT);
-  console.log("🌐 DATABASE:", process.env.DB_HOST || "SUPABASE (Remote)");
   console.log(`[SERVER] Selfplace API active on port ${PORT}`);
   
   // Keep alive interval to prevent Event Loop from emptying if something closes the handles
@@ -136,3 +118,4 @@ app.listen(PORT, () => {
     // This just keeps the process alive
   }, 60000);
 });
+

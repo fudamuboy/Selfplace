@@ -30,6 +30,7 @@ import { CustomButton } from '../components/CustomButton';
 import { CustomModal } from '../components/CustomModal';
 import { GradientBackground } from '../components/GradientBackground';
 import { MascotBlob } from '../components/MascotBlob';
+import { getMascotMessage } from '../utils/mascotThemeEngine';
 import useThemeStore from '../store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -153,7 +154,7 @@ export default function CheckInScreen() {
 
   const MascotMessage = () => {
     const message = !selectedMood 
-      ? "Bugün nasıl hissediyorsun?" 
+      ? getMascotMessage()
       : `Anlıyorum... ${MOODS.find(m => m.id === selectedMood)?.label} bir gün mü?`;
     
     return (

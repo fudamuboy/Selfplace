@@ -1,41 +1,43 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  useAnimatedProps,
-  withRepeat, 
-  withTiming, 
-  withSequence,
+import Animated, {
   Easing,
-  interpolate,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming
 } from 'react-native-reanimated';
-import Svg, { Path, G, Circle } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, G, Path } from 'react-native-svg';
 import useThemeStore from '../store/useThemeStore';
-import { getMascotConfig, MascotMood } from '../utils/mascotThemeEngine';
+import { EmotionalContext, getMascotConfig, MascotMood } from '../utils/mascotThemeEngine';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface Props {
   mood?: MascotMood;
   stressLevel?: number; // 0-1
   hourOverride?: number;
+  emotionalContext?: EmotionalContext;
 }
 
-export const MascotBlob: React.FC<Props> = ({ 
-  mood = 'neutral', 
+export const MascotBlob: React.FC<Props> = ({
+  mood = 'neutral',
   stressLevel = 0,
-  hourOverride 
+  hourOverride,
+  emotionalContext
 }) => {
   const { currentTheme } = useThemeStore();
-  
+
   const hour = hourOverride !== undefined ? hourOverride : new Date().getHours();
-  
-  // Calculate dynamic config based on theme, mood and time
-  const config = useMemo(() => 
-    getMascotConfig(currentTheme, mood, hour, stressLevel),
-    [currentTheme, mood, hour, stressLevel]
+
+  // Calculate dynamic config based on theme, mood, time and context
+  const config = useMemo(() =>
+    getMascotConfig(currentTheme, mood, hour, stressLevel, emotionalContext),
+    [currentTheme, mood, hour, stressLevel, emotionalContext]
   );
 
   // ─── Shared Values for Animation ───────────────────────────────────────────
@@ -43,77 +45,106 @@ export const MascotBlob: React.FC<Props> = ({
   const radiusTR = useSharedValue(55);
   const radiusBL = useSharedValue(50);
   const radiusBR = useSharedValue(65);
-  
+
   const scale = useSharedValue(1);
   const floatY = useSharedValue(0);
+  const floatX = useSharedValue(0); // Horizontal drift
   const glowOpacity = useSharedValue(0.2);
   const blink = useSharedValue(1);
   const glowPulse = useSharedValue(1);
-
-  // Dynamic values that should transition smoothly when config changes
-  const targetGlowOpacity = useSharedValue(0.2);
-  const targetBreathDuration = useSharedValue(3500);
+  const eyeShiftX = useSharedValue(0); // Eye movement
+  const eyeShiftY = useSharedValue(0);
 
   useEffect(() => {
-    // 1. Organic Morphs (Constant)
-    radiusTL.value = withRepeat(withTiming(85, { duration: 5100, easing: Easing.inOut(Easing.sin) }), -1, true);
-    radiusTR.value = withRepeat(withTiming(40, { duration: 6300, easing: Easing.inOut(Easing.sin) }), -1, true);
-    radiusBL.value = withRepeat(withTiming(75, { duration: 4400, easing: Easing.inOut(Easing.sin) }), -1, true);
-    radiusBR.value = withRepeat(withTiming(45, { duration: 5700, easing: Easing.inOut(Easing.sin) }), -1, true);
+    // 1. Organic Morphs (Constant but slightly randomized durations)
+    radiusTL.value = withRepeat(withTiming(85, { duration: 5000 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
+    radiusTR.value = withRepeat(withTiming(40, { duration: 6000 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
+    radiusBL.value = withRepeat(withTiming(75, { duration: 4500 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
+    radiusBR.value = withRepeat(withTiming(45, { duration: 5500 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
 
-    // 2. Dynamic Breath & Pulse
+    // 2. Dynamic Breath & Pulse with micro-variation
+    const breathDuration = config.animation.breathDuration * (0.95 + Math.random() * 0.1);
+
     scale.value = withRepeat(
-      withTiming(config.animation.scaleIntensity, { 
-        duration: config.animation.breathDuration, 
-        easing: Easing.inOut(Easing.sin) 
+      withTiming(config.animation.scaleIntensity, {
+        duration: breathDuration,
+        easing: Easing.inOut(Easing.sin)
       }),
       -1,
       true
     );
 
     floatY.value = withRepeat(
-      withTiming(config.animation.floatIntensity, { 
-        duration: config.animation.floatDuration, 
-        easing: Easing.inOut(Easing.sin) 
+      withTiming(config.animation.floatIntensity, {
+        duration: config.animation.floatDuration,
+        easing: Easing.inOut(Easing.sin)
+      }),
+      -1,
+      true
+    );
+
+    // 3. Horizontal Drift (New Micro-state)
+    floatX.value = withRepeat(
+      withTiming(Math.random() * 6 - 3, {
+        duration: config.animation.floatDuration * 1.5,
+        easing: Easing.inOut(Easing.sin)
       }),
       -1,
       true
     );
 
     glowOpacity.value = withRepeat(
-      withTiming(config.animation.glowOpacityMax, { 
-        duration: config.animation.breathDuration, 
-        easing: Easing.inOut(Easing.sin) 
+      withTiming(config.animation.glowOpacityMax, {
+        duration: breathDuration,
+        easing: Easing.inOut(Easing.sin)
       }),
       -1,
       true
     );
 
     glowPulse.value = withRepeat(
-      withTiming(1.05, { 
-        duration: config.animation.breathDuration * 1.2, 
-        easing: Easing.inOut(Easing.sin) 
+      withTiming(1.05, {
+        duration: breathDuration * 1.2,
+        easing: Easing.inOut(Easing.sin)
       }),
       -1,
       true
     );
 
-    // 3. Procedural Blink
-    let timeoutId: any;
+    // 4. Procedural Blink with random interval
+    let blinkTimeoutId: any;
     const triggerBlink = () => {
-      const isSleepy = mood === 'sleepy' || mood === 'tired';
+      const isSleepy = mood === 'sleepy' || mood === 'tired' || config.expression.eyeType === 'closed';
       const blinkDuration = isSleepy ? 800 : 120;
-      
+
       blink.value = withSequence(
-        withTiming(0, { duration: blinkDuration }), 
+        withTiming(0, { duration: blinkDuration }),
         withTiming(1, { duration: blinkDuration })
       );
-      
-      timeoutId = setTimeout(triggerBlink, config.expression.blinkFrequency + Math.random() * 5000);
+
+      blinkTimeoutId = setTimeout(triggerBlink, config.expression.blinkFrequency + Math.random() * 6000);
     };
-    
+
+    // 5. Occasional Eye Movement (Pupil shift)
+    let eyeTimeoutId: any;
+    const triggerEyeShift = () => {
+      const targetX = (Math.random() - 0.5) * 3;
+      const targetY = (Math.random() - 0.5) * 2;
+      const duration = 1000 + Math.random() * 2000;
+
+      eyeShiftX.value = withTiming(targetX, { duration });
+      eyeShiftY.value = withTiming(targetY, { duration });
+
+      eyeTimeoutId = setTimeout(triggerEyeShift, 4000 + Math.random() * 8000);
+    };
+
     triggerBlink();
-    return () => { if (timeoutId) clearTimeout(timeoutId); };
+    triggerEyeShift();
+
+    return () => {
+      if (blinkTimeoutId) clearTimeout(blinkTimeoutId);
+      if (eyeTimeoutId) clearTimeout(eyeTimeoutId);
+    };
   }, [config, mood]);
 
   // ─── Animated Styles ───────────────────────────────────────────────────────
@@ -123,7 +154,8 @@ export const MascotBlob: React.FC<Props> = ({
     borderBottomLeftRadius: radiusBL.value,
     borderBottomRightRadius: radiusBR.value,
     transform: [
-      { translateY: floatY.value }, 
+      { translateY: floatY.value },
+      { translateX: floatX.value },
       { scale: scale.value }
     ],
   }));
@@ -136,20 +168,34 @@ export const MascotBlob: React.FC<Props> = ({
   }));
 
   const eyeProps = useAnimatedProps(() => ({
-    transform: [{ scaleY: blink.value }],
+    transform: [
+      { scaleY: blink.value },
+      { translateX: eyeShiftX.value },
+      { translateY: eyeShiftY.value }
+    ],
     opacity: config.expression.eyeOpacity,
   }));
 
   const faceStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(mood === 'sleepy' ? 0.6 : 1, { duration: 1000 }),
+    opacity: withTiming(mood === 'sleepy' || config.expression.eyeType === 'closed' ? 0.6 : 1, { duration: 1000 }),
   }));
 
   return (
     <View style={styles.container}>
-      {/* Procedural Aura Glow */}
-      <Animated.View style={[styles.outerGlow, styles.glowLarge, glowStyle]} />
-      <Animated.View style={[styles.outerGlow, styles.glowMedium, glowStyle]} />
-      
+      {/* Layered Atmospheric Aura Glow (Simplified & Minimal) */}
+      <Animated.View style={[
+        styles.outerGlow, 
+        styles.glowLarge, 
+        glowStyle, 
+        { opacity: glowOpacity.value * 0.65, backgroundColor: config.colors.glow }
+      ]} />
+      <Animated.View style={[
+        styles.outerGlow, 
+        styles.glowMedium, 
+        glowStyle,
+        { opacity: glowOpacity.value, backgroundColor: config.colors.glow }
+      ]} />
+
       <Animated.View style={[styles.blob, morphStyle]}>
         <LinearGradient
           colors={[config.colors.start, config.colors.end]}
@@ -157,7 +203,7 @@ export const MascotBlob: React.FC<Props> = ({
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
-        
+
         <Animated.View style={[styles.faceContainer, faceStyle]}>
           <Svg height="100" width="100" viewBox="0 0 100 100">
             <G x="50" y="45">
@@ -167,43 +213,43 @@ export const MascotBlob: React.FC<Props> = ({
                     <Path d="M-14,-3 Q-11,-7 -8,-3" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" />
                     <Path d="M8,-3 Q11,-7 14,-3" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" />
                   </>
-                ) : (config.expression.eyeType === 'closed' || mood === 'sleepy' || mood === 'calm' || mood === 'tired') ? (
-                  <>
-                    <Path d="M-14,2 Q-11,4 -8,2" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                    <Path d="M8,2 Q11,4 14,2" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                  </>
-                ) : (config.expression.eyeType === 'semi' || mood === 'reflective') ? (
-                  <>
-                    <Path d="M-14,-1 Q-11,1 -8,-1" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.8" />
-                    <Path d="M8,-1 Q11,1 14,-1" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.8" />
-                  </>
-                ) : (config.expression.eyeType === 'open' || mood === 'neutral') ? (
-                  <>
-                    <Circle cx="-12" cy="0" r="3" fill="white" />
-                    <Circle cx="12" cy="0" r="3" fill="white" />
-                  </>
                 ) : mood === 'sad' ? (
                   <>
                     <Path d="M-14,0 Q-11,-2 -8,0" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.7" />
                     <Path d="M8,0 Q11,-2 14,0" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.7" />
                   </>
+                ) : config.expression.eyeType === 'open' ? (
+                  <>
+                    <Circle cx="-12" cy="0" r="3.2" fill="white" />
+                    <Circle cx="12" cy="0" r="3.2" fill="white" />
+                  </>
+                ) : (config.expression.eyeType === 'closed' || mood === 'sleepy' || mood === 'tired') ? (
+                  <>
+                    <Path d="M-14,2 Q-11,4 -8,2" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+                    <Path d="M8,2 Q11,4 14,2" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+                  </>
+                ) : (config.expression.eyeType === 'semi' || mood === 'reflective' || mood === 'calm') ? (
+                  <>
+                    <Path d="M-14,1 Q-11,-0.5 -8,1" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.8" />
+                    <Path d="M8,1 Q11,-0.5 14,1" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.8" />
+                  </>
                 ) : (
                   <>
-                    <Circle cx="-12" cy="0" r="3" fill="white" />
-                    <Circle cx="12" cy="0" r="3" fill="white" />
+                    <Circle cx="-12" cy="0" r="3.2" fill="white" />
+                    <Circle cx="12" cy="0" r="3.2" fill="white" />
                   </>
                 )}
               </AnimatedG>
-              <Path 
+              <Path
                 d={
-                  mood === 'happy' || mood === 'excited' ? "M-5,12 Q0,18 5,12" : 
-                  mood === 'sad' ? "M-4,18 Q0,14 4,18" :
-                  mood === 'reflective' ? "M-3,14 Q0,14.5 3,14" : 
-                  "M-4,14 Q0,15.5 4,14"
-                } 
-                stroke="white" 
-                strokeWidth="2" 
-                fill="none" 
+                  mood === 'happy' || mood === 'excited' ? "M-5,12 Q0,18 5,12" :
+                    mood === 'sad' ? "M-4,18 Q0,14 4,18" :
+                      mood === 'reflective' ? "M-3,14 Q0,14.5 3,14" :
+                        "M-4,14 Q0,15.5 4,14"
+                }
+                stroke="white"
+                strokeWidth="2"
+                fill="none"
                 strokeLinecap="round"
                 opacity={config.expression.mouthOpacity}
               />
@@ -241,17 +287,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
   },
+  glowExtraLarge: {
+    width: 400,
+    height: 400,
+    shadowRadius: 140,
+    elevation: 60,
+    borderRadius: 200,
+  },
   glowLarge: {
-    width: 260,
-    height: 260,
-    shadowRadius: 80,
-    elevation: 40,
+    width: 320,
+    height: 320,
+    shadowRadius: 100,
+    elevation: 50,
+    borderRadius: 160,
   },
   glowMedium: {
-    width: 200,
-    height: 200,
-    shadowRadius: 50,
-    elevation: 30,
+    width: 240,
+    height: 240,
+    shadowRadius: 70,
+    elevation: 40,
+    borderRadius: 120,
   },
 });
 
