@@ -1,51 +1,89 @@
-# Welcome to your Expo app 👋
+# Selfplace 🌿
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Selfplace is a calm and emotionally intelligent mobile application designed to help users reconnect with themselves through daily reflections, emotional check-ins, mindful guidance, and personal growth experiences.
 
-## Get started
+Built with a minimalist and immersive experience in mind, Selfplace combines emotional wellness, journaling, personalized journeys, and gentle digital companionship into one peaceful space.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## ✨ Features
 
-2. Start the app
+* 🌙 Emotional mascot that adapts to the time of day
+* 📝 Daily emotional check-ins
+* 🃏 Interactive emotional guidance cards
+* 🌌 Astrology & energy insights based on zodiac signs
+* 🔔 Notifications for meaningful yearly events
+* 📖 Personal emotional journey timeline
+* 🎨 Calm UI/UX with immersive animations
+* 🔐 Authentication system with secure backend
+* ☁️ Cloud database integration
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🛠 Tech Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Frontend
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+* React Native
+* Expo
+* TypeScript
+* Reanimated
+* Axios
 
-## Get a fresh project
+### Backend
 
-When you're ready, run:
+* Node.js
+* Express.js
+* PostgreSQL
+* Supabase
+* Render Deployment
 
-```bash
-npm run reset-project
-```
+---
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🌿 Philosophy
 
-## Learn more
+Selfplace is not designed to overwhelm users with productivity pressure.
 
-To learn more about developing your project with Expo, look at the following resources:
+Instead, it creates:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+* emotional awareness
+* calm reflection
+* mindful digital interaction
+* soft guidance through important moments of life
 
-## Join the community
+The experience is intentionally minimal, warm, and human-centered.
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-# Selfplace
+## 🚀 Status
+
+Currently in active development with continuous improvements and new emotional wellness features.
+
+Available on the App Store.
+
+---
+
+## 📱 Screens Included
+
+* Home
+* Emotional Check-in
+* Journey Timeline
+* Astrology Energy
+* Profile
+* Emotional Guidance Cards
+
+---
+
+## 🔮 Upcoming Features
+
+* AI emotional companion
+* Personalized emotional recommendations
+* Deeper astrology insights
+* Enhanced mindfulness journeys
+* Smart emotional analytics
+
+---
+
+## 👨‍💻 Developer
+
+Developed with care by Salim Samake.
