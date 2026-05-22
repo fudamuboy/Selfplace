@@ -136,10 +136,16 @@ exports.runMigrations = async () => {
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         test_type VARCHAR(100) NOT NULL,
-        traits JSONB NOT NULL,
-        score INTEGER,
-        generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        result_data JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Ensure result_data exists if it was created with the old traits schema
+    await db.query(`
+      ALTER TABLE personality_results 
+      ADD COLUMN IF NOT EXISTS result_data JSONB,
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     `);
 
     // 11. Ensure AI chat tables exist

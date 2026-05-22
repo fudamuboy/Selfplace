@@ -298,7 +298,10 @@ exports.getHistory = async (req, res) => {
       color: colorHistory
     });
   } catch (err) {
-    console.error('[personalityController] getHistory error:', err);
-    res.status(500).json({ success: false, message: 'Geçmiş veriler alınamadı.' });
+    console.error('[Emotional Evolution ERROR]', err);
+    res.status(500).json({
+      success: false,
+      message: 'Evolution data could not be loaded.'
+    });
   }
 };

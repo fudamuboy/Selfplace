@@ -29,9 +29,18 @@ export default function PersonalityResultsScreen() {
   const fetchHistory = async () => {
     try {
       const res = await client.get('/personality/history');
-      setHistory(res.data);
+      if (res.data && res.data.success !== false) {
+        setHistory({
+          color: res.data.color || [],
+          mbti: res.data.mbti || []
+        });
+      } else {
+        setHistory({ color: [], mbti: [] });
+      }
     } catch (err) {
-      console.error(err);
+      // Silently catch the error to prevent Expo red screens or aggressive alerts
+      console.log('[Personality Results] Soft failure on history fetch');
+      setHistory({ color: [], mbti: [] });
     } finally {
       setLoading(false);
     }
@@ -107,7 +116,7 @@ export default function PersonalityResultsScreen() {
         {hasNoResults ? (
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: currentTheme.colors.text.muted }]}>
-              Henüz bir keşif yolculuğuna çıkmadın. Profilinden testleri çözerek iç dünyanı keşfetmeye başlayabilirsin.
+              Kendini keşfetme yolculuğun henüz yeni başlıyor 🌿
             </Text>
           </View>
         ) : (
