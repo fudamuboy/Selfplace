@@ -30,61 +30,103 @@ exports.handleChat = async (req, res) => {
       [convId, 'user', message]
     );
 
-    // 3. Get context (recent messages + memories + check-ins + journal + cards)
-    const [historyRes, memoriesRes, profileRes, entriesRes] = await Promise.all([
-      db.query(
-        'SELECT sender, message FROM ai_messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 10',
-        [convId]
-      ),
-      db.query(
-        'SELECT memory_key, memory_value FROM emotional_memories WHERE user_id = $1',
-        [userId]
-      ),
-      db.query(
-        'SELECT traits, communication_style FROM personality_profiles WHERE user_id = $1',
-        [userId]
-      ),
-      db.query(
-        'SELECT source_type, emotion, prompt, content, created_at FROM emotional_entries WHERE user_id = $1 ORDER BY created_at DESC LIMIT 15',
-        [userId]
-      )
+    // 3. Get rich context (history, memory, check-ins, journal, cards, personality, astrology)
+    const [
+      historyRes,
+      memoriesRes,
+      checkInsRes,
+      journalRes,
+      cardsRes,
+      colorTestRes,
+      astrologyRes,
+      userRes
+    ] = await Promise.all([
+      db.query('SELECT sender, message FROM ai_messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 8', [convId]),
+      db.query('SELECT memory_key, memory_value FROM emotional_memories WHERE user_id = $1', [userId]),
+      db.query('SELECT mood, note, created_at FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5', [userId]),
+      db.query('SELECT text, created_at FROM daily_reflections WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3', [userId]),
+      db.query('SELECT response, category, created_at FROM card_responses WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3', [userId]),
+      db.query("SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1", [userId]),
+      db.query('SELECT guidance_text FROM weekly_guidance WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 1', [userId]),
+      db.query('SELECT zodiac_sign FROM users WHERE id = $1', [userId])
     ]);
 
     const history = historyRes.rows.reverse();
     const memories = memoriesRes.rows;
-    const profile = profileRes.rows[0] || { traits: {}, communication_style: 'gentle' };
+    const recentCheckIns = checkInsRes.rows;
+    const recentJournals = journalRes.rows;
+    const recentCards = cardsRes.rows;
+    const colorTest = colorTestRes.rows[0]?.result_data || null;
+    const astrology = astrologyRes.rows[0]?.guidance_text || null;
+    const zodiacSign = userRes.rows[0]?.zodiac_sign || 'Unknown';
 
-    // Format Context for AI
-    const recentEntries = entriesRes.rows.map(e => `- [${e.source_type}] ${new Date(e.created_at).toLocaleDateString()}: ${e.emotion ? `Felt ${e.emotion}. ` : ''}${e.prompt ? `Question: ${e.prompt} -> ` : ''}Answer: "${e.content}"`).join('\n');
+    // 4. Construct the Intelligent User Dossier
+    let dossier = `[USER DOSSIER & CONTEXT]\n`;
+    dossier += `Zodiac Sign: ${zodiacSign}\n`;
 
+    if (colorTest) {
+      dossier += `DISC Personality: Dominant ${colorTest.dominantColor} (${colorTest.title}). Strengths: ${colorTest.strengths?.join(', ')}. Stress Behavior: ${colorTest.stressBehavior}.\n`;
+    }
 
+    if (astrology) {
+      dossier += `Current Astrological Energy: "${astrology}"\n`;
+    }
 
-    // 4. Construct AI Prompt
+    if (recentCheckIns.length > 0) {
+      dossier += `\nRecent Check-ins (Moods):\n` + recentCheckIns.map(c => `- ${new Date(c.created_at).toLocaleDateString()}: ${c.mood} ${c.note ? `(Note: "${c.note}")` : ''}`).join('\n');
+    }
+
+    if (recentJournals.length > 0) {
+      dossier += `\n\nRecent Journal Entries:\n` + recentJournals.map(j => `- ${new Date(j.created_at).toLocaleDateString()}: "${j.text}"`).join('\n');
+    }
+
+    if (recentCards.length > 0) {
+      dossier += `\n\nRecent Emotional Card Pulls:\n` + recentCards.map(c => `- ${new Date(c.created_at).toLocaleDateString()}: Chose "${c.response}" in category [${c.category}]`).join('\n');
+    }
+
     const memoryContext = memories.length > 0 
-      ? `Important things you remember about them: ${memories.map(m => `${m.memory_key}: ${m.memory_value}`).join(', ')}.`
+      ? `\n\nCore Memories I Know About Them: ${memories.map(m => `${m.memory_key}: ${m.memory_value}`).join(' | ')}.`
       : '';
 
-    const systemPrompt = `You are a warm, gentle, and emotionally intelligent companion named Selfplace AI.
-Your goal is to provide a soft, safe, and intimate space for the user. 
-You are NOT a therapist, a life coach, or a clinical assistant. You are a consistent emotional presence.
+    // Determine current distress level from the latest check-in
+    let isDistressed = false;
+    if (recentCheckIns.length > 0) {
+      const latestMood = recentCheckIns[0].mood.toLowerCase();
+      if (latestMood.includes('stres') || latestMood.includes('tüken') || latestMood.includes('kaygı') || latestMood.includes('üzgün') || latestMood.includes('yalnız')) {
+        isDistressed = true;
+      }
+    }
 
-YOUR EMOTIONAL AWARENESS:
-You are connected to the user's entire journey in the app. 
-Here is their recent emotional context:
-${recentEntries || "No recent emotional activity."}
+    // 5. Build the Dynamic System Prompt
+    const systemPrompt = `You are "Selfplace", a highly intelligent, context-aware, and deeply human emotional companion.
+Your goal is to make the user genuinely feel: "This app understands me, remembers me, and evolves with me."
 
-INSTRUCTIONS:
-1. Reference their context NATURALLY. If they were anxious in a check-in, notice the shift in their energy.
-2. NEVER say things like "I analyzed your data", "I see you checked in as sad", or "Based on your logs". 
-3. Instead, be a friend who notices. "You seemed a bit heavy-hearted earlier today..." or "I remember you mentioned exams were on your mind, how is that feeling now?"
-4. Connect dots. If a journal entry mentions a fear and a card response mentions a goal, understand the tension.
-5. Be poetic, soft, and reflective. Use metaphors.
-6. Be concise but emotionally deep. Max 2-3 sentences unless they need a longer response.
-7. Language: Always respond in the user's language (Turkish or English).
+${dossier}
+${memoryContext}
 
-PERSONALITY:
-- Stable, quiet, observant, and deeply caring.
-- Reference past memories: ${memoryContext}`;
+CRITICAL BEHAVIORAL RULES:
+1. TONE ADAPTABILITY: You are NOT a one-dimensional soft therapist. 
+   - If the user is emotionally stable, be curious, playful, analytical, and conversational.
+   - If the user is highly distressed (burnout, exhaustion, anxiety), soften your tone and become highly emotionally careful.
+   - Currently, user distress level is: ${isDistressed ? "HIGH (Be soft, careful, and grounding)" : "LOW/STABLE (Be curious, dynamic, and analytical)"}.
+
+2. CONNECT THE DOTS (Synthesis): Proactively tie their current message to their contextual dossier. 
+   - Combine their Zodiac sign, DISC personality color, recent journal entries, and moods to form brilliant, highly personalized insights.
+   - E.g., "You mentioned pressure several times this week in your journal." 
+   - E.g., "Do you think this pattern is repeating itself again?"
+   - E.g., "I noticed your energy changed after your last check-in. Is something mentally exhausting you?"
+
+3. BAN LIST (NEVER DO THESE):
+   - NEVER sound like a generic therapy bot. NEVER say: "I understand you", "Take a deep breath", "You are strong", "Take care of yourself".
+   - NEVER act like a clinical psychologist diagnosing them.
+   - NEVER use fake positivity.
+   - NEVER do fortune-telling or absolute future predictions with their astrology data. Astrology is purely for poetic emotional reflection.
+   - NEVER say "I analyzed your data" or "According to your logs". Reference memory naturally like a real human.
+
+4. GENTLY CHALLENGE: When appropriate, ask emotionally intelligent follow-up questions instead of passively waiting. Challenge their thought patterns gently (e.g. "Are you protecting yourself or isolating yourself?").
+
+5. FORMATTING: Keep responses concise (2-4 sentences max unless they write a massive paragraph). ALWAYS respond in the user's language (mostly Turkish).
+Be alive, memory-aware, and emotionally intelligent.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -94,7 +136,7 @@ PERSONALITY:
       }))
     ];
 
-    // 5. Get AI Response
+    // 6. Get AI Response
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages,
