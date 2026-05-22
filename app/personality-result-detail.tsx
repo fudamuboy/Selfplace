@@ -18,7 +18,7 @@ interface TestResult {
 }
 
 // Custom Animated Progress Bar
-const AnimatedProgressBar = ({ color, percentage, delay }: { color: string, percentage: number, delay: number }) => {
+const AnimatedProgressBar = ({ color, percentage, delay, label, icon }: { color: string, percentage: number, delay: number, label: string, icon: string }) => {
   const { currentTheme } = useThemeStore();
   const progress = useSharedValue(0);
 
@@ -31,10 +31,17 @@ const AnimatedProgressBar = ({ color, percentage, delay }: { color: string, perc
   }));
 
   return (
-    <View style={[styles.barContainer, { backgroundColor: currentTheme.colors.background[0] }]}>
-      <Animated.View style={[styles.barFill, { backgroundColor: color }, animatedStyle]} />
-      <View style={styles.barOverlay}>
-        <Text style={[styles.barPercentage, { color: currentTheme.colors.text.primary }]}>{percentage}%</Text>
+    <View style={styles.barWrapper}>
+      <View style={styles.barLabelContainer}>
+        <Text style={[styles.barLabel, { color: currentTheme.colors.text.primary }]}>
+          {icon} {label}
+        </Text>
+        <Text style={[styles.barPercentageText, { color: color }]}>
+          %{percentage}
+        </Text>
+      </View>
+      <View style={[styles.barContainer, { backgroundColor: currentTheme.colors.background[0] }]}>
+        <Animated.View style={[styles.barFill, { backgroundColor: color }, animatedStyle]} />
       </View>
     </View>
   );
@@ -126,22 +133,10 @@ export default function PersonalityResultDetailScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(600)} style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
           <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>Renk Dağılımı</Text>
           
-          <View style={styles.barWrapper}>
-            <Text style={[styles.barLabel, { color: currentTheme.colors.text.secondary }]}>Kırmızı (Liderlik)</Text>
-            <AnimatedProgressBar color="#EF4444" percentage={percentages.red} delay={300} />
-          </View>
-          <View style={styles.barWrapper}>
-            <Text style={[styles.barLabel, { color: currentTheme.colors.text.secondary }]}>Sarı (Enerji)</Text>
-            <AnimatedProgressBar color="#F59E0B" percentage={percentages.yellow} delay={500} />
-          </View>
-          <View style={styles.barWrapper}>
-            <Text style={[styles.barLabel, { color: currentTheme.colors.text.secondary }]}>Yeşil (Uyum)</Text>
-            <AnimatedProgressBar color="#10B981" percentage={percentages.green} delay={700} />
-          </View>
-          <View style={styles.barWrapper}>
-            <Text style={[styles.barLabel, { color: currentTheme.colors.text.secondary }]}>Mavi (Analiz)</Text>
-            <AnimatedProgressBar color="#3B82F6" percentage={percentages.blue} delay={900} />
-          </View>
+          <AnimatedProgressBar color="#EF4444" percentage={percentages.red} delay={300} label="Kırmızı (Liderlik)" icon="🔴" />
+          <AnimatedProgressBar color="#F59E0B" percentage={percentages.yellow} delay={500} label="Sarı (Enerji)" icon="🟡" />
+          <AnimatedProgressBar color="#10B981" percentage={percentages.green} delay={700} label="Yeşil (Uyum)" icon="🟢" />
+          <AnimatedProgressBar color="#3B82F6" percentage={percentages.blue} delay={900} label="Mavi (Analiz)" icon="🔵" />
         </Animated.View>
 
         {/* Detailed Insights (Only for new tests) */}
@@ -257,33 +252,32 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   barWrapper: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  barLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+  barLabelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
     marginBottom: 8,
   },
+  barLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  barPercentageText: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
   barContainer: {
-    height: 24,
-    backgroundColor: 'rgba(0,0,0,0.1)', // Wait, fallback
-    borderRadius: 12,
+    height: 12,
+    borderRadius: 6,
     overflow: 'hidden',
     position: 'relative',
   },
   barFill: {
     height: '100%',
-    borderRadius: 12,
-  },
-  barOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  barPercentage: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    textAlign: 'right',
+    borderRadius: 6,
   },
   insightsGrid: {
     flexDirection: 'row',
