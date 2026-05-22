@@ -66,6 +66,146 @@ const COLOR_TEST = {
         { text: 'Duyguları bir kenara bırakır, gerçekler üzerinden konuşurum', value: 'blue' },
         { text: 'Gerginliği kırmak için konuyu değiştirmeye çalışırım', value: 'yellow' }
       ]
+    },
+    {
+      id: 'c7',
+      text: 'Yeni bir ortama girdiğinde nasıl davranırsın?',
+      options: [
+        { text: 'Hemen insanlarla tanışır ve sohbet başlatırım', value: 'yellow' },
+        { text: 'Sessizce kenarda durur, ortamı gözlemlerim', value: 'blue' },
+        { text: 'Tanıdığım birilerini bulur veya onlara yakın dururum', value: 'green' },
+        { text: 'Ortamın merkezine geçer ve ilgiyi üzerime çekerim', value: 'red' }
+      ]
+    },
+    {
+      id: 'c8',
+      text: 'Biri sana işinde hata yaptığını söylerse tepkin ne olur?',
+      options: [
+        { text: 'Hatamı kanıtlayan verilere bakar, sonra düzeltirim', value: 'blue' },
+        { text: 'Hemen savunmaya geçerim veya umursamam', value: 'red' },
+        { text: 'Üzülürüm ama ilişkimi bozmamaya çalışırım', value: 'green' },
+        { text: 'Konuyu şakaya vurup durumu hafifletirim', value: 'yellow' }
+      ]
+    },
+    {
+      id: 'c9',
+      text: 'Boş zamanlarında en çok ne yapmaktan keyif alırsın?',
+      options: [
+        { text: 'Kitap okumak, araştırmak veya bir şeyler düzenlemek', value: 'blue' },
+        { text: 'Arkadaşlarımla dışarı çıkmak, eğlenmek', value: 'yellow' },
+        { text: 'Doğada yürüyüş yapmak veya sessizce dinlenmek', value: 'green' },
+        { text: 'Rekabetçi sporlar veya yeni bir hedefe çalışmak', value: 'red' }
+      ]
+    },
+    {
+      id: 'c10',
+      text: 'Çalışma masan genellikle nasıldır?',
+      options: [
+        { text: 'Çok düzenli ve her şey yerli yerinde', value: 'blue' },
+        { text: 'Biraz dağınık ama benim için yaratıcı bir kaos', value: 'yellow' },
+        { text: 'Sade, sıcak ve kişisel eşyalarla dolu', value: 'green' },
+        { text: 'Fonksiyonel, sadece işime yarayan şeyler var', value: 'red' }
+      ]
+    },
+    {
+      id: 'c11',
+      text: 'Bir arkadaşın üzgün olduğunda ilk olarak ne yaparsın?',
+      options: [
+        { text: 'Ona problemi çözmesi için mantıklı bir yol sunarım', value: 'blue' },
+        { text: 'Onu güldürmeye ve neşelendirmeye çalışırım', value: 'yellow' },
+        { text: 'Sadece yanında durur, ona sarılır ve dinlerim', value: 'green' },
+        { text: 'Onu üzen şeyi gidip çözmek için harekete geçerim', value: 'red' }
+      ]
+    },
+    {
+      id: 'c12',
+      text: 'Hayatındaki en büyük korkun nedir?',
+      options: [
+        { text: 'Kontrolü kaybetmek ve başarısız olmak', value: 'red' },
+        { text: 'Hata yapmak ve eleştirilmek', value: 'blue' },
+        { text: 'Sevdiklerim tarafından dışlanmak veya yalnız kalmak', value: 'yellow' },
+        { text: 'Güvenliğimin ve huzurumun bozulması', value: 'green' }
+      ]
+    },
+    {
+      id: 'c13',
+      text: 'Bir göreve başlarken yaklaşımın nasıldır?',
+      options: [
+        { text: 'Hemen şimdi, hızlıca bitirelim!', value: 'red' },
+        { text: 'Önce mükemmel bir plan çıkaralım.', value: 'blue' },
+        { text: 'Herkesin ne yapacağı konusunda anlaşalım.', value: 'green' },
+        { text: 'Eğlenceli ve farklı bir şekilde nasıl yaparız?', value: 'yellow' }
+      ]
+    },
+    {
+      id: 'c14',
+      text: 'Biri sana aniden sürpriz bir planla geldiğinde hissin?',
+      options: [
+        { text: 'Harika! Hemen hazırlanıyorum.', value: 'yellow' },
+        { text: 'Bunu programıma nasıl uyduracağımı hesaplamam lazım.', value: 'blue' },
+        { text: 'Benim planım var, o plana uymuyorsa reddederim.', value: 'red' },
+        { text: 'Eğer çok yorucu değilse uyum sağlarım.', value: 'green' }
+      ]
+    },
+    {
+      id: 'c15',
+      text: 'Kurallarla aran nasıldır?',
+      options: [
+        { text: 'Kurallar uyulmak içindir, onlarsız düzen olmaz.', value: 'blue' },
+        { text: 'Kurallar beni engelliyorsa, onları esnetebilirim.', value: 'red' },
+        { text: 'Kurallar sıkıcıdır, kendi kurallarımı yaratmayı severim.', value: 'yellow' },
+        { text: 'Başkalarını rahatsız etmediği sürece kurallara uyarım.', value: 'green' }
+      ]
+    },
+    {
+      id: 'c16',
+      text: 'Yeni bir teknolojik alet aldığında ne yaparsın?',
+      options: [
+        { text: 'Kullanım kılavuzunu baştan sona okurum.', value: 'blue' },
+        { text: 'Hemen düğmelere basıp kurcalamaya başlarım.', value: 'yellow' },
+        { text: 'Bilen birine sorar, yardım isterim.', value: 'green' },
+        { text: 'Direkt kurup hemen amaca yönelik kullanmaya başlarım.', value: 'red' }
+      ]
+    },
+    {
+      id: 'c17',
+      text: 'Biri çok ağır konuştuğunda içindeki tepki ne olur?',
+      options: [
+        { text: 'Sessiz kalır, ama içten içe derin kırılırım.', value: 'green' },
+        { text: 'Ona çok daha sert ve net bir cevap veririm.', value: 'red' },
+        { text: 'Onun bu mantıksız sözlerini analiz eder, haksızlığını yüzüne vururum.', value: 'blue' },
+        { text: 'Konuyu duymazdan gelir veya gülüp geçerim.', value: 'yellow' }
+      ]
+    },
+    {
+      id: 'c18',
+      text: 'Ekip lideri olsaydın, tarzın nasıl olurdu?',
+      options: [
+        { text: 'Hedefe kitlenen, talepkar ve sonuç odaklı.', value: 'red' },
+        { text: 'Sistematik, kuralları olan ve kaliteyi ölçen.', value: 'blue' },
+        { text: 'Motivasyon veren, enerjik ve eğlenceli.', value: 'yellow' },
+        { text: 'Herkesin fikrini dinleyen ve destekleyici.', value: 'green' }
+      ]
+    },
+    {
+      id: 'c19',
+      text: 'Para harcama alışkanlıkların nasıldır?',
+      options: [
+        { text: 'Çok dikkatli, bütçe yapar ve gereksiz harcamam.', value: 'blue' },
+        { text: 'Anlık zevkler için düşünmeden harcayabilirim.', value: 'yellow' },
+        { text: 'Güvenliğim ve sevdiklerimin ihtiyaçları için harcarım.', value: 'green' },
+        { text: 'Güç, prestij ve kalite gösteren şeylere para veririm.', value: 'red' }
+      ]
+    },
+    {
+      id: 'c20',
+      text: 'Değişim senin için ne ifade eder?',
+      options: [
+        { text: 'Tehdit! Ben alıştığım düzeni severim.', value: 'green' },
+        { text: 'Fırsat! Yeni şeyler denemek beni çok heyecanlandırır.', value: 'yellow' },
+        { text: 'Eğer mantıklı bir sebebi varsa uyum sağlarım.', value: 'blue' },
+        { text: 'Meydan okuma! Değişimi ben başlatmayı severim.', value: 'red' }
+      ]
     }
   ],
   results: {
@@ -228,7 +368,20 @@ exports.getTest = async (req, res) => {
   const { type } = req.params;
   try {
     if (type === 'color') {
-      res.json({ success: true, test: COLOR_TEST });
+      // Create a copy of COLOR_TEST
+      const testResponse = { ...COLOR_TEST };
+      
+      // Randomize questions and pick 10
+      const shuffled = [...testResponse.questions].sort(() => 0.5 - Math.random());
+      testResponse.questions = shuffled.slice(0, 10);
+      
+      // Randomize the order of options for each question to prevent position bias
+      testResponse.questions = testResponse.questions.map(q => ({
+        ...q,
+        options: [...q.options].sort(() => 0.5 - Math.random())
+      }));
+
+      res.json({ success: true, test: testResponse });
     } else if (type === 'mbti') {
       res.json({ success: true, test: MBTI_TEST });
     } else {
@@ -314,10 +467,10 @@ exports.submitTest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Test bulunamadı.' });
     }
 
-    // Save to database
+    // Save to database. Use '{}' for traits to bypass legacy NOT NULL constraint safely
     const insertRes = await db.query(
-      'INSERT INTO personality_results (user_id, test_type, result_data) VALUES ($1, $2, $3) RETURNING id',
-      [userId, type, resultData]
+      'INSERT INTO personality_results (user_id, test_type, result_data, traits) VALUES ($1, $2, $3, $4) RETURNING id',
+      [userId, type, resultData, '{}']
     );
 
     res.json({

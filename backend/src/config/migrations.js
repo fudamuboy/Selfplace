@@ -148,6 +148,20 @@ exports.runMigrations = async () => {
       ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     `);
 
+    // Safely drop NOT NULL constraint from traits if it exists from older schema
+    await db.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 
+          FROM information_schema.columns 
+          WHERE table_name='personality_results' AND column_name='traits'
+        ) THEN
+          ALTER TABLE personality_results ALTER COLUMN traits DROP NOT NULL;
+        END IF;
+      END $$;
+    `);
+
     // 11. Ensure AI chat tables exist
     await db.query(`
       CREATE TABLE IF NOT EXISTS ai_conversations (
