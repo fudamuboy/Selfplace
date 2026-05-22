@@ -97,7 +97,7 @@ export default function PersonalityResultsScreen() {
             <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Duygusal Evrim</Text>
-          <View style={{ width: 24 }} /> {/* Spacer */}
+          <View style={{ width: 24 }} />
         </View>
 
         <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>

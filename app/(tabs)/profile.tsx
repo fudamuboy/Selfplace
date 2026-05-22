@@ -10,6 +10,24 @@ import useThemeStore from '../../store/useThemeStore';
 import useNotificationStore from '../../store/useNotificationStore';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Platform } from 'react-native';
+
+const getZodiacSign = (day: number, month: number): string => {
+  if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
+  if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'Boğa';
+  if ((month === 5 && day >= 21) || (month === 6 && day <= 20)) return 'İkizler';
+  if ((month === 6 && day >= 21) || (month === 7 && day <= 22)) return 'Yengeç';
+  if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return 'Aslan';
+  if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return 'Başak';
+  if ((month === 9 && day >= 23) || (month === 10 && day <= 22)) return 'Terazi';
+  if ((month === 10 && day >= 23) || (month === 11 && day <= 21)) return 'Akrep';
+  if ((month === 11 && day >= 22) || (month === 12 && day <= 21)) return 'Yay';
+  if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return 'Oğlak';
+  if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return 'Kova';
+  if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return 'Balık';
+  return 'Bilinmiyor';
+};
 
 interface Stats {
   checkInCount: number;
@@ -23,6 +41,9 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isPremiumModalVisible, setIsPremiumModalVisible] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
   const { currentTheme } = useThemeStore();
   const { remindersEnabled, reminderTime, loadConfig } = useNotificationStore();
 
@@ -45,6 +66,39 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     logout();
     router.replace('/login');
+  };
+
+  const handleDateChange = async (event: any, selectedDate?: Date) => {
+    // Hide picker early, especially on Android where it stays open
+    setShowDatePicker(false);
+    
+    if (!selectedDate || event.type === 'dismissed') return;
+    
+    try {
+      setIsUpdatingProfile(true);
+      const day = selectedDate.getDate();
+      const month = selectedDate.getMonth() + 1; // 0-indexed
+      const newZodiac = getZodiacSign(day, month);
+      
+      const isoDate = selectedDate.toISOString();
+      
+      // Update backend
+      await client.put('/user/profile', {
+        birth_date: isoDate,
+        zodiac_sign: newZodiac
+      });
+
+      // Update local state in Zustand
+      useAuthStore.getState().updateUser({
+        birth_date: isoDate,
+        zodiac_sign: newZodiac
+      });
+
+    } catch (err) {
+      console.error('[Profile] Error updating profile:', err);
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
   const renderMenuItem = (icon: any, title: string, subtitle?: string, onPress?: () => void, isDestructive = false) => (
@@ -257,19 +311,26 @@ export default function ProfileScreen() {
                   <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>Doğum Tarihi</Text>
                   <TouchableOpacity 
                     style={[styles.dateInput, { borderColor: currentTheme.colors.cardBorder, backgroundColor: currentTheme.colors.card }]}
-                    onPress={() => {
-                      // In a real app, this would open a DatePicker
-                      // For now, we'll use a simple prompt or modal
-                      alert('Gerçek uygulamada burada bir Tarih Seçici açılır. Şimdilik test için backend API üzerinden güncellenebilir.');
-                    }}
+                    onPress={() => setShowDatePicker(true)}
                   >
                     <Text style={[styles.dateValue, { color: user?.birth_date ? currentTheme.colors.text.primary : currentTheme.colors.text.muted }]}>
-                      {user?.birth_date ? new Date(user.birth_date).toLocaleDateString('tr-TR') : 'Tarih Seçin'}
+                      {isUpdatingProfile ? 'Güncelleniyor...' : (user?.birth_date ? new Date(user.birth_date).toLocaleDateString('tr-TR') : 'Tarih Seçin')}
                     </Text>
                     <Ionicons name="calendar-outline" size={20} color={currentTheme.colors.primary} />
                   </TouchableOpacity>
                </View>
             </View>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={user?.birth_date ? new Date(user.birth_date) : new Date(2000, 0, 1)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+                themeVariant={currentTheme.mode === 'dark' ? 'dark' : 'light'}
+              />
+            )}
 
             <CustomButton 
               title="Kapat" 

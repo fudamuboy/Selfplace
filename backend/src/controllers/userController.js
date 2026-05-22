@@ -92,3 +92,31 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ message: 'Şifre değiştirilirken bir hata oluştu.' });
   }
 };
+
+// ---------------------------------------------------------------------------
+// PUT /api/user/profile
+// ---------------------------------------------------------------------------
+exports.updateProfile = async (req, res) => {
+  const userId = req.user.id;
+  const { birth_date, zodiac_sign } = req.body;
+
+  try {
+    const updateRes = await db.query(
+      'UPDATE users SET birth_date = $1, zodiac_sign = $2 WHERE id = $3 RETURNING *',
+      [birth_date, zodiac_sign, userId]
+    );
+
+    if (updateRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    }
+
+    const updatedUser = updateRes.rows[0];
+    // Exclude password
+    delete updatedUser.password;
+
+    res.json({ message: 'Profil güncellendi.', user: updatedUser });
+  } catch (err) {
+    console.error('[userController] updateProfile error:', err.message);
+    res.status(500).json({ message: 'Profil güncellenirken bir hata oluştu.' });
+  }
+};

@@ -22,13 +22,15 @@ interface Props {
   stressLevel?: number; // 0-1
   hourOverride?: number;
   emotionalContext?: EmotionalContext;
+  scale?: number;
 }
 
 export const MascotBlob: React.FC<Props> = ({
   mood = 'neutral',
   stressLevel = 0,
   hourOverride,
-  emotionalContext
+  emotionalContext,
+  scale: scaleProp = 1
 }) => {
   const { currentTheme } = useThemeStore();
 
@@ -171,7 +173,7 @@ export const MascotBlob: React.FC<Props> = ({
   }));
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, scaleProp !== 1 && { transform: [{ scale: scaleProp }] }]}>
       {/* Layered Atmospheric Aura Glow (Simplified & Minimal) */}
       <Animated.View style={[
         styles.outerGlow, 
