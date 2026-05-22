@@ -47,11 +47,16 @@ export default function PersonalityResultsScreen() {
   };
 
   const renderColorResult = (result: TestResult, isLatest: boolean) => {
-    const { dominantColor, title, description, colorHex } = result.result_data;
+    const { dominantColor, title, description, colorHex, percentages } = result.result_data;
     const date = new Date(result.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 
     return (
-      <View key={result.id} style={[styles.resultCard, { backgroundColor: currentTheme.colors.card, borderColor: isLatest ? colorHex : currentTheme.colors.cardBorder }]}>
+      <TouchableOpacity 
+        key={result.id} 
+        activeOpacity={0.8}
+        onPress={() => router.push({ pathname: '/personality-result-detail', params: { id: result.id } })}
+        style={[styles.resultCard, { backgroundColor: currentTheme.colors.card, borderColor: isLatest ? colorHex : currentTheme.colors.cardBorder }]}
+      >
         {isLatest && <Text style={[styles.latestBadge, { color: colorHex }]}>EN YENİ</Text>}
         <View style={styles.cardHeader}>
           <View style={[styles.colorDot, { backgroundColor: colorHex }]} />
@@ -60,8 +65,18 @@ export default function PersonalityResultsScreen() {
             <Text style={[styles.cardDate, { color: currentTheme.colors.text.muted }]}>{date}</Text>
           </View>
         </View>
+        
+        {percentages && (
+          <View style={{ flexDirection: 'row', gap: 4, height: 6, width: '100%', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
+            <View style={{ flex: percentages.red, backgroundColor: '#EF4444' }} />
+            <View style={{ flex: percentages.yellow, backgroundColor: '#F59E0B' }} />
+            <View style={{ flex: percentages.green, backgroundColor: '#10B981' }} />
+            <View style={{ flex: percentages.blue, backgroundColor: '#3B82F6' }} />
+          </View>
+        )}
+
         <Text style={[styles.cardDescription, { color: currentTheme.colors.text.secondary }]}>{description}</Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 

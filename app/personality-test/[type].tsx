@@ -77,11 +77,17 @@ export default function PersonalityTestScreen() {
     try {
       const res = await client.post(`/personality/tests/${type}/submit`, { answers: finalAnswers });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Redirect to results page, passing the specific result ID
-      router.replace({
-        pathname: '/personality-results',
-        params: { resultId: res.data.id }
-      });
+      if (type === 'color') {
+        router.replace({
+          pathname: '/personality-result-detail',
+          params: { id: res.data.id }
+        });
+      } else {
+        router.replace({
+          pathname: '/personality-results',
+          params: { resultId: res.data.id }
+        });
+      }
     } catch (err) {
       // Soft failure, return to previous screen gracefully
       setSubmitting(false);
@@ -144,6 +150,19 @@ export default function PersonalityTestScreen() {
             <View style={styles.optionsContainer}>
               {currentQuestion.options.map((option, idx) => {
                 const isSelected = answers[currentQuestion.id] === option.value;
+                const isColorTest = testData.id === 'color';
+                
+                let borderColor = isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder;
+                let textColor = isSelected ? currentTheme.colors.primary : currentTheme.colors.text.secondary;
+                let shadowColor = 'transparent';
+
+                if (isColorTest && isSelected) {
+                  if (option.value === 'red') { borderColor = '#EF4444'; textColor = '#EF4444'; shadowColor = '#EF4444'; }
+                  if (option.value === 'blue') { borderColor = '#3B82F6'; textColor = '#3B82F6'; shadowColor = '#3B82F6'; }
+                  if (option.value === 'green') { borderColor = '#10B981'; textColor = '#10B981'; shadowColor = '#10B981'; }
+                  if (option.value === 'yellow') { borderColor = '#F59E0B'; textColor = '#F59E0B'; shadowColor = '#F59E0B'; }
+                }
+
                 return (
                   <TouchableOpacity
                     key={idx}
@@ -153,14 +172,16 @@ export default function PersonalityTestScreen() {
                       styles.optionCard,
                       {
                         backgroundColor: currentTheme.colors.card,
-                        borderColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder,
+                        borderColor: borderColor,
+                        shadowColor: shadowColor,
+                        shadowOpacity: isSelected && isColorTest ? 0.3 : 0,
+                        shadowRadius: 10,
+                        shadowOffset: { width: 0, height: 4 },
+                        elevation: isSelected && isColorTest ? 8 : 0
                       }
                     ]}
                   >
-                    <Text style={[
-                      styles.optionText,
-                      { color: isSelected ? currentTheme.colors.primary : currentTheme.colors.text.secondary }
-                    ]}>
+                    <Text style={[styles.optionText, { color: textColor }]}>
                       {option.text}
                     </Text>
                   </TouchableOpacity>

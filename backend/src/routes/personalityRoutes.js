@@ -17,4 +17,7 @@ router.post('/tests/:type/submit', authMiddleware, personalityController.submitT
 // GET /api/personality/history
 router.get('/history', authMiddleware, personalityController.getHistory);
 
+// GET /api/personality/history/:id
+router.get('/history/:id', authMiddleware, personalityController.getResult);
+
 module.exports = router;

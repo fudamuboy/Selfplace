@@ -1,73 +1,121 @@
 const db = require('../config/db');
 
-// --- Test Definitions (Poetic & Soft) ---
+// --- 4-Color Personality Test (DISC Based) ---
 
 const COLOR_TEST = {
   id: 'color',
   title: 'Ruhunun Renkleri',
-  description: 'Şu an iç dünyanda hangi renklerin daha baskın olduğunu keşfet.',
+  description: 'Dört temel renk üzerinden davranışlarını, iletişim tarzını ve içsel motivasyonlarını keşfet.',
   questions: [
     {
       id: 'c1',
-      text: 'Gözlerini kapattığında güvende hissettiğin yer neresi?',
+      text: 'Bir grup projesinde çalışırken ilk odaklandığın şey nedir?',
       options: [
-        { text: 'Sessiz ve derin bir okyanus kıyısı', value: 'blue' },
-        { text: 'Güneşin ısıttığı geniş bir çayır', value: 'yellow' },
-        { text: 'Sık ağaçlarla kaplı, korunaklı bir orman', value: 'green' },
-        { text: 'Yıldızların altında, sıcak bir kamp ateşi', value: 'red' }
+        { text: 'Hemen harekete geçmek ve hedefe ulaşmak', value: 'red' },
+        { text: 'Herkesin fikrini almak ve uyumu sağlamak', value: 'green' },
+        { text: 'Detaylı bir plan yapmak ve analiz etmek', value: 'blue' },
+        { text: 'Yeni fikirler bulmak ve enerji katmak', value: 'yellow' }
       ]
     },
     {
       id: 'c2',
-      text: 'Bir duygu seline kapıldığında genellikle ne yaparsın?',
+      text: 'Baskı ve stres altında hissettiğinde genellikle nasıl tepki verirsin?',
       options: [
-        { text: 'İçime çekilir, dalgaların dinmesini beklerim', value: 'blue' },
-        { text: 'Birine anlatır, paylaşarak hafiflerim', value: 'yellow' },
-        { text: 'Sebep aramaya başlar, köklerine inmek isterim', value: 'green' },
-        { text: 'Duyguyu sonuna kadar, tüm bedeniyle yaşarım', value: 'red' }
+        { text: 'Daha sessizleşir ve içime kapanırım', value: 'green' },
+        { text: 'Hemen bir çözüm bulmaya ve kontrolü ele almaya çalışırım', value: 'red' },
+        { text: 'Detaylara boğulur ve hata yapmaktan korkarım', value: 'blue' },
+        { text: 'Aceleci davranır ve durumu şakaya vurmaya çalışırım', value: 'yellow' }
       ]
     },
     {
       id: 'c3',
-      text: 'Hayatındaki belirsizlikler sana nasıl hissettirir?',
+      text: 'İnsanlarla iletişim kurarken tarzın nasıldır?',
       options: [
-        { text: 'Hafif bir ürperti, ama kabullenirim', value: 'blue' },
-        { text: 'Yeni ihtimallerin heyecanını duyarım', value: 'yellow' },
-        { text: 'Kontrolü sağlamak için bir plan yapma ihtiyacı', value: 'green' },
-        { text: 'Biraz telaş, ama hemen eyleme geçme isteği', value: 'red' }
+        { text: 'Heyecanlı, enerjik ve konuşkan', value: 'yellow' },
+        { text: 'Dinleyici, sakin ve destekleyici', value: 'green' },
+        { text: 'Net, doğrudan ve sonuca odaklı', value: 'red' },
+        { text: 'Ölçülü, düşünceli ve gerçeklere dayalı', value: 'blue' }
       ]
     },
     {
       id: 'c4',
-      text: 'Kendinle baş başa kaldığın bir akşamda sana en iyi ne gelir?',
+      text: 'Seni en çok ne motive eder?',
       options: [
-        { text: 'Derin bir sessizlik ve hafif bir müzik', value: 'blue' },
-        { text: 'Güzel bir hayal kurmak ve gülümsemek', value: 'yellow' },
-        { text: 'Bir şeyler yazmak veya okumak', value: 'green' },
-        { text: 'Hareket etmek, yürüyüşe çıkmak', value: 'red' }
+        { text: 'Düzen, kesinlik ve kaliteyi yakalamak', value: 'blue' },
+        { text: 'Başarı, zafer ve zorlukların üstesinden gelmek', value: 'red' },
+        { text: 'Sosyal onay, eğlence ve yeni şeyler denemek', value: 'yellow' },
+        { text: 'Güven, huzur ve başkalarına yardım etmek', value: 'green' }
+      ]
+    },
+    {
+      id: 'c5',
+      text: 'Bir karar alman gerektiğinde nasıl bir yol izlersin?',
+      options: [
+        { text: 'İçgüdülerimle hızlıca karar veririm', value: 'yellow' },
+        { text: 'Kararımın başkalarını nasıl etkileyeceğini düşünürüm', value: 'green' },
+        { text: 'Tüm verileri toplar, avantaj ve dezavantajları tartar, öyle karar veririm', value: 'blue' },
+        { text: 'Kararsızlık sevmem, en mantıklı olanı hemen seçerim', value: 'red' }
+      ]
+    },
+    {
+      id: 'c6',
+      text: 'Çatışma veya tartışma anlarında ne yaparsın?',
+      options: [
+        { text: 'Tartışmadan kaçınır, orta yolu bulmaya çalışırım', value: 'green' },
+        { text: 'Haklıysam sonuna kadar savunur, geri adım atmam', value: 'red' },
+        { text: 'Duyguları bir kenara bırakır, gerçekler üzerinden konuşurum', value: 'blue' },
+        { text: 'Gerginliği kırmak için konuyu değiştirmeye çalışırım', value: 'yellow' }
       ]
     }
   ],
   results: {
-    blue: {
-      title: 'Gece Mavisi Sessizliği',
-      description: 'İç dünyan şu sıralar derin, sakin ve kendi içine dönük. Duygularını sindirmek, sessizliğin içinde kendini duymak istiyorsun. Bu bir kaçış değil, bir yenilenme süreci.',
-      color: '#3B82F6'
+    red: {
+      title: 'Güçlü Kırmızı',
+      description: 'Lider, kararlı ve eylem odaklı bir yapıya sahipsin. Engeller seni korkutmaz, aksine motive eder.',
+      color: '#EF4444',
+      gradient: ['#EF4444', '#B91C1C'],
+      strengths: ['Hızlı karar alma', 'Liderlik', 'Sonuç odaklılık', 'Cesaret'],
+      weaknesses: ['Sabırsızlık', 'Bazen fazla buyurgan olma', 'Detayları gözden kaçırma'],
+      relationship: 'Dürüst ve doğrudan ilişkileri seversin. Ne istediğini bilir ve net olursun.',
+      stressBehavior: 'Stres altında daha kontrolcü ve öfkeli olabilirsin.',
+      communication: 'Kısa, net ve hedefe yönelik iletişim kurarsın.',
+      motivation: 'Başarmak, kazanmak ve kontrolü elde tutmak.'
     },
     yellow: {
-      title: 'Sabah Güneşi Sıcaklığı',
-      description: 'Ruhun şu an dışa dönük, umutlu ve bağlantı arayışında. İçindeki ışığı paylaşmak ve çevrenden enerji almak istiyorsun. Kendini ihtimallere açık tutuyorsun.',
-      color: '#FBBF24'
+      title: 'Enerjik Sarı',
+      description: 'Sosyal, yaratıcı ve ilham verici bir yapın var. Girdiğin ortama enerji ve neşe katarsın.',
+      color: '#F59E0B',
+      gradient: ['#F59E0B', '#D97706'],
+      strengths: ['İletişim becerisi', 'İyimserlik', 'İkna kabiliyeti', 'Yaratıcılık'],
+      weaknesses: ['Düzensizlik', 'Dikkat dağınıklığı', 'Bazen fazla konuşma'],
+      relationship: 'Eğlenceli, dinamik ve dışa dönük ilişkiler kurarsın.',
+      stressBehavior: 'Stres altında dağınık, savunmacı veya aşırı duygusal olabilirsin.',
+      communication: 'Duygusal, hikayeleştirici ve canlı bir iletişim tarzın var.',
+      motivation: 'Onaylanmak, sosyalleşmek ve fark edilmek.'
     },
     green: {
-      title: 'Orman Yeşili Dengesi',
-      description: 'Köklenmeye, anlaşılmaya ve huzura ihtiyaç duyuyorsun. Zihnin her şeyi bir düzene oturtmaya çalışıyor. Büyümek için sağlam bir zemine ihtiyacın var.',
-      color: '#10B981'
+      title: 'Huzurlu Yeşil',
+      description: 'Sakin, empatik ve destekleyici bir yapıya sahipsin. Çevrendekilere güven ve huzur verirsin.',
+      color: '#10B981',
+      gradient: ['#10B981', '#047857'],
+      strengths: ['Empati', 'İyi dinleyici olma', 'Sabır', 'Uyum sağlama'],
+      weaknesses: ['Değişime direnç', 'Hayır diyememe', 'Kendi ihtiyaçlarını erteleme'],
+      relationship: 'Derin, sadık ve güvene dayalı ilişkiler kurarsın.',
+      stressBehavior: 'Stres altında içe kapanır ve pasif-agresif davranışlar sergileyebilirsin.',
+      communication: 'Yumuşak, dinlemeye odaklı ve yapıcı iletişim kurarsın.',
+      motivation: 'Güvenlik, uyum ve başkalarına fayda sağlamak.'
     },
-    red: {
-      title: 'Kamp Ateşi Kıvılcımı',
-      description: 'İçinde yoğun, canlı ve hareketli bir enerji var. Belki bir tutku, belki küçük bir öfke... Duygularını tüm gerçekliğiyle, cesurca yaşıyorsun.',
-      color: '#EF4444'
+    blue: {
+      title: 'Analitik Mavi',
+      description: 'Detaycı, düzenli ve mantık odaklı bir yapın var. Kusursuzluğu ve kaliteyi hedeflersin.',
+      color: '#3B82F6',
+      gradient: ['#3B82F6', '#1D4ED8'],
+      strengths: ['Analitik düşünme', 'Planlama', 'Detaylara hakimiyet', 'Kalite odaklılık'],
+      weaknesses: ['Aşırı eleştirel olma', 'Kararsızlık', 'Duyguları ifade etmede zorlanma'],
+      relationship: 'Sınırları belli, saygılı ve mantıklı ilişkiler kurarsın.',
+      stressBehavior: 'Stres altında fazla eleştirel, soğuk ve mesafeli olabilirsin.',
+      communication: 'Verilere dayalı, mesafeli ve yazılı iletişimi tercih eden bir yapın var.',
+      motivation: 'Doğruluk, düzen ve mükemmele ulaşmak.'
     }
   }
 };
@@ -205,14 +253,24 @@ exports.submitTest = async (req, res) => {
     let resultData = {};
 
     if (type === 'color') {
-      // Tally the colors
-      const counts = { blue: 0, yellow: 0, green: 0, red: 0 };
+      // Calculate percentages
+      const counts = { red: 0, blue: 0, green: 0, yellow: 0 };
+      let total = 0;
       for (const key in answers) {
         if (counts[answers[key]] !== undefined) {
           counts[answers[key]]++;
+          total++;
         }
       }
-      // Find the highest
+      
+      const percentages = {
+        red: total > 0 ? Math.round((counts.red / total) * 100) : 0,
+        blue: total > 0 ? Math.round((counts.blue / total) * 100) : 0,
+        green: total > 0 ? Math.round((counts.green / total) * 100) : 0,
+        yellow: total > 0 ? Math.round((counts.yellow / total) * 100) : 0
+      };
+
+      // Find dominant color
       let dominant = 'blue';
       let maxCount = -1;
       for (const color in counts) {
@@ -225,10 +283,8 @@ exports.submitTest = async (req, res) => {
       const resultObj = COLOR_TEST.results[dominant];
       resultData = {
         dominantColor: dominant,
-        title: resultObj.title,
-        description: resultObj.description,
-        colorHex: resultObj.color,
-        counts
+        percentages,
+        ...resultObj // title, description, color, gradient, strengths, etc.
       };
 
     } else if (type === 'mbti') {
@@ -303,5 +359,29 @@ exports.getHistory = async (req, res) => {
       success: false,
       message: 'Evolution data could not be loaded.'
     });
+  }
+};
+
+/**
+ * GET /api/personality/history/:id
+ * Get a specific test result by ID
+ */
+exports.getResult = async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+  try {
+    const resultRes = await db.query(
+      'SELECT id, test_type, result_data, created_at FROM personality_results WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    );
+
+    if (resultRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Sonuç bulunamadı.' });
+    }
+
+    res.json({ success: true, result: resultRes.rows[0] });
+  } catch (err) {
+    console.error('[personalityController] getResult error:', err);
+    res.status(500).json({ success: false, message: 'Sonuç alınamadı.' });
   }
 };
