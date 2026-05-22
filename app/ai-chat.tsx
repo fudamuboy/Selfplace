@@ -157,9 +157,8 @@ export default function AIChatScreen() {
         <Animated.View style={styles.ambientGlowSecondary} />
       </View>
       <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* Header */}
         <BlurView intensity={20} tint="dark" style={styles.header}>
@@ -265,7 +264,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 20,
     paddingTop: 20, // Reduced from 40
-    paddingBottom: 120,
+    paddingBottom: 20,
   },
   messageWrapper: {
     marginBottom: 20,
@@ -313,12 +312,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   inputContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
   },
   inputWrapper: {
     flexDirection: 'row',
