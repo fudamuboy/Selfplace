@@ -173,6 +173,44 @@ exports.runMigrations = async () => {
       )
     `);
 
+    // 12. Ensure Astrology tables exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS astrology_events (
+        id SERIAL PRIMARY KEY,
+        event_type VARCHAR(50) NOT NULL, -- 'moon_phase', 'retrograde', 'transit', 'season'
+        event_name VARCHAR(100) NOT NULL,
+        description TEXT,
+        date_start TIMESTAMP WITH TIME ZONE,
+        date_end TIMESTAMP WITH TIME ZONE,
+        is_active BOOLEAN DEFAULT true
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS zodiac_profiles (
+        sign VARCHAR(50) PRIMARY KEY,
+        element VARCHAR(20),
+        modality VARCHAR(20),
+        ruling_planet VARCHAR(50),
+        strengths JSONB,
+        weaknesses JSONB,
+        core_needs TEXT,
+        stress_response TEXT
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS weekly_guidance (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        zodiac_sign VARCHAR(50),
+        guidance_text TEXT NOT NULL,
+        themes JSONB,
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP WITH TIME ZONE
+      )
+    `);
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS ai_messages (
         id SERIAL PRIMARY KEY,
@@ -350,9 +388,65 @@ exports.runMigrations = async () => {
       CREATE INDEX IF NOT EXISTS idx_card_responses_local_date ON card_responses(local_date);
     `);
 
-  } catch (err) {
+    // Seed astrology data
+    await seedAstrologyData();
 
+    console.log('[MIGRATION] Database schema checks completed successfully.');
+  } catch (err) {
     console.error('[MIGRATION] Error during schema check:', err.message);
     throw err;
   }
 };
+
+/**
+ * Seeds the astrology tables with static 2025-2026 data if they are empty.
+ */
+async function seedAstrologyData() {
+  try {
+    const profileCount = await db.query('SELECT COUNT(*) FROM zodiac_profiles');
+    if (parseInt(profileCount.rows[0].count) === 0) {
+      console.log('[MIGRATION] Seeding Zodiac Profiles...');
+      const profiles = [
+        { sign: 'Koç', element: 'Ateş', modality: 'Öncü', ruling_planet: 'Mars', strengths: '["Cesaret", "Liderlik", "Enerji"]', weaknesses: '["Sabırsızlık", "Öfke", "Acelecilik"]', core_needs: 'Harekete geçmek ve birinci olmak.', stress_response: 'Stres altında öfkeli ve fevri olabilir.' },
+        { sign: 'Boğa', element: 'Toprak', modality: 'Sabit', ruling_planet: 'Venüs', strengths: '["Sabır", "Güvenilirlik", "Pratiklik"]', weaknesses: '["İnatçılık", "Değişime direnç", "Tembellik eğilimi"]', core_needs: 'Güvenlik, konfor ve istikrar.', stress_response: 'Stres altında inatçı ve içine kapanık olabilir.' },
+        { sign: 'İkizler', element: 'Hava', modality: 'Değişken', ruling_planet: 'Merkür', strengths: '["İletişim", "Adaptasyon", "Merak"]', weaknesses: '["Kararsızlık", "Yüzeysellik", "Odaklanma sorunu"]', core_needs: 'Zihinsel uyarım ve çeşitlilik.', stress_response: 'Stres altında endişeli ve dağınık olabilir.' },
+        { sign: 'Yengeç', element: 'Su', modality: 'Öncü', ruling_planet: 'Ay', strengths: '["Empati", "Koruyuculuk", "Sezgi"]', weaknesses: '["Aşırı duygusallık", "Geçmişe bağlılık", "Alınganlık"]', core_needs: 'Duygusal güvenlik ve aidiyet.', stress_response: 'Stres altında kabuğuna çekilir ve savunmaya geçer.' },
+        { sign: 'Aslan', element: 'Ateş', modality: 'Sabit', ruling_planet: 'Güneş', strengths: '["Yaratıcılık", "Cömertlik", "Özgüven"]', weaknesses: '["Gurur", "İlgi bağımlılığı", "Otoriterlik"]', core_needs: 'Takdir edilmek ve parlamak.', stress_response: 'Stres altında kibirli veya aşırı dramatik olabilir.' },
+        { sign: 'Başak', element: 'Toprak', modality: 'Değişken', ruling_planet: 'Merkür', strengths: '["Analiz", "Yardımseverlik", "Detaycılık"]', weaknesses: '["Aşırı eleştirel", "Mükemmeliyetçilik", "Endişe"]', core_needs: 'Faydalı olmak ve düzen kurmak.', stress_response: 'Stres altında aşırı eleştirel ve kaygılı olabilir.' },
+        { sign: 'Terazi', element: 'Hava', modality: 'Öncü', ruling_planet: 'Venüs', strengths: '["Diplomasi", "Uyum", "Estetik"]', weaknesses: '["Kararsızlık", "Çatışmadan kaçınma", "Onay arayışı"]', core_needs: 'Uyum, denge ve adalet.', stress_response: 'Stres altında kararsızlaşır ve pasif-agresif olabilir.' },
+        { sign: 'Akrep', element: 'Su', modality: 'Sabit', ruling_planet: 'Plüton', strengths: '["Tutku", "Derinlik", "Dönüşüm"]', weaknesses: '["Kıskançlık", "Kontrolcülük", "Şüphecilik"]', core_needs: 'Derin bağlar ve gerçeği bilmek.', stress_response: 'Stres altında kontrolcü ve gizemli olabilir.' },
+        { sign: 'Yay', element: 'Ateş', modality: 'Değişken', ruling_planet: 'Jüpiter', strengths: '["İyimserlik", "Özgürlük", "Felsefe"]', weaknesses: '["Sorumsuzluk", "Sabırsızlık", "Patavatsızlık"]', core_needs: 'Özgürlük ve anlam arayışı.', stress_response: 'Stres altında kaçma eğilimi veya aşırı vaatlerde bulunma.' },
+        { sign: 'Oğlak', element: 'Toprak', modality: 'Öncü', ruling_planet: 'Satürn', strengths: '["Disiplin", "Sorumluluk", "Kararlılık"]', weaknesses: '["Karamsarlık", "Katılık", "Aşırı çalışma"]', core_needs: 'Başarı, yapı ve saygı.', stress_response: 'Stres altında soğuk, mesafeli ve kontrolcü olabilir.' },
+        { sign: 'Kova', element: 'Hava', modality: 'Sabit', ruling_planet: 'Uranüs', strengths: '["Orijinallik", "İnsancıllık", "Bağımsızlık"]', weaknesses: '["Duygusal mesafe", "İnatçılık", "Asilik"]', core_needs: 'Bireysellik ve toplumsal fayda.', stress_response: 'Stres altında izole olur ve mantığa sığınır.' },
+        { sign: 'Balık', element: 'Su', modality: 'Değişken', ruling_planet: 'Neptün', strengths: '["Şefkat", "Sezgi", "Sanatsallık"]', weaknesses: '["Gerçeklerden kaçma", "Kurban psikolojisi", "Sınır çizememe"]', core_needs: 'Ruhsal bütünlük ve ilham.', stress_response: 'Stres altında kaçış yolları arar ve sınırları kaybeder.' }
+      ];
+
+      for (const p of profiles) {
+        await db.query(
+          'INSERT INTO zodiac_profiles (sign, element, modality, ruling_planet, strengths, weaknesses, core_needs, stress_response) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [p.sign, p.element, p.modality, p.ruling_planet, p.strengths, p.weaknesses, p.core_needs, p.stress_response]
+        );
+      }
+    }
+
+    const eventCount = await db.query('SELECT COUNT(*) FROM astrology_events');
+    if (parseInt(eventCount.rows[0].count) === 0) {
+      console.log('[MIGRATION] Seeding Astrology Events...');
+      const events = [
+        { type: 'moon_phase', name: 'Dolunay (Terazi)', desc: 'İlişkilerde denge ve uyum arayışının zirve yaptığı bir dönem. Alma-verme dengesini sorgulayabilirsin.', start: '2026-04-12 00:00:00', end: '2026-04-15 00:00:00' },
+        { type: 'retrograde', name: 'Merkür Retrosu (Koç)', desc: 'İletişimde fevri çıkışlara dikkat et. Geçmiş kararlarını gözden geçirmek için harika bir zaman.', start: '2026-03-15 00:00:00', end: '2026-04-07 00:00:00' },
+        { type: 'moon_phase', name: 'Yeni Ay (Boğa)', desc: 'Topraklanma ve yeni maddi/manevi tohumlar ekme zamanı. Güvenlik ihtiyacın artabilir.', start: '2026-05-11 00:00:00', end: '2026-05-25 00:00:00' },
+        { type: 'transit', name: 'Venüs İkizler Transit', desc: 'Sosyalleşme, yeni fikirler öğrenme ve merak duygunun arttığı hafif ve neşeli bir enerji.', start: '2026-05-20 00:00:00', end: '2026-06-17 00:00:00' }
+      ];
+
+      for (const e of events) {
+        await db.query(
+          'INSERT INTO astrology_events (event_type, event_name, description, date_start, date_end) VALUES ($1, $2, $3, $4, $5)',
+          [e.type, e.name, e.desc, e.start, e.end]
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[MIGRATION] Error seeding astrology data:', err);
+  }
+}

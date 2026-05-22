@@ -101,8 +101,8 @@ export default function HomeScreen() {
       }
 
       // 3. Fetch Astrology Data
-      const astroRes = await client.get('/astrology/current');
-      setAstrologyData(astroRes.data);
+      const astroRes = await client.get('/astrology/home');
+      setAstrologyData(astroRes.data.data);
 
     } catch (err: any) {
       if (err.response?.status !== 401) {
@@ -110,7 +110,6 @@ export default function HomeScreen() {
       }
     }
   };
-
 
   const token = useAuthStore(state => state.token);
 
@@ -133,43 +132,6 @@ export default function HomeScreen() {
     }
     router.push('/cards');
   };
-
-  const getPriorityInsights = () => {
-    if (!astrologyData) return [];
-    
-    const candidates: { symbol: string, message: string, priority: number }[] = [];
-    
-    // Priority 1: Major Collective Events (Moon, Solstice)
-    astrologyData.events.forEach(e => {
-      if (e.event_type === 'moon' || e.event_type === 'solstice') {
-        candidates.push({ symbol: e.symbol || '🌙', message: e.message_tr, priority: 1 });
-      }
-    });
-    
-    // Priority 2: Zodiac Monthly Guidance
-    if (astrologyData.zodiacGuidance) {
-      candidates.push({ 
-        symbol: '✨', 
-        message: astrologyData.zodiacGuidance.guidance_tr, 
-        priority: 2 
-      });
-    }
-    
-    // Priority 3: Seasonal / Cultural Insights
-    astrologyData.events.forEach(e => {
-      if (e.event_type !== 'moon' && e.event_type !== 'solstice') {
-        candidates.push({ symbol: e.symbol || '🌿', message: e.message_tr, priority: 3 });
-      }
-    });
-    
-    // Sort by priority and remove duplicates by message content
-    const sorted = candidates.sort((a, b) => a.priority - b.priority);
-    const unique = Array.from(new Map(sorted.map(item => [item.message, item])).values());
-    
-    return unique.slice(0, 2);
-  };
-
-  const activeInsights = getPriorityInsights();
 
   return (
     <GradientBackground>
@@ -194,28 +156,29 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Energy Guidance Section */}
-        {activeInsights.length > 0 && (
+        {/* Premium Astrology Widget */}
+        {astrologyData && (
           <Animated.View entering={FadeInUp.delay(200)} style={styles.energySection}>
-            <View style={[styles.energyCard, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder }]}>
+            <TouchableOpacity 
+              activeOpacity={0.8}
+              onPress={() => router.push('/astrology-full')}
+              style={[styles.energyCard, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder }]}
+            >
               <View style={styles.energyHeader}>
-                <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary }]}>Günün Enerjisi</Text>
-                <Text style={styles.energySymbol}>✨</Text>
+                <View>
+                  <Text style={[styles.energySubtitle, { color: currentTheme.colors.text.muted }]}>HAFTALIK ENERJİN</Text>
+                  <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary }]}>✨ {astrologyData.zodiacSign || 'Gökyüzü'}</Text>
+                </View>
               </View>
               
-              {activeInsights.map((insight, idx) => (
-                <View key={idx} style={[styles.eventRow, idx > 0 && { marginTop: 16 }]}>
-                  <Text style={styles.eventSymbol}>{insight.symbol}</Text>
-                  <Text 
-                    style={[styles.eventMessage, { color: currentTheme.colors.text.primary }]}
-                    numberOfLines={2}
-                  >
-                    {sanitizeText(insight.message)}
+              <Text style={[styles.eventMessage, { color: currentTheme.colors.text.secondary, marginTop: 8 }]} numberOfLines={3}>
+                {astrologyData.preview_text}
+              </Text>
 
-                  </Text>
-                </View>
-              ))}
-            </View>
+              <Text style={[styles.energyActionText, { color: currentTheme.colors.primary, marginTop: 12, fontWeight: '600' }]}>
+                Detaylı Yorumu Gör →
+              </Text>
+            </TouchableOpacity>
           </Animated.View>
         )}
 

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const astrologyController = require('../controllers/astrologyController');
 const authMiddleware = require('../middleware/auth');
+const astrologyController = require('../controllers/astrologyController');
 
-// Get current guidance and active events
-router.get('/current', astrologyController.getCurrentAstrology);
+// GET /api/astrology/home
+router.get('/home', authMiddleware, astrologyController.getHomeWidget);
 
-// Update user zodiac/birth date (PROTECTED)
-router.post('/profile', authMiddleware, astrologyController.updateUserZodiac);
+// GET /api/astrology/weekly
+router.get('/weekly', authMiddleware, astrologyController.getWeeklyGuidance);
 
 module.exports = router;
