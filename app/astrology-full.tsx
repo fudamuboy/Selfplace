@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { GradientBackground } from './components/GradientBackground';
+import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
 
