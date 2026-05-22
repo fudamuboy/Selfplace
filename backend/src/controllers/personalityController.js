@@ -244,7 +244,7 @@ exports.submitTest = async (req, res) => {
       const t_f = scores.T >= scores.F ? 'T' : 'F';
       const j_p = scores.J >= scores.P ? 'J' : 'P';
       
-      const personalityType = \`\${e_i}\${s_n}\${t_f}\${j_p}\`;
+      const personalityType = `${e_i}${s_n}${t_f}${j_p}`;
       const profile = MBTI_PROFILES[personalityType] || MBTI_PROFILES['INFP']; // fallback
       
       resultData = {
