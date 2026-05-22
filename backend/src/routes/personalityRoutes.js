@@ -3,6 +3,11 @@ const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const personalityController = require('../controllers/personalityController');
 
+// GET /api/personality/ping
+router.get('/ping', (req, res) => {
+  res.json({ success: true, message: 'Personality routes working' });
+});
+
 // GET /api/personality/tests/:type
 router.get('/tests/:type', authMiddleware, personalityController.getTest);
 

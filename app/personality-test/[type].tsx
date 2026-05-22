@@ -48,9 +48,10 @@ export default function PersonalityTestScreen() {
       const res = await client.get(`/personality/tests/${type}`);
       setTestData(res.data.test);
     } catch (err) {
-      console.error(err);
-      // Fallback handled nicely by router back if totally failing
-      router.back();
+      // Show a soft fallback if backend fails (e.g. 404 during deployment)
+      setTestData(null);
+      // We could use a toast here, but returning quietly is safer than crashing
+      setTimeout(() => router.back(), 2000);
     } finally {
       setLoading(false);
     }
@@ -82,8 +83,9 @@ export default function PersonalityTestScreen() {
         params: { resultId: res.data.id }
       });
     } catch (err) {
-      console.error(err);
+      // Soft failure, return to previous screen gracefully
       setSubmitting(false);
+      setTimeout(() => router.back(), 1500);
     }
   };
 
