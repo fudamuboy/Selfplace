@@ -1,29 +1,24 @@
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Pressable, 
-  ScrollView, 
-  StyleSheet, 
-  Text, 
-  TextInput, 
-  View, 
-  ActivityIndicator, 
-  KeyboardAvoidingView, 
-  Platform, 
-  LayoutAnimation, 
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  LayoutAnimation,
   UIManager,
-  Dimensions
+  Dimensions,
 } from 'react-native';
-import Animated, { 
-  FadeIn, 
-  FadeInDown, 
-  FadeOut, 
-  SlideInRight,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
 } from 'react-native-reanimated';
 import client from '../api/client';
 import { CustomButton } from '../components/CustomButton';
@@ -99,73 +94,154 @@ const DEFAULT_QUESTIONS = [
   { id: 'other', text: 'Paylaşmak istediğin başka bir şey var mı?', type: 'text' },
 ];
 
+// ─── Stable Mascot Area ───────────────────────────────────────────────────────
+// Lifted OUTSIDE CheckInScreen so it is never recreated on parent re-renders.
+// React.memo ensures it only re-renders when mood or message text actually change.
+const MascotArea = memo(function MascotArea({
+  mood,
+  message,
+  textColor,
+}: {
+  mood: string;
+  message: string;
+  textColor: string;
+}) {
+  return (
+    <Animated.View entering={FadeInDown.delay(200)} style={styles.mascotArea}>
+      {/* MascotBlob stays mounted permanently; mood prop drives config */}
+      <MascotBlob mood={mood as any} scale={0.6} />
+      <Text style={[styles.mascotText, { color: textColor }]}>
+        "{message}"
+      </Text>
+    </Animated.View>
+  );
+});
+
+// ─── Isolated Reflection Form ─────────────────────────────────────────────────
+// All text input state lives here. Typing never propagates up to the mascot.
+const ReflectionForm = memo(function ReflectionForm({
+  questions,
+  onSubmit,
+  onBack,
+  onCancel,
+  loading,
+  theme,
+}: {
+  questions: any[];
+  onSubmit: (answers: Record<string, string>) => void;
+  onBack: () => void;
+  onCancel: () => void;
+  loading: boolean;
+  theme: any;
+}) {
+  // Local state — changes here NEVER reach MascotArea
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+
+  const updateAnswer = useCallback((id: string, text: string) => {
+    setAnswers(prev => ({ ...prev, [id]: text }));
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    onSubmit(answers);
+  }, [answers, onSubmit]);
+
+  return (
+    <Animated.View entering={FadeInDown} style={styles.questionsSection}>
+      <View style={styles.questionHeader}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text.secondary} />
+        </Pressable>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary, marginBottom: 0 }]}>
+          Biraz Daha Anlat...
+        </Text>
+      </View>
+
+      {questions.map((q, idx) => (
+        <Animated.View
+          key={q.id}
+          entering={FadeInDown.delay(idx * 100)}
+          style={[styles.questionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}
+        >
+          <Text style={[styles.questionText, { color: theme.colors.text.primary }]}>{q.text}</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text.primary, backgroundColor: theme.colors.background }]}
+            placeholder="Buraya yazabilirsin..."
+            placeholderTextColor={theme.colors.text.secondary}
+            multiline
+            value={answers[q.id] || ''}
+            onChangeText={(t) => updateAnswer(q.id, t)}
+          />
+        </Animated.View>
+      ))}
+
+      <View style={styles.actions}>
+        <CustomButton title="Tamamla" onPress={handleSubmit} loading={loading} style={styles.submitButton} />
+        <Pressable onPress={onCancel} style={styles.laterButton}>
+          <Text style={[styles.laterText, { color: theme.colors.text.secondary }]}>Vazgeç</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function CheckInScreen() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentStep, setCurrentStep] = useState(0); // 0: Mood, 1: Questions
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
   const { currentTheme } = useThemeStore();
 
-  const activeQuestions = selectedMood 
-    ? [...QUESTIONS_MAP[selectedMood], ...DEFAULT_QUESTIONS]
-    : DEFAULT_QUESTIONS;
+  const activeQuestions = useMemo(
+    () => selectedMood ? [...QUESTIONS_MAP[selectedMood], ...DEFAULT_QUESTIONS] : DEFAULT_QUESTIONS,
+    [selectedMood]
+  );
 
-  const handleMoodSelect = (id: string) => {
+  // Stable mascot message — only recomputes when selectedMood changes
+  const mascotMessage = useMemo(() => {
+    if (!selectedMood) return getMascotMessage();
+    const label = MOODS.find(m => m.id === selectedMood)?.label;
+    return `Anlıyorum... ${label} bir gün mü?`;
+  }, [selectedMood]);
+
+  const handleMoodSelect = useCallback((id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedMood(id);
-    // Smoothly transition to questions after a short delay
     setTimeout(() => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setCurrentStep(1);
     }, 400);
-  };
+  }, []);
 
-  const updateAnswer = (id: string, text: string) => {
-    setAnswers(prev => ({ ...prev, [id]: text }));
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async (answers: Record<string, string>) => {
     setLoading(true);
     try {
-      // 1. Format answers as a safe array for the backend
       const formattedAnswers = activeQuestions.map(q => ({
         question: q.text,
-        answer: answers[q.id] || ""
+        answer: answers[q.id] || '',
       }));
 
-      // 2. Prepare payload with safety fallbacks
       const payload = {
-        emotion: MOODS.find(m => m.id === selectedMood)?.label || selectedMood || "Sakin",
+        emotion: MOODS.find(m => m.id === selectedMood)?.label || selectedMood || 'Sakin',
         answers: formattedAnswers,
-        created_at: new Date()
+        created_at: new Date(),
       };
 
       await client.post('/check-ins/advanced', payload);
       setModal({ visible: true, title: 'Teşekkürler', message: 'Paylaştığın her şey burada güvende. Kendine vakit ayırdığın için teşekkürler.' });
     } catch (error: any) {
-      console.error('[CheckIn] Submit error:', error);
-      setModal({ visible: true, title: 'Hata', message: 'Kaydedilirken bir sorun oluştu.' });
+      if (!error?.isSessionExpiry) {
+        setModal({ visible: true, title: 'Hata', message: 'Kaydedilirken bir sorun oluştu.' });
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeQuestions, selectedMood]);
 
-  const MascotMessage = () => {
-    const message = !selectedMood 
-      ? getMascotMessage()
-      : `Anlıyorum... ${MOODS.find(m => m.id === selectedMood)?.label} bir gün mü?`;
-    
-    return (
-      <Animated.View entering={FadeInDown.delay(200)} style={styles.mascotArea}>
-        <MascotBlob mood={selectedMood as any || 'neutral'} scale={0.6} />
-        <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>
-          "{message}"
-        </Text>
-      </Animated.View>
-    );
-  };
+  const handleBack = useCallback(() => {
+    setCurrentStep(0);
+  }, []);
 
   return (
     <GradientBackground>
@@ -176,7 +252,12 @@ export default function CheckInScreen() {
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-          <MascotMessage />
+          {/* MascotArea is always mounted, never remounts on text input changes */}
+          <MascotArea
+            mood={selectedMood || 'neutral'}
+            message={mascotMessage}
+            textColor={currentTheme.colors.text.secondary}
+          />
 
           {currentStep === 0 ? (
             <Animated.View entering={FadeInDown} exiting={FadeOut} style={styles.moodSection}>
@@ -190,12 +271,12 @@ export default function CheckInScreen() {
                       onPress={() => handleMoodSelect(mood.id)}
                       style={[
                         styles.moodCard,
-                        { 
-                          backgroundColor: currentTheme.colors.card, 
+                        {
+                          backgroundColor: currentTheme.colors.card,
                           borderColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder,
                           shadowColor: isSelected ? currentTheme.colors.primary : 'transparent',
                         },
-                        isSelected && styles.selectedMoodCard
+                        isSelected && styles.selectedMoodCard,
                       ]}
                     >
                       <Text style={styles.moodEmoji}>{mood.emoji}</Text>
@@ -211,39 +292,15 @@ export default function CheckInScreen() {
               </View>
             </Animated.View>
           ) : (
-            <Animated.View entering={FadeInDown} style={styles.questionsSection}>
-              <View style={styles.questionHeader}>
-                <Pressable onPress={() => setCurrentStep(0)} style={styles.backButton}>
-                  <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.secondary} />
-                </Pressable>
-                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>Biraz Daha Anlat...</Text>
-              </View>
-
-              {activeQuestions.map((q, idx) => (
-                <Animated.View 
-                  key={q.id} 
-                  entering={FadeInDown.delay(idx * 100)}
-                  style={[styles.questionCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
-                >
-                  <Text style={[styles.questionText, { color: currentTheme.colors.text.primary }]}>{q.text}</Text>
-                  <TextInput
-                    style={[styles.input, { color: currentTheme.colors.text.primary, backgroundColor: currentTheme.colors.background }]}
-                    placeholder="Buraya yazabilirsin..."
-                    placeholderTextColor={currentTheme.colors.text.secondary}
-                    multiline
-                    value={answers[q.id] || ''}
-                    onChangeText={(t) => updateAnswer(q.id, t)}
-                  />
-                </Animated.View>
-              ))}
-
-              <View style={styles.actions}>
-                <CustomButton title="Tamamla" onPress={handleSubmit} loading={loading} style={styles.submitButton} />
-                <Pressable onPress={() => router.back()} style={styles.laterButton}>
-                  <Text style={[styles.laterText, { color: currentTheme.colors.text.secondary }]}>Vazgeç</Text>
-                </Pressable>
-              </View>
-            </Animated.View>
+            // ReflectionForm owns all text input state — typing is fully isolated
+            <ReflectionForm
+              questions={activeQuestions}
+              onSubmit={handleSubmit}
+              onBack={handleBack}
+              onCancel={() => router.back()}
+              loading={loading}
+              theme={currentTheme}
+            />
           )}
         </ScrollView>
 
@@ -380,5 +437,5 @@ const styles = StyleSheet.create({
   },
   laterText: {
     fontSize: 16,
-  }
+  },
 });

@@ -114,6 +114,19 @@ export default function ProfileScreen() {
           </View>
         </LinearGradient>
 
+        {/* Kendini Keşfet Card */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.secondary }]}>Kendini Keşfet ✨</Text>
+          <Text style={[styles.discoverySubtext, { color: currentTheme.colors.text.muted }]}>
+            Kendini yeniden keşfetmek ister misin? İç dünyanda bir değişim olmuş olabilir 🌿
+          </Text>
+          <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+            {renderMenuItem('color-palette-outline', 'Ruhunun Renkleri', 'Duygusal renk paletini keşfet', () => router.push('/personality-test/color'))}
+            {renderMenuItem('compass-outline', 'İçsel Pusulan', 'Dünyayı algılama şeklini anla', () => router.push('/personality-test/mbti'))}
+            {renderMenuItem('book-outline', 'Duygusal Evrim', 'Kişilik ve duygu geçmişin', () => router.push('/personality-results'))}
+          </View>
+        </View>
+
         {/* Rhythm Card */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.secondary }]}>Senin Ritmin</Text>
@@ -343,6 +356,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     marginLeft: 4,
+  },
+  discoverySubtext: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginBottom: 16,
+    marginLeft: 4,
+    lineHeight: 18,
   },
   rhythmCard: {
     borderRadius: 24,

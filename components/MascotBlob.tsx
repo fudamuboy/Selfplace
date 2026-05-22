@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -55,86 +55,74 @@ export const MascotBlob: React.FC<Props> = ({
   const eyeShiftX = useSharedValue(0); // Eye movement
   const eyeShiftY = useSharedValue(0);
 
+  // Keep latest config accessible inside animation closures without
+  // making it a dep that restarts all animations on every render.
+  const configRef = useRef(config);
   useEffect(() => {
-    // 1. Organic Morphs (Constant but slightly randomized durations)
+    configRef.current = config;
+  }, [config]);
+
+  // ─── One-time animation startup (never restarts) ───────────────────────────
+  // All shared values are initialized here with empty deps [].
+  // The closures read configRef.current so they always use the latest config
+  // without config being a dep that triggers a full restart.
+  useEffect(() => {
+    const cfg = configRef.current;
+
+    // 1. Organic Morphs
     radiusTL.value = withRepeat(withTiming(85, { duration: 5000 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
     radiusTR.value = withRepeat(withTiming(40, { duration: 6000 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
     radiusBL.value = withRepeat(withTiming(75, { duration: 4500 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
     radiusBR.value = withRepeat(withTiming(45, { duration: 5500 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
 
-    // 2. Dynamic Breath & Pulse with micro-variation
-    const breathDuration = config.animation.breathDuration * (0.95 + Math.random() * 0.1);
-
+    // 2. Breath & Pulse
+    const breathDuration = cfg.animation.breathDuration * (0.95 + Math.random() * 0.1);
     scale.value = withRepeat(
-      withTiming(config.animation.scaleIntensity, {
-        duration: breathDuration,
-        easing: Easing.inOut(Easing.sin)
-      }),
-      -1,
-      true
+      withTiming(cfg.animation.scaleIntensity, { duration: breathDuration, easing: Easing.inOut(Easing.sin) }),
+      -1, true
     );
 
     floatY.value = withRepeat(
-      withTiming(config.animation.floatIntensity, {
-        duration: config.animation.floatDuration,
-        easing: Easing.inOut(Easing.sin)
-      }),
-      -1,
-      true
+      withTiming(cfg.animation.floatIntensity, { duration: cfg.animation.floatDuration, easing: Easing.inOut(Easing.sin) }),
+      -1, true
     );
 
-    // 3. Horizontal Drift (New Micro-state)
+    // 3. Horizontal Drift
     floatX.value = withRepeat(
-      withTiming(Math.random() * 6 - 3, {
-        duration: config.animation.floatDuration * 1.5,
-        easing: Easing.inOut(Easing.sin)
-      }),
-      -1,
-      true
+      withTiming(Math.random() * 6 - 3, { duration: cfg.animation.floatDuration * 1.5, easing: Easing.inOut(Easing.sin) }),
+      -1, true
     );
 
     glowOpacity.value = withRepeat(
-      withTiming(config.animation.glowOpacityMax, {
-        duration: breathDuration,
-        easing: Easing.inOut(Easing.sin)
-      }),
-      -1,
-      true
+      withTiming(cfg.animation.glowOpacityMax, { duration: breathDuration, easing: Easing.inOut(Easing.sin) }),
+      -1, true
     );
 
     glowPulse.value = withRepeat(
-      withTiming(1.05, {
-        duration: breathDuration * 1.2,
-        easing: Easing.inOut(Easing.sin)
-      }),
-      -1,
-      true
+      withTiming(1.05, { duration: breathDuration * 1.2, easing: Easing.inOut(Easing.sin) }),
+      -1, true
     );
 
-    // 4. Procedural Blink with random interval
-    let blinkTimeoutId: any;
+    // 4. Procedural Blink
+    let blinkTimeoutId: ReturnType<typeof setTimeout>;
     const triggerBlink = () => {
-      const isSleepy = mood === 'sleepy' || mood === 'tired' || config.expression.eyeType === 'closed';
+      const isSleepy = configRef.current.expression.eyeType === 'closed';
       const blinkDuration = isSleepy ? 800 : 120;
-
       blink.value = withSequence(
         withTiming(0, { duration: blinkDuration }),
         withTiming(1, { duration: blinkDuration })
       );
-
-      blinkTimeoutId = setTimeout(triggerBlink, config.expression.blinkFrequency + Math.random() * 6000);
+      blinkTimeoutId = setTimeout(triggerBlink, configRef.current.expression.blinkFrequency + Math.random() * 6000);
     };
 
-    // 5. Occasional Eye Movement (Pupil shift)
-    let eyeTimeoutId: any;
+    // 5. Eye Movement
+    let eyeTimeoutId: ReturnType<typeof setTimeout>;
     const triggerEyeShift = () => {
       const targetX = (Math.random() - 0.5) * 3;
       const targetY = (Math.random() - 0.5) * 2;
       const duration = 1000 + Math.random() * 2000;
-
       eyeShiftX.value = withTiming(targetX, { duration });
       eyeShiftY.value = withTiming(targetY, { duration });
-
       eyeTimeoutId = setTimeout(triggerEyeShift, 4000 + Math.random() * 8000);
     };
 
@@ -145,7 +133,9 @@ export const MascotBlob: React.FC<Props> = ({
       if (blinkTimeoutId) clearTimeout(blinkTimeoutId);
       if (eyeTimeoutId) clearTimeout(eyeTimeoutId);
     };
-  }, [config, mood]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← empty: animations start once and run forever
+
 
   // ─── Animated Styles ───────────────────────────────────────────────────────
   const morphStyle = useAnimatedStyle(() => ({

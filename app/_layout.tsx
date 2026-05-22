@@ -1,16 +1,101 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useEffect, useState } from "react";
-import { View, ActivityIndicator } from 'react-native';
+import { useEffect, useRef, useState } from "react";
+import { View, ActivityIndicator, Animated, Text, StyleSheet } from 'react-native';
 import useThemeStore from "../store/useThemeStore";
 import useAuthStore from "../store/useAuthStore";
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+// ─── Soft session-expiry toast ────────────────────────────────────────────────
+function SessionExpiredToast({ visible, onHide }: { visible: boolean; onHide: () => void }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+
+      const timer = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: 10, duration: 300, useNativeDriver: true }),
+        ]).start(() => onHide());
+      }, 3500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View
+      style={[
+        toastStyles.container,
+        { opacity: fadeAnim, transform: [{ translateY }] },
+      ]}
+    >
+      <Text style={toastStyles.emoji}>🔐</Text>
+      <Text style={toastStyles.text}>
+        Oturum süren doldu. Lütfen tekrar giriş yap.
+      </Text>
+    </Animated.View>
+  );
+}
+
+const toastStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    bottom: 60,
+    left: 24,
+    right: 24,
+    backgroundColor: 'rgba(30, 20, 50, 0.96)',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 9999,
+  },
+  emoji: {
+    fontSize: 18,
+  },
+  text: {
+    flex: 1,
+    color: '#e2d9f3',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+});
+
+// ─── Root Layout ──────────────────────────────────────────────────────────────
 export default function RootLayout() {
-  const { loadTheme, currentTheme } = useThemeStore();
-  const { token, setAuth, onboardingCompleted, setOnboardingCompleted, postAuthOnboardingCompleted, setPostAuthOnboardingCompleted } = useAuthStore();
+  const { loadTheme } = useThemeStore();
+  const {
+    token,
+    setAuth,
+    onboardingCompleted,
+    setOnboardingCompleted,
+    postAuthOnboardingCompleted,
+    setPostAuthOnboardingCompleted,
+    sessionExpired,
+    clearSessionExpired,
+  } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
+  const [showSessionToast, setShowSessionToast] = useState(false);
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -21,7 +106,7 @@ export default function RootLayout() {
       shouldShowList: true,
     }),
   });
-  
+
   const segments = useSegments();
   const router = useRouter();
 
@@ -29,7 +114,7 @@ export default function RootLayout() {
     async function initialize() {
       // Load theme
       await loadTheme();
-      
+
       // Check onboarding status
       const onboardingValue = await AsyncStorage.getItem('onboardingCompleted');
       await setOnboardingCompleted(onboardingValue === 'true');
@@ -37,12 +122,19 @@ export default function RootLayout() {
       // Check post-auth onboarding status
       const postAuthValue = await AsyncStorage.getItem('postAuthOnboardingCompleted');
       await setPostAuthOnboardingCompleted(postAuthValue === 'true');
-      
-      // Check for existing token
+
+      // Restore session — token validity is enforced server-side on first API call
       const storedToken = await AsyncStorage.getItem('token');
       const storedUser = await AsyncStorage.getItem('user');
       if (storedToken && storedUser) {
-        await setAuth(storedToken, JSON.parse(storedUser));
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          await setAuth(storedToken, parsedUser);
+        } catch {
+          // Corrupt storage — clear and send to login
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
+        }
       }
 
       // Configure Android notification channel
@@ -54,12 +146,25 @@ export default function RootLayout() {
           lightColor: '#FF231F7C',
         });
       }
-      
+
       setIsReady(true);
     }
     initialize();
   }, []);
 
+  // ── Session expiry: show soft toast then redirect to login ─────────────────
+  useEffect(() => {
+    if (sessionExpired && isReady) {
+      setShowSessionToast(true);
+      // Navigate to login after a brief delay so the toast is visible
+      const timer = setTimeout(() => {
+        router.replace('/(auth)/login');
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [sessionExpired, isReady]);
+
+  // ── Route guarding ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isReady) return;
 
@@ -96,20 +201,31 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="onboarding" />
-      <Stack.Screen name="post-auth-onboarding" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="check-in" />
-      <Stack.Screen name="cards" />
-      <Stack.Screen name="theme-selection" />
-      <Stack.Screen name="privacy-data" />
-      <Stack.Screen name="settings" />
-      <Stack.Screen name="faq" />
-      <Stack.Screen name="terms" />
-      <Stack.Screen name="privacy-policy" />
-      <Stack.Screen name="reset-password" />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="post-auth-onboarding" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="check-in" />
+        <Stack.Screen name="cards" />
+        <Stack.Screen name="theme-selection" />
+        <Stack.Screen name="privacy-data" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="faq" />
+        <Stack.Screen name="terms" />
+        <Stack.Screen name="privacy-policy" />
+        <Stack.Screen name="reset-password" />
+      </Stack>
+
+      {/* Global soft session-expiry toast — rendered above all screens */}
+      <SessionExpiredToast
+        visible={showSessionToast}
+        onHide={() => {
+          setShowSessionToast(false);
+          clearSessionExpired();
+        }}
+      />
+    </View>
   );
 }

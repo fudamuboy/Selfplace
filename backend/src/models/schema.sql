@@ -59,6 +59,45 @@ CREATE TABLE IF NOT EXISTS weekly_insights (
   generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Personality Profiles (AI Synthesized)
+CREATE TABLE IF NOT EXISTS personality_profiles (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  traits JSONB DEFAULT '{}'::jsonb,
+  communication_style VARCHAR(255) DEFAULT 'gentle',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Personality Test Results
+CREATE TABLE IF NOT EXISTS personality_results (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  test_type VARCHAR(50) NOT NULL, -- e.g., 'color', 'mbti'
+  result_data JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Astrology Events (Collective)
+CREATE TABLE IF NOT EXISTS astrology_events (
+  id SERIAL PRIMARY KEY,
+  event_type VARCHAR(50) NOT NULL, -- e.g., 'moon', 'solstice', 'transit'
+  symbol VARCHAR(10),
+  message_tr TEXT NOT NULL,
+  priority INTEGER DEFAULT 3,
+  start_date TIMESTAMP WITH TIME ZONE,
+  end_date TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Zodiac Guidance (Personalized)
+CREATE TABLE IF NOT EXISTS zodiac_guidance (
+  id SERIAL PRIMARY KEY,
+  zodiac_sign VARCHAR(50) NOT NULL,
+  period_name VARCHAR(100), -- e.g., 'Haftalık Yorum'
+  guidance_tr TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Seeding Reflection Questions
 INSERT INTO reflection_questions (text) VALUES
 ('Bugün seni en çok ne etkiledi?'),

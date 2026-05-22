@@ -27,7 +27,9 @@ import * as Haptics from 'expo-haptics';
 import { GradientBackground } from '../components/GradientBackground';
 import { CustomModal } from '../components/CustomModal';
 import client from '../api/client';
+import useAuthStore from '../store/useAuthStore';
 import useThemeStore from '../store/useThemeStore';
+import { pickFallbackCards } from '../utils/cardPool';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.72;
@@ -36,45 +38,9 @@ const GAP = 20;
 const SNAP_INTERVAL = CARD_WIDTH + GAP;
 const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
-// ─── Invitation messages pool ───────────────────────────────────────────────
-const INVITATION_CARDS = [
-  {
-    icon: '🌱',
-    title: 'Küçük Bir Adım',
-    message: 'Bugün sadece bir şeyi kendine iyi hissettirmek için yap. Küçük adımlar da ilerlemedir.',
-    cta: 'Başlayalım',
-  },
-  {
-    icon: '🌙',
-    title: 'Sessizlik Hediyesi',
-    message: 'Beş dakika sadece seninle ol. Ekranlar kapalı, nefes açık.',
-    cta: 'Bunu yapabilirim',
-  },
-  {
-    icon: '💜',
-    title: 'Kendine Nazik Ol',
-    message: 'Bugün en iyi arkadaşına davrandığın gibi kendine davran. O arkadaş sensin.',
-    cta: 'Kabul ediyorum',
-  },
-  {
-    icon: '✨',
-    title: 'Anı Yakala',
-    message: 'Şu an nasıl hissediyorsun? Kelimelerle ifade etmene gerek yok — sadece hisset.',
-    cta: 'Hissediyorum',
-  },
-  {
-    icon: '🫧',
-    title: 'Nefes Ritüeli',
-    message: 'Dört say, tut, dert say ver. Bu kadar. Bedene geri dön.',
-    cta: 'Derinlemesine nefes al',
-  },
-  {
-    icon: '🌸',
-    title: 'Minnettarlık',
-    message: 'Bugün sana iyi gelen bir şeyi düşün. Ne kadar küçük olursa olsun — o sayılır.',
-    cta: 'Bir şey geliyor aklıma',
-  },
-];
+// ─── Legacy tiny pool kept for TypeScript type reference only ────────────────
+// Actual fallback content is now served from utils/cardPool.ts
+const _LEGACY_POOL_STUB = [{ icon: '', title: '', message: '', category: '' }];
 
 // ─── Particle component ──────────────────────────────────────────────────────
 const Particle = ({ color, delay }: { color: string; delay: number }) => {
@@ -187,24 +153,46 @@ const CardFront = ({
   data,
   theme,
 }: {
-  data: (typeof INVITATION_CARDS)[0];
+  data: any;
   theme: any;
 }) => {
   return (
     <LinearGradient
-      colors={['rgba(167,139,250,0.28)', 'rgba(109,40,217,0.18)', 'rgba(15,17,26,0.85)']}
+      colors={['rgba(20,10,40,0.72)', 'rgba(50,20,80,0.60)', 'rgba(10,8,20,0.88)']}
       style={styles.cardFace}
       start={{ x: 0, y: 0 }}
-      end={{ x: 0.6, y: 1 }}
+      end={{ x: 0.5, y: 1 }}
     >
+      {/* Subtle top accent stripe */}
+      <LinearGradient
+        colors={[theme.colors.primary + '55', 'transparent']}
+        style={styles.cardFrontAccent}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      />
+
       <View style={styles.cardFrontInner}>
+        {/* Category pill */}
+        {data.category ? (
+          <View style={[styles.categoryPill, { borderColor: theme.colors.primary + '60', backgroundColor: theme.colors.primary + '22' }]}>
+            <Text style={[styles.categoryPillText, { color: theme.colors.primary }]}>
+              {data.category.toUpperCase()}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Icon */}
         <Text style={styles.cardFrontIcon}>{data.icon}</Text>
-        <Text style={[styles.cardFrontTitle, { color: theme.colors.text.primary }]}>
-          {data.title}
-        </Text>
-        <Text style={[styles.cardFrontMessage, { color: theme.colors.text.secondary }]}>
-          {data.message}
-        </Text>
+
+        {/* Text panel — dark frosted layer for contrast */}
+        <View style={styles.cardTextPanel}>
+          <Text style={styles.cardFrontTitle}>
+            {data.title}
+          </Text>
+          <Text style={styles.cardFrontMessage}>
+            {data.message}
+          </Text>
+        </View>
       </View>
     </LinearGradient>
   );
@@ -216,7 +204,7 @@ const FlipCard = (props: {
   scrollX: Animated.SharedValue<number>;
   selected: boolean;
   hasSelection: boolean;
-  data: (typeof INVITATION_CARDS)[0];
+  data: any;
   theme: any;
   onSelect: () => void;
   onFlipComplete: () => void;
@@ -474,27 +462,41 @@ export default function CardsScreen() {
 
   const fetchCards = async () => {
     try {
+      // Stop immediately if there is no token (e.g. mid-logout)
+      const token = useAuthStore.getState().token;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       const res = await client.get(`/cards/interactive?localDate=${getLocalDate()}`);
       const data = res.data;
       // Handle both old (array) and new (object) backend formats
       const fetchedCards = Array.isArray(data) ? data : (data.cards || []);
       const isSel = Array.isArray(data) ? false : !!data.alreadySelected;
-      
+
       const mapped = fetchedCards.map((c: any) => ({
         id: c.id,
         icon: getCategoryIcon(c.category),
         title: c.title,
         message: c.content,
       }));
-      
+
       setCards(mapped);
       setAlreadySelected(isSel);
       if (isSel) {
         setSelectedIndex(0);
       }
-    } catch (error) {
-      console.error('Error fetching cards:', error);
-      const fallback = [...INVITATION_CARDS].sort(() => Math.random() - 0.5).slice(0, 3);
+    } catch (error: any) {
+      // Session expired — global handler (API client + layout) takes over.
+      // Do NOT show fallback cards or retry; just stop quietly.
+      if (error?.isSessionExpiry) {
+        setLoading(false);
+        return;
+      }
+      // Any other network/server error → show fresh local fallback cards
+      // (avoids repeating recently shown prompts via AsyncStorage recency tracking)
+      const fallback = await pickFallbackCards(3);
       setCards(fallback);
     } finally {
       setLoading(false);
@@ -537,17 +539,23 @@ export default function CardsScreen() {
     if (!selectedCard) return;
 
     setSubmitting(true);
-    
+
     try {
       if (!alreadySelected && selectedCard.id) {
-        await client.post(`/cards/interactive/select`, { 
+        await client.post(`/cards/interactive/select`, {
           cardId: selectedCard.id,
           localDate: getLocalDate()
         });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch (_) {
+    } catch (err: any) {
+      // Session expired — global handler redirects; don't navigate back ourselves
+      if (err?.isSessionExpiry) {
+        setSubmitting(false);
+        return;
+      }
+      // Any other error: gracefully back out without crashing
       router.back();
     } finally {
       setSubmitting(false);
@@ -802,28 +810,69 @@ const styles = StyleSheet.create({
   },
 
   // Card front face
+  cardFrontAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  categoryPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  categoryPillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
   cardFrontInner: {
     flex: 1,
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 10,
   },
   cardFrontIcon: {
-    fontSize: 40,
-    marginBottom: 8,
+    fontSize: 42,
+    marginBottom: 4,
+  },
+  // Dark frosted panel behind title + message for guaranteed contrast
+  cardTextPanel: {
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    width: '100%',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   cardFrontTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     textAlign: 'center',
-    letterSpacing: -0.2,
+    letterSpacing: -0.1,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   cardFrontMessage: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 13.5,
+    lineHeight: 21,
     textAlign: 'center',
-    opacity: 0.9,
+    color: 'rgba(255,255,255,0.93)',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
   ctaButton: {
     marginTop: 16,

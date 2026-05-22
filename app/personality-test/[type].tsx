@@ -1,0 +1,247 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { GradientBackground } from '../../components/GradientBackground';
+import client from '../../api/client';
+import useThemeStore from '../../store/useThemeStore';
+
+const { width } = Dimensions.get('window');
+
+interface Option {
+  text: string;
+  value: string;
+}
+
+interface Question {
+  id: string;
+  text: string;
+  options: Option[];
+}
+
+interface TestData {
+  id: string;
+  title: string;
+  description: string;
+  questions: Question[];
+}
+
+export default function PersonalityTestScreen() {
+  const { type } = useLocalSearchParams<{ type: string }>();
+  const router = useRouter();
+  const { currentTheme } = useThemeStore();
+  
+  const [testData, setTestData] = useState<TestData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchTest();
+  }, [type]);
+
+  const fetchTest = async () => {
+    try {
+      const res = await client.get(`/personality/tests/${type}`);
+      setTestData(res.data.test);
+    } catch (err) {
+      console.error(err);
+      // Fallback handled nicely by router back if totally failing
+      router.back();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectOption = async (questionId: string, value: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newAnswers = { ...answers, [questionId]: value };
+    setAnswers(newAnswers);
+
+    if (testData && currentIndex < testData.questions.length - 1) {
+      // Small delay for UX feeling
+      setTimeout(() => {
+        setCurrentIndex(currentIndex + 1);
+      }, 400);
+    } else {
+      submitTest(newAnswers);
+    }
+  };
+
+  const submitTest = async (finalAnswers: Record<string, string>) => {
+    setSubmitting(true);
+    try {
+      const res = await client.post(`/personality/tests/${type}/submit`, { answers: finalAnswers });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Redirect to results page, passing the specific result ID
+      router.replace({
+        pathname: '/personality-results',
+        params: { resultId: res.data.id }
+      });
+    } catch (err) {
+      console.error(err);
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <GradientBackground>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={currentTheme.colors.primary} />
+        </View>
+      </GradientBackground>
+    );
+  }
+
+  if (!testData) return null;
+
+  const currentQuestion = testData.questions[currentIndex];
+  const progress = ((currentIndex + 1) / testData.questions.length) * 100;
+
+  return (
+    <GradientBackground>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} disabled={submitting}>
+          <Text style={[styles.backText, { color: currentTheme.colors.text.muted }]}>İptal</Text>
+        </TouchableOpacity>
+        
+        {/* Progress Bar */}
+        <View style={[styles.progressBarContainer, { backgroundColor: currentTheme.colors.cardBorder }]}>
+          <Animated.View 
+            style={[styles.progressBar, { width: `${progress}%`, backgroundColor: currentTheme.colors.primary }]} 
+          />
+        </View>
+        <Text style={[styles.progressText, { color: currentTheme.colors.text.muted }]}>
+          {currentIndex + 1} / {testData.questions.length}
+        </Text>
+      </View>
+
+      <View style={styles.content}>
+        {submitting ? (
+          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.submittingContainer}>
+            <ActivityIndicator size="large" color={currentTheme.colors.primary} />
+            <Text style={[styles.submittingText, { color: currentTheme.colors.text.primary }]}>
+              Yanıtların derinleşiyor...
+            </Text>
+          </Animated.View>
+        ) : (
+          <Animated.View 
+            key={currentIndex}
+            entering={FadeIn.duration(400)}
+            exiting={FadeOut.duration(200)}
+            style={styles.questionContainer}
+          >
+            <Text style={[styles.questionText, { color: currentTheme.colors.text.primary }]}>
+              {currentQuestion.text}
+            </Text>
+            
+            <View style={styles.optionsContainer}>
+              {currentQuestion.options.map((option, idx) => {
+                const isSelected = answers[currentQuestion.id] === option.value;
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.7}
+                    onPress={() => handleSelectOption(currentQuestion.id, option.value)}
+                    style={[
+                      styles.optionCard,
+                      {
+                        backgroundColor: currentTheme.colors.card,
+                        borderColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder,
+                      }
+                    ]}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      { color: isSelected ? currentTheme.colors.primary : currentTheme.colors.text.secondary }
+                    ]}>
+                      {option.text}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Animated.View>
+        )}
+      </View>
+    </GradientBackground>
+  );
+}
+
+const styles = StyleSheet.create({
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  backText: {
+    fontSize: 15,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 4,
+    marginHorizontal: 16,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+  },
+  questionContainer: {
+    flex: 1,
+  },
+  questionText: {
+    fontSize: 24,
+    lineHeight: 34,
+    fontWeight: 'bold',
+    marginBottom: 40,
+  },
+  optionsContainer: {
+    gap: 16,
+  },
+  optionCard: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  optionText: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  submittingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submittingText: {
+    marginTop: 20,
+    fontSize: 18,
+    fontStyle: 'italic',
+  }
+});
