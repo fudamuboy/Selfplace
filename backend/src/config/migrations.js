@@ -174,6 +174,16 @@ exports.runMigrations = async () => {
     `);
 
     // 12. Ensure Astrology tables exist
+    const checkAstroCols = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'astrology_events' AND column_name = 'message_tr'
+    `);
+    if (checkAstroCols.rows.length > 0) {
+      console.log('[MIGRATION] Old astrology_events schema detected. Rebuilding table...');
+      await db.query('DROP TABLE astrology_events');
+    }
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS astrology_events (
         id SERIAL PRIMARY KEY,
