@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GradientBackground } from '../../components/GradientBackground';
 import client from '../../api/client';
 import useThemeStore from '../../store/useThemeStore';
 
-const { width } = Dimensions.get('window');
 
 interface Option {
   text: string;
@@ -40,7 +38,7 @@ export default function PersonalityTestScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchTest();
+    fetchTest(); // eslint-disable-line react-hooks/exhaustive-deps
   }, [type]);
 
   const fetchTest = async () => {

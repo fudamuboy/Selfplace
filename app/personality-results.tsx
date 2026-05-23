@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
@@ -37,7 +36,7 @@ export default function PersonalityResultsScreen() {
       } else {
         setHistory({ color: [], mbti: [] });
       }
-    } catch (err) {
+    } catch (_err) {
       // Silently catch the error to prevent Expo red screens or aggressive alerts
       console.log('[Personality Results] Soft failure on history fetch');
       setHistory({ color: [], mbti: [] });

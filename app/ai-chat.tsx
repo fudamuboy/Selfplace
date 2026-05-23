@@ -34,31 +34,34 @@ import useThemeStore from '../store/useThemeStore';
 const { width } = Dimensions.get('window');
 
 // ─── Typing Animation Component ──────────────────────────────────────────────
+const TypingDot = ({ i, color }: { i: number; color: string }) => {
+  const dotStyle = useAnimatedStyle(() => {
+    const translateY = withRepeat(
+      withSequence(
+        withDelay(i * 150, withTiming(-5, { duration: 400 })),
+        withTiming(0, { duration: 400 })
+      ),
+      -1,
+      true
+    );
+    return { transform: [{ translateY }] };
+  });
+
+  return (
+    <Animated.View 
+      style={[styles.typingDot, { backgroundColor: color }, dotStyle]} 
+    />
+  );
+};
+
 const TypingIndicator = ({ color }: { color: string }) => {
   const dots = [0, 1, 2];
   
   return (
     <View style={styles.typingContainer}>
-      {dots.map((i) => {
-        const dotStyle = useAnimatedStyle(() => {
-          const translateY = withRepeat(
-            withSequence(
-              withDelay(i * 150, withTiming(-5, { duration: 400 })),
-              withTiming(0, { duration: 400 })
-            ),
-            -1,
-            true
-          );
-          return { transform: [{ translateY }] };
-        });
-        
-        return (
-          <Animated.View 
-            key={i} 
-            style={[styles.typingDot, { backgroundColor: color }, dotStyle]} 
-          />
-        );
-      })}
+      {dots.map((i) => (
+        <TypingDot key={i} i={i} color={color} />
+      ))}
     </View>
   );
 };

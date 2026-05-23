@@ -1,6 +1,5 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import useThemeStore from '../store/useThemeStore';
 
 interface Props {
@@ -10,6 +9,7 @@ interface Props {
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'outline';
   style?: any;
+  textStyle?: any;
 }
 
 export const CustomButton: React.FC<Props> = ({ 
@@ -18,7 +18,8 @@ export const CustomButton: React.FC<Props> = ({
   loading = false, 
   disabled = false,
   variant = 'primary',
-  style 
+  style,
+  textStyle
 }) => {
   const { currentTheme } = useThemeStore();
 
@@ -58,7 +59,7 @@ export const CustomButton: React.FC<Props> = ({
       {loading ? (
         <ActivityIndicator color={variant === 'outline' ? currentTheme.colors.button.primary : currentTheme.colors.button.text} />
       ) : (
-        <Text style={[styles.text, getTextStyle()]}>{title}</Text>
+        <Text style={[styles.text, getTextStyle(), textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );

@@ -111,7 +111,7 @@ const MascotArea = memo(function MascotArea({
       {/* MascotBlob stays mounted permanently; mood prop drives config */}
       <MascotBlob mood={mood as any} scale={0.6} />
       <Text style={[styles.mascotText, { color: textColor }]}>
-        "{message}"
+        &quot;{message}&quot;
       </Text>
     </Animated.View>
   );

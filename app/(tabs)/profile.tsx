@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Modal , Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GradientBackground } from '../../components/GradientBackground';
 import useAuthStore from '../../store/useAuthStore';
@@ -11,7 +11,6 @@ import useNotificationStore from '../../store/useNotificationStore';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Platform } from 'react-native';
 
 const getZodiacSign = (day: number, month: number): string => {
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
@@ -328,7 +327,7 @@ export default function ProfileScreen() {
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleDateChange}
                 maximumDate={new Date()}
-                themeVariant={currentTheme.mode === 'dark' ? 'dark' : 'light'}
+                themeVariant="dark"
               />
             )}
 

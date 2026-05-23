@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
 
@@ -19,6 +19,7 @@ export default function RegisterScreen() {
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '', success: false });
 
@@ -29,6 +30,11 @@ export default function RegisterScreen() {
       setModal({ visible: true, title: 'Hata', message: 'Lütfen tüm alanları (Doğum Tarihi dahil) doldurun.', success: false });
       return;
     }
+    
+    if (!acceptedTerms) {
+      setModal({ visible: true, title: 'Hata', message: 'Lütfen kullanım koşullarını ve gizlilik politikasını kabul edin.', success: false });
+      return;
+    }
 
 
     setLoading(true);
@@ -37,7 +43,8 @@ export default function RegisterScreen() {
         username, 
         email, 
         password, 
-        birth_date: birthDate.toISOString().split('T')[0] 
+        birth_date: birthDate.toISOString().split('T')[0],
+        accepted_terms: acceptedTerms
       });
 
       setModal({
@@ -54,7 +61,8 @@ export default function RegisterScreen() {
       setModal({
         visible: true,
         title: 'Kayıt Başarısız',
-        message: errorData?.message || 'Hesap oluşturulurken bir sorun oluştu. Lütfen daha sonra tekrar deneyin.'
+        message: errorData?.message || 'Hesap oluşturulurken bir sorun oluştu. Lütfen daha sonra tekrar deneyin.',
+        success: false
       });
 
     } finally {
@@ -176,6 +184,30 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
 
+          <View style={styles.termsContainer}>
+            <TouchableOpacity 
+              style={styles.checkboxContainer} 
+              onPress={() => setAcceptedTerms(!acceptedTerms)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, acceptedTerms && styles.checkboxActive]}>
+                {acceptedTerms && <Ionicons name="checkmark" size={14} color="#FFF" />}
+              </View>
+            </TouchableOpacity>
+            <View style={styles.termsTextWrapper}>
+              <Text style={styles.termsTextInner}>
+                <Link href="/terms" style={styles.termsLink} suppressHighlighting>
+                  Kullanım Koşulları
+                </Link>
+                &apos;nı ve{' '}
+                <Link href="/privacy-policy" style={styles.termsLink} suppressHighlighting>
+                  Gizlilik Politikası
+                </Link>
+                &apos;nı okudum ve kabul ediyorum.
+              </Text>
+            </View>
+          </View>
+
           <CustomButton
             title="Kayıt Ol"
             onPress={handleRegister}
@@ -186,6 +218,10 @@ export default function RegisterScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.loginLink}>
             <Text style={styles.linkText}>Zaten hesabın var mı? <Text style={{ fontWeight: 'bold' }}>Giriş Yap</Text></Text>
           </TouchableOpacity>
+          
+          <Text style={styles.disclaimerText}>
+            Selfplace duygusal destek ve farkındalık amaçlıdır. Profesyonel terapi yerine geçmez.
+          </Text>
         </View>
       </KeyboardAvoidingView>
 
@@ -305,6 +341,50 @@ const styles = StyleSheet.create({
   pickerTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '100%',
+    paddingHorizontal: 4,
+  },
+  checkboxContainer: {
+    padding: 4,
+    marginRight: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: Colors.text.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  termsTextWrapper: {
+    flex: 1,
+  },
+  termsTextInner: {
+    fontSize: 13,
+    color: Colors.text.secondary,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  disclaimerText: {
+    marginTop: 20,
+    fontSize: 11,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    paddingHorizontal: 20,
   },
 });
 

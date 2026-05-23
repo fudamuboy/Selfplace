@@ -1,40 +1,64 @@
 const db = require('../config/db');
+const OpenAI = require('openai');
+const { ZODIAC_PROFILES } = require('../utils/astrologyProfiles');
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 /**
- * Mocks an AI synthesis engine based on user context.
- * In a production env, this string would be generated via OpenAI/Gemini.
+ * AI Synthesis Engine for Astrology
  */
-function generateMockAISynthesis(zodiacSign, element, activeEvents, recentMood, colorResult) {
-  let intro = `Sevgili ${zodiacSign}, gökyüzünde şu an ${activeEvents.map(e => e.event_name).join(' ve ')} enerjileri hakim.`;
-  
-  let moodReflection = '';
-  if (recentMood) {
-    if (['Huzurlu', 'Mutlu', 'Enerjik'].includes(recentMood)) {
-      moodReflection = ` İçindeki bu dingin ve pozitif enerji, gökyüzünün sana sunduğu potansiyeli en iyi şekilde kullanmanı sağlıyor.`;
-    } else if (['Yorgun', 'Kaygılı', 'Hüzünlü'].includes(recentMood)) {
-      moodReflection = ` Son günlerde hissettiğin o tatlı yorgunluk ve içe dönme isteği, aslında ruhunun dinlenmek için senden izin istemesi.`;
-    } else {
-      moodReflection = ` İç dünyanda hissettiğin dalgalanmalar, evrenin doğal ritmiyle tamamen uyum içinde.`;
+async function generateAstrologySynthesis(zodiacSign, element, activeEvents, recentMood, colorResult) {
+  try {
+    const profile = ZODIAC_PROFILES[zodiacSign] || ZODIAC_PROFILES["Ateş"]; // Fallback if missing
+    
+    let dossier = `[USER CONTEXT]\nZodiac Sign: ${zodiacSign}\n`;
+    dossier += `Element: ${element}\n`;
+    
+    if (activeEvents && activeEvents.length > 0) {
+      dossier += `Current Sky: ${activeEvents[0].event_name} - ${activeEvents[0].description}\n`;
     }
+    if (recentMood) {
+      dossier += `Recent Emotional State: ${recentMood}\n`;
+    }
+    if (colorResult) {
+      dossier += `DISC Personality: ${colorResult.dominantColor} (${colorResult.title})\n`;
+    }
+
+    const systemPrompt = `You are the premium emotional astrology engine of Selfplace.
+Your goal is to write a deeply personal, emotionally intelligent, and psychologically nuanced weekly reflection for the user.
+
+${dossier}
+
+[ZODIAC PSYCHOLOGICAL PROFILE: ${zodiacSign}]
+Core Traits: ${profile.core}
+Inner Conflict: ${profile.emotionalConflict}
+Stress Behavior: ${profile.stressBehavior}
+Relational Style: ${profile.relationalTendency}
+Key Vocabulary (use subtly in Turkish): ${profile.vocabulary?.join(', ')}
+Writing Rhythm: ${profile.writingStyle}
+
+CRITICAL RULES:
+1. NO GENERIC ASTROLOGY: You must write specifically in the style and psychological tone of ${zodiacSign}. Do not sound like a generic horoscope.
+2. NO BANNED CLICHES: Never use phrases like "kendine karşı nazik ol", "güvenlik ihtiyacın artabilir", "topraklanma zamanı", "iç sesini dinle".
+3. NO FORTUNE TELLING: Do not predict the future (e.g. "A new job is coming"). Focus purely on emotional reflection and symbolic guidance based on the current sky and their mood.
+4. TONE: Premium, subtle, empathetic, and human-written. Keep it emotionally intelligent but NOT overwhelming or excessively poetic. Do NOT sound like an AI generating endless paragraphs.
+5. LENGTH: 2 to 3 concise, naturally flowing sentences. Give the user emotional breathing space.
+6. LANGUAGE: Turkish.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'system', content: systemPrompt }],
+      temperature: 0.8,
+    });
+
+    return completion.choices[0].message.content;
+  } catch (err) {
+    console.error('[Astrology AI Error]', err);
+    // Silent fallback if API fails
+    return `Sevgili ${zodiacSign}, gökyüzündeki mevcut enerjiler şu an iç dünyanda önemli dönüşümlere işaret ediyor. Kendi ritminde kalmaya özen göster.`;
   }
-
-  let elementReflection = '';
-  if (element === 'Su') elementReflection = ` Su elementinin derin sezgileri, bu dönemde rasyonel zihninden çok kalbinin sesine güvenmen gerektiğini fısıldıyor.`;
-  else if (element === 'Toprak') elementReflection = ` Toprak elementinin o sağlam kökleri, fırtınalar ne kadar sert olursa olsun seni güvende tutuyor.`;
-  else if (element === 'Ateş') elementReflection = ` Ateş elementinin getirdiği o yüksek yaşam coşkusu, önündeki tüm engelleri birer basamağa dönüştürüyor.`;
-  else if (element === 'Hava') elementReflection = ` Hava elementinin berrak zihni, karmaşık görünen olayların ardındaki asıl resmi görmeni kolaylaştırıyor.`;
-
-  let eventReflection = '';
-  if (activeEvents.length > 0) {
-    eventReflection = ` Özellike ${activeEvents[0].event_name} etkisiyle; ${activeEvents[0].description.toLowerCase()}`;
-  }
-
-  let colorReflection = '';
-  if (colorResult) {
-    colorReflection = ` Baskın olan ${colorResult.dominantColor} enerjin, bu süreçte senin en büyük içsel pusulan olacak.`;
-  }
-
-  return `${intro}${moodReflection}${elementReflection}${eventReflection}${colorReflection} Kendine karşı nazik olmayı unutma. 🌿`;
 }
 
 /**
@@ -137,8 +161,8 @@ exports.getWeeklyGuidance = async (req, res) => {
     if (guidanceRes.rows.length > 0) {
       finalGuidanceText = guidanceRes.rows[0].guidance_text;
     } else {
-      // 7. Generate New Synthesis (Simulating AI via rules for MVP)
-      finalGuidanceText = generateMockAISynthesis(zodiacSign, profile?.element || 'Ateş', activeEvents, recentMood, colorResult);
+      // 7. Generate New Synthesis via OpenAI
+      finalGuidanceText = await generateAstrologySynthesis(zodiacSign, profile?.element || 'Ateş', activeEvents, recentMood, colorResult);
       
       // Save to database
       await db.query(

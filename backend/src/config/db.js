@@ -18,7 +18,7 @@ if (!process.env.DATABASE_URL) {
 
 try {
   new URL(process.env.DATABASE_URL);
-} catch (e) {
+} catch (_e) {
   console.error('[DB-ERROR] Failed to parse DATABASE_URL.');
 }
 

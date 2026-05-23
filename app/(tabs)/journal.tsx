@@ -6,11 +6,18 @@ import useThemeStore from '../../store/useThemeStore';
 import client from '../../api/client';
 import { GradientBackground } from '../../components/GradientBackground';
 
+interface JournalEntry {
+  id: number | null;
+  title: string | null;
+  content: string;
+  created_at?: string;
+}
+
 export default function JournalScreen() {
   const { currentTheme } = useThemeStore();
-  const [entries, setEntries] = useState([]);
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentEntry, setCurrentEntry] = useState({ id: null, title: '', content: '' });
+  const [currentEntry, setCurrentEntry] = useState<JournalEntry>({ id: null, title: '', content: '' });
   const richText = useRef(null);
 
   const fetchEntries = async () => {
@@ -64,12 +71,12 @@ export default function JournalScreen() {
     setIsEditing(true);
   };
 
-  const editEntry = (entry) => {
+  const editEntry = (entry: JournalEntry) => {
     setCurrentEntry({ id: entry.id, title: entry.title || '', content: entry.content });
     setIsEditing(true);
   };
 
-  const deleteEntry = async (id) => {
+  const deleteEntry = async (id: number) => {
     Alert.alert('Emin misiniz?', 'Bu günlüğü silmek istediğinize emin misiniz?', [
       { text: 'İptal', style: 'cancel' },
       { text: 'Sil', style: 'destructive', onPress: async () => {
@@ -99,7 +106,7 @@ export default function JournalScreen() {
             style={[styles.titleInput, { color: '#FFFFFF', borderBottomColor: 'rgba(255,255,255,0.1)' }]}
             placeholder="Başlık (İsteğe bağlı)"
             placeholderTextColor="rgba(255,255,255,0.5)"
-            value={currentEntry.title}
+            value={currentEntry.title || ''}
             onChangeText={(t) => setCurrentEntry(prev => ({ ...prev, title: t }))}
             multiline={false}
             returnKeyType="next"
@@ -148,7 +155,7 @@ export default function JournalScreen() {
 
       <FlatList
         data={entries}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item.id?.toString() || Math.random().toString()}
         renderItem={({ item }) => (
           <TouchableOpacity style={[styles.entryCard, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]} onPress={() => editEntry(item)}>
             <View style={{ flex: 1 }}>
@@ -156,11 +163,11 @@ export default function JournalScreen() {
                 {item.title || 'Başlıksız Günlük'}
               </Text>
               <Text style={[styles.entryDate, { color: 'rgba(255,255,255,0.75)' }]}>
-                {new Date(item.created_at).toLocaleDateString('tr-TR')}
+                {item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => deleteEntry(item.id)} style={{ padding: 10 }}>
-              <Ionicons name="trash-outline" size={20} color={currentTheme.colors.error || '#ff4444'} />
+            <TouchableOpacity onPress={() => deleteEntry(item.id as number)} style={{ padding: 10 }}>
+              <Ionicons name="trash-outline" size={20} color="#ff4444" />
             </TouchableOpacity>
           </TouchableOpacity>
         )}

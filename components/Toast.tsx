@@ -22,7 +22,8 @@ export const Toast: React.FC<Props> = ({ visible, message, onHide, duration = 20
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.timing(translateY, {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      Animated.timing(translateY, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
@@ -44,6 +45,7 @@ export const Toast: React.FC<Props> = ({ visible, message, onHide, duration = 20
         duration: 300,
         useNativeDriver: true,
       }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       Animated.timing(translateY, {
         toValue: 10,
         duration: 300,

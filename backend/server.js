@@ -21,7 +21,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 const authRoutes = require('./src/routes/authRoutes');
 const checkInRoutes = require('./src/routes/checkInRoutes');
-const advancedCheckInRoutes = require('./src/routes/advancedCheckInRoutes');
 const journalRoutes = require('./src/routes/journalRoutes');
 const cardRoutes = require('./src/routes/cardRoutes');
 const insightRoutes = require('./src/routes/insightRoutes');

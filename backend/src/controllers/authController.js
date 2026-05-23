@@ -18,7 +18,11 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.register = async (req, res) => {
-  const { username, email, password, birth_date } = req.body;
+  const { username, email, password, birth_date, accepted_terms } = req.body;
+
+  if (!accepted_terms) {
+    return res.status(400).json({ message: 'Kullanım koşullarını ve gizlilik politikasını kabul etmelisiniz.' });
+  }
 
 
 
@@ -35,10 +39,11 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     const zodiacSign = birth_date ? getZodiacSign(birth_date) : null;
+    const termsAcceptedAt = new Date();
     
     const newUser = await db.query(
-      'INSERT INTO users (username, email, password, birth_date, zodiac_sign) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, birth_date, zodiac_sign, created_at',
-      [username, email, hashedPassword, birth_date, zodiacSign]
+      'INSERT INTO users (username, email, password, birth_date, zodiac_sign, accepted_terms, terms_accepted_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, birth_date, zodiac_sign, accepted_terms, created_at',
+      [username, email, hashedPassword, birth_date, zodiacSign, accepted_terms, termsAcceptedAt]
     );
 
 
@@ -52,6 +57,7 @@ exports.register = async (req, res) => {
         email: user.email,
         birth_date: user.birth_date,
         zodiac_sign: user.zodiac_sign,
+        accepted_terms: user.accepted_terms,
         createdAt: user.created_at
       }
 
@@ -187,7 +193,7 @@ exports.forgotPassword = async (req, res) => {
       console.log('----------------------------------------------------');
       console.log('DEVELOPMENT MODE: PASSWORD RESET LINK');
       console.log('Target Email:', user.email);
-      console.log('Reset Link:', resetLink);
+      console.log('Reset Code:', resetCode);
       console.log('----------------------------------------------------');
     }
 

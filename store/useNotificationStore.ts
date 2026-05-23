@@ -27,7 +27,7 @@ const useNotificationStore = create<NotificationState>((set, get) => ({
           reminderTime: reminderTime ? new Date(reminderTime) : new Date(new Date().setHours(21, 0, 0, 0)),
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // Silence config loading error
     }
   },

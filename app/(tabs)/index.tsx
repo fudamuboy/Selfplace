@@ -50,7 +50,8 @@ export default function HomeScreen() {
   const [astrologyData, setAstrologyData] = React.useState<{
     events: any[],
     zodiacGuidance: any,
-    userZodiac: string | null
+    userZodiac: string | null,
+    preview_text: string
   } | null>(null);
 
   const fetchData = async () => {
@@ -152,7 +153,7 @@ export default function HomeScreen() {
             emotionalContext={emotionalContext}
           />
           <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>
-            "{getMascotMessage(new Date().getHours(), emotionalContext)}"
+            &quot;{getMascotMessage(new Date().getHours(), emotionalContext)}&quot;
           </Text>
         </TouchableOpacity>
 
@@ -167,7 +168,7 @@ export default function HomeScreen() {
               <View style={styles.energyHeader}>
                 <View>
                   <Text style={[styles.energySubtitle, { color: currentTheme.colors.text.muted }]}>HAFTALIK ENERJİN</Text>
-                  <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary }]}>✨ {astrologyData.zodiacSign || 'Gökyüzü'}</Text>
+                  <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary }]}>✨ {astrologyData.userZodiac || 'Gökyüzü'}</Text>
                 </View>
               </View>
               
@@ -315,6 +316,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  energySubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
   energySymbol: {
     fontSize: 20,
   },
@@ -331,5 +338,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     fontStyle: 'italic',
+  },
+  energyActionText: {
+    fontSize: 14,
   },
 });

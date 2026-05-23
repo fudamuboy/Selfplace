@@ -20,6 +20,7 @@ import Animated, {
   runOnJS,
   useAnimatedScrollHandler,
   Extrapolate,
+  SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -201,7 +202,7 @@ const CardFront = ({
 // ─── The Flippable Card ───────────────────────────────────────────────────────
 const FlipCard = (props: {
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   selected: boolean;
   hasSelection: boolean;
   data: any;
@@ -390,45 +391,49 @@ const FlipCard = (props: {
 };
 
 // ─── Pagination Dots (Bug 4) ──────────────────────────────────────────────────
+const PaginationDot = ({ i, scrollX, theme }: { i: number; scrollX: SharedValue<number>; theme: any }) => {
+  const dotStyle = useAnimatedStyle(() => {
+    const inputRange = [
+      (i - 1) * SNAP_INTERVAL,
+      i * SNAP_INTERVAL,
+      (i + 1) * SNAP_INTERVAL,
+    ];
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.4, 1, 0.4],
+      Extrapolate.CLAMP
+    );
+    const scale = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.8, 1.2, 0.8],
+      Extrapolate.CLAMP
+    );
+    return {
+      opacity,
+      transform: [{ scale }],
+      backgroundColor: opacity > 0.8 ? theme.colors.primary : theme.colors.text.muted,
+    };
+  });
+
+  return <Animated.View style={[styles.dot, dotStyle]} />;
+};
+
 const PaginationDots = ({
   count,
   scrollX,
   theme,
 }: {
   count: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   theme: any;
 }) => {
   return (
     <View style={styles.dotsContainer}>
-      {Array.from({ length: count }).map((_, i) => {
-        const dotStyle = useAnimatedStyle(() => {
-          const inputRange = [
-            (i - 1) * SNAP_INTERVAL,
-            i * SNAP_INTERVAL,
-            (i + 1) * SNAP_INTERVAL,
-          ];
-          const opacity = interpolate(
-            scrollX.value,
-            inputRange,
-            [0.4, 1, 0.4],
-            Extrapolate.CLAMP
-          );
-          const scale = interpolate(
-            scrollX.value,
-            inputRange,
-            [0.8, 1.2, 0.8],
-            Extrapolate.CLAMP
-          );
-          return {
-            opacity,
-            transform: [{ scale }],
-            backgroundColor: opacity > 0.8 ? theme.colors.primary : theme.colors.text.muted,
-          };
-        });
-
-        return <Animated.View key={i} style={[styles.dot, dotStyle]} />;
-      })}
+      {Array.from({ length: count }).map((_, i) => (
+        <PaginationDot key={i} i={i} scrollX={scrollX} theme={theme} />
+      ))}
     </View>
   );
 };
@@ -613,6 +618,7 @@ export default function CardsScreen() {
                 decelerationRate="fast"
                 snapToAlignment="center"
                 contentContainerStyle={styles.carouselContent}
+                // @ts-ignore
                 clipChildren={false} // Bug 2
               >
                 {cards.map((card, i) => (

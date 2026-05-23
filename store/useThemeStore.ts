@@ -23,7 +23,7 @@ const useThemeStore = create<ThemeState>((set) => ({
       if (savedThemeId && themeModes[savedThemeId]) {
         set({ currentTheme: themeModes[savedThemeId] });
       }
-    } catch (error) {
+    } catch (_error) {
       // Silence theme loading error
     }
   },

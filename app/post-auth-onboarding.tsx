@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform, Dimensions, SafeAreaView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Dimensions, SafeAreaView, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
 import useNotificationStore from '../store/useNotificationStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { MascotBlob } from '../components/MascotBlob';
 import Animated, { 
@@ -16,10 +14,7 @@ import Animated, {
   useAnimatedStyle, 
   withRepeat, 
   withTiming, 
-  withSpring,
-  Easing,
-  interpolate,
-  withSequence
+  Easing
 } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
@@ -71,7 +66,7 @@ export default function PostAuthOnboardingScreen() {
 
   useEffect(() => {
     loadConfig();
-  }, []);
+  }, [loadConfig]);
 
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(10); // 5, 10, 15
@@ -83,6 +78,7 @@ export default function PostAuthOnboardingScreen() {
   const buttonPressScale = useSharedValue(1);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     floatAnim.value = withRepeat(
       withTiming(-8, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -129,7 +125,7 @@ export default function PostAuthOnboardingScreen() {
 
   return (
     <LinearGradient 
-      colors={currentThemeData.colors} 
+      colors={currentThemeData.colors as [string, string, ...string[]]} 
       style={styles.container}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
@@ -152,7 +148,7 @@ export default function PostAuthOnboardingScreen() {
             {step === 3 && <Ionicons name="heart-outline" size={32} color={currentThemeData.accent} />}
           </Animated.View>
 
-          <MascotBlob mood={currentThemeData.mood} color={currentThemeData.mascotColor} />
+          <MascotBlob mood={currentThemeData.mood} />
         </View>
 
         {/* BOTTOM: INTERACTION AREA */}
@@ -167,7 +163,7 @@ export default function PostAuthOnboardingScreen() {
                   </View>
                   <Switch 
                     value={remindersEnabled} 
-                    onValueChange={(val) => storeToggleReminders(val)}
+                    onValueChange={(val) => { storeToggleReminders(val); }}
                     trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.accent }}
                     thumbColor="#FFF"
                     ios_backgroundColor="rgba(255,255,255,0.1)"
@@ -206,7 +202,7 @@ export default function PostAuthOnboardingScreen() {
                 </View>
                 <Switch 
                   value={remindersEnabled} 
-                  onValueChange={(val) => storeToggleReminders(val)}
+                  onValueChange={(val) => { storeToggleReminders(val); }}
                   trackColor={{ false: 'rgba(255,255,255,0.1)', true: currentThemeData.accent }}
                   thumbColor="#FFF"
                   ios_backgroundColor="rgba(255,255,255,0.1)"

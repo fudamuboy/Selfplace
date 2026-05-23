@@ -1,11 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { View, ActivityIndicator, Animated, Text, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, Animated, Text, StyleSheet , Platform } from 'react-native';
 import useThemeStore from "../store/useThemeStore";
 import useAuthStore from "../store/useAuthStore";
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
 
 // ─── Soft session-expiry toast ────────────────────────────────────────────────
 function SessionExpiredToast({ visible, onHide }: { visible: boolean; onHide: () => void }) {
@@ -172,13 +171,14 @@ export default function RootLayout() {
     const inTabsGroup = segments[0] === '(tabs)';
     const onOnboarding = segments[0] === 'onboarding';
     const onPostAuthOnboarding = segments[0] === 'post-auth-onboarding';
+    const onLegal = segments[0] === 'terms' || segments[0] === 'privacy-policy';
 
     if (!onboardingCompleted) {
       if (!onOnboarding) {
         router.replace('/onboarding');
       }
     } else if (!token) {
-      if (inTabsGroup || !inAuthGroup) {
+      if (inTabsGroup || (!inAuthGroup && !onLegal)) {
         router.replace('/(auth)/login');
       }
     } else if (token) {

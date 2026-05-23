@@ -72,7 +72,7 @@ export default function ThemeSelectionScreen() {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={[styles.description, { color: currentTheme.colors.text.secondary }]}>
-            Selfplace'in sana nasıl hissettirmesini istersin? Aşağıdan bir mod seçerek deneyimini kişiselleştirebilirsin.
+            Selfplace&apos;in sana nasıl hissettirmesini istersin? Aşağıdan bir mod seçerek deneyimini kişiselleştirebilirsin.
           </Text>
 
           <View style={styles.optionsContainer}>

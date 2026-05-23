@@ -29,7 +29,7 @@ export default function PrivacyDataScreen() {
         message: dataStr,
         title: 'Selfplace Verilerim',
       });
-    } catch (error) {
+    } catch (_error) {
       setInfoModal({
         visible: true,
         title: 'Hata',
@@ -50,7 +50,7 @@ export default function PrivacyDataScreen() {
         title: 'Başarılı',
         message: 'Tüm kişisel verileriniz silindi.',
       });
-    } catch (error) {
+    } catch (_error) {
       setInfoModal({
         visible: true,
         title: 'Hata',
@@ -68,7 +68,7 @@ export default function PrivacyDataScreen() {
       setConfirmModal({ visible: false, type: 'none' });
       logout();
       router.replace('/login');
-    } catch (error) {
+    } catch (_error) {
       setInfoModal({
         visible: true,
         title: 'Hata',

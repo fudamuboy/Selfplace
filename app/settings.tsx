@@ -6,11 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
 import useNotificationStore from '../store/useNotificationStore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomModal } from '../components/CustomModal';
-import { CustomButton } from '../components/CustomButton';
 import client from '../api/client';
 import * as Clipboard from 'expo-clipboard';
 import { Toast } from '../components/Toast';
@@ -36,7 +33,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadConfig();
-  }, []);
+  }, [loadConfig]);
 
   const toggleReminders = async (value: boolean) => {
     const success = await storeToggleReminders(value);

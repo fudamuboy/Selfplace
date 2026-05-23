@@ -50,8 +50,8 @@ export default function HistoryFull() {
 
       setData(mappedList);
       setFilteredData(mappedList);
-    } catch (err) {
-      console.error('History fetch error:', err);
+    } catch (_err) {
+      console.error('History fetch error:', _err);
     } finally {
       setLoading(false);
     }
