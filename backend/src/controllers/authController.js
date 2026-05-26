@@ -63,7 +63,12 @@ exports.register = async (req, res) => {
 
     });
   } catch (err) {
-    res.status(500).json({ message: 'Hesap oluşturulurken bir sorun oluştu.' });
+    console.error('[authController] register error:', err);
+    res.status(500).json({ 
+      message: `Kayıt hatası: ${err.message}`, 
+      error: err.message, 
+      stack: err.stack 
+    });
   }
 };
 

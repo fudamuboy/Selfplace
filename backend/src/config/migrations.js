@@ -20,13 +20,15 @@ exports.runMigrations = async () => {
       await db.query('ALTER TABLE users RENAME COLUMN password_hash TO password');
     }
 
-    // 2. Ensure reset password columns exist
+    // 2. Ensure reset password and terms columns exist
     await db.query(`
       ALTER TABLE users 
       ADD COLUMN IF NOT EXISTS reset_password_token TEXT,
       ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMP WITH TIME ZONE,
       ADD COLUMN IF NOT EXISTS birth_date DATE,
-      ADD COLUMN IF NOT EXISTS zodiac_sign VARCHAR(50)
+      ADD COLUMN IF NOT EXISTS zodiac_sign VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS accepted_terms BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP WITH TIME ZONE
     `);
 
 
