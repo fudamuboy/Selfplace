@@ -15,7 +15,7 @@ import { Toast } from '../components/Toast';
 export default function SettingsScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
-  const { user, setOnboardingCompleted, setPostAuthOnboardingCompleted } = useAuthStore();
+  const { user } = useAuthStore();
 
   const { 
     remindersEnabled, 
@@ -195,21 +195,7 @@ export default function SettingsScreen() {
           {renderRow('document-text-outline', 'Kullanım Koşulları', 'Uygulama kuralları ve şartları', () => router.push('/terms'))}
           {renderRow('shield-outline', 'Gizlilik Politikası', 'Verilerinin nasıl korunduğu', () => router.push('/privacy-policy'))}
 
-          <View style={{ height: 24 }} />
-          {renderSectionHeader('DEVELOPER OPTIONS')}
-          {renderRow(
-            'refresh-outline', 
-            'Onboarding Sıfırla', 
-            'Tanıtım ekranlarını tekrar görmek için sıfırla',
-            async () => {
-              await setOnboardingCompleted(false);
-              await setPostAuthOnboardingCompleted(false);
-              setToast({ visible: true, message: 'Onboarding sıfırlandı! Yönlendiriliyorsunuz... ✨' });
-              setTimeout(() => {
-                router.replace('/onboarding');
-              }, 1000);
-            }
-          )}
+
 
           <View style={{ height: 40 }} />
           <Text style={[styles.versionText, { color: currentTheme.colors.text.muted }]}>Selfplace v1.0.0</Text>
