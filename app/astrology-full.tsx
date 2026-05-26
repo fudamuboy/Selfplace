@@ -21,6 +21,21 @@ export default function AstrologyFullScreen() {
     fetchData();
   }, []);
 
+  const parseStrengths = (strengths: any): string[] => {
+    if (!strengths) return [];
+    if (typeof strengths !== 'string') return Array.isArray(strengths) ? strengths : [];
+    try {
+      const parsed = JSON.parse(strengths);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e: any) {
+      console.warn('[AstrologyFull] Error parsing strengths JSON:', e.message);
+      if (strengths.includes(',')) {
+        return strengths.split(',').map((s: string) => s.trim());
+      }
+      return [strengths];
+    }
+  };
+
   const fetchData = async () => {
     try {
       const res = await client.get('/astrology/weekly');
@@ -125,9 +140,7 @@ export default function AstrologyFullScreen() {
             <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
               <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Güçlü Yönlerin</Text>
               <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>
-                {zodiacProfile.strengths && typeof zodiacProfile.strengths === 'string' 
-                  ? JSON.parse(zodiacProfile.strengths).join(' • ') 
-                  : (zodiacProfile.strengths || []).join(' • ')}
+                {parseStrengths(zodiacProfile.strengths).join(' • ') || 'N/A'}
               </Text>
             </View>
 
