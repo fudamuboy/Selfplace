@@ -51,18 +51,8 @@ requiredEnvs.forEach(env => {
 
 
 const { runMigrations } = require('./src/config/migrations');
-
-// Database and Migrations initialization
-(async () => {
-  try {
-    // Run migrations (db.query handles connections automatically)
-    await runMigrations();
-    console.log('[DATABASE] Migrations completed and verified');
-  } catch (err) {
-    console.error('[DATABASE] Initialization error:', err.message);
-    // We don't exit here, allowing the server to potentially recover or be debugged
-  }
-})();
+const { validateSchema } = require('./src/config/schemaValidator');
+const db = require('./src/config/db');
 
 // Middleware
 app.use(cors());
@@ -91,11 +81,24 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy'
-  });
+// Health check with database connectivity diagnostics
+app.get('/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.status(200).json({
+      status: 'healthy',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[HEALTH-CHECK] Database connection failed:', err.message);
+    res.status(500).json({
+      status: 'unhealthy',
+      database: 'disconnected',
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Routes
@@ -116,19 +119,56 @@ app.use('/api/personality', personalityRoutes);
 
 
 
-// Error handling middleware
+// Detailed Error handling middleware with request diagnostics
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Bir şeyler ters gitti!' });
-});
-
-
-app.listen(PORT, () => {
-  console.log(`[SERVER] Selfplace API active on port ${PORT}`);
+  const isProd = process.env.NODE_ENV === 'production';
   
-  // Keep alive interval to prevent Event Loop from emptying if something closes the handles
-  setInterval(() => {
-    // This just keeps the process alive
-  }, 60000);
+  // Redact sensitive inputs from logs
+  const safeBody = { ...req.body };
+  if (safeBody.password) safeBody.password = '[REDACTED]';
+  if (safeBody.newPassword) safeBody.newPassword = '[REDACTED]';
+  if (safeBody.token) safeBody.token = '[REDACTED]';
+
+  console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.error(`[ROUTE-ERROR] ${req.method} ${req.originalUrl}`);
+  console.error('Headers:', JSON.stringify(req.headers));
+  console.error('Payload:', JSON.stringify(safeBody));
+  console.error('Error Message:', err.message);
+  console.error('Stack Trace:\n', err.stack);
+  console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+
+  res.status(500).json({ 
+    message: 'Sunucu tarafında bir hata oluştu.', 
+    error: isProd ? null : err.message,
+    stack: isProd ? null : err.stack
+  });
 });
+
+// Sequential Startup wrapper
+async function startServer() {
+  try {
+    console.log('[SERVER] Starting sequential boot sequence...');
+    // 1. Run migrations
+    await runMigrations();
+    console.log('[DATABASE] Migrations completed and verified');
+
+    // 2. Perform database schema validation
+    await validateSchema();
+    
+    // 3. Bind server to port
+    app.listen(PORT, () => {
+      console.log(`[SERVER] Selfplace API active on port ${PORT}`);
+      
+      // Keep alive interval to prevent Event Loop from emptying if something closes the handles
+      setInterval(() => {
+        // Keep process alive
+      }, 60000);
+    });
+  } catch (err) {
+    console.error('[SERVER] Critical boot sequence failure:', err.message);
+    process.exit(1);
+  }
+}
+
+startServer();
 

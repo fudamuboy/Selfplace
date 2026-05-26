@@ -139,14 +139,16 @@ exports.runMigrations = async () => {
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         test_type VARCHAR(100) NOT NULL,
         result_data JSONB NOT NULL,
+        traits JSONB DEFAULT '{}'::jsonb,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Ensure result_data exists if it was created with the old traits schema
+    // Ensure result_data and traits exist if it was created with an older schema
     await db.query(`
       ALTER TABLE personality_results 
       ADD COLUMN IF NOT EXISTS result_data JSONB,
+      ADD COLUMN IF NOT EXISTS traits JSONB DEFAULT '{}'::jsonb,
       ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     `);
 
@@ -251,19 +253,7 @@ exports.runMigrations = async () => {
       )
     `);
 
-    // Ensure astrology_events table exists
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS astrology_events (
-        id SERIAL PRIMARY KEY,
-        event_type VARCHAR(50) NOT NULL,
-        message_tr TEXT NOT NULL,
-        symbol VARCHAR(50),
-        priority INTEGER DEFAULT 1,
-        active_from DATE,
-        active_until DATE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+
 
     // Ensure zodiac_guidance table exists
     await db.query(`
