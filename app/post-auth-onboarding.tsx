@@ -148,7 +148,7 @@ export default function PostAuthOnboardingScreen() {
             {step === 3 && <Ionicons name="heart-outline" size={32} color={currentThemeData.accent} />}
           </Animated.View>
 
-          <MascotBlob mood={currentThemeData.mood} />
+          <MascotBlob mood={currentThemeData.mood} color={currentThemeData.mascotColor} />
         </View>
 
         {/* BOTTOM: INTERACTION AREA */}

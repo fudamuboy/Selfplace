@@ -23,24 +23,52 @@ interface Props {
   hourOverride?: number;
   emotionalContext?: EmotionalContext;
   scale?: number;
+  color?: 'purple' | 'yellow' | 'green' | 'blue';
 }
+
+const COLOR_CONFIG = {
+  purple: {
+    start: '#8B7CFF',
+    end: '#6366F1',
+    glow: '#8B7CFF',
+  },
+  yellow: {
+    start: '#FFD166',
+    end: '#F59E0B',
+    glow: '#FFD166',
+  },
+  green: {
+    start: '#55E6C1',
+    end: '#10B981',
+    glow: '#55E6C1',
+  },
+  blue: {
+    start: '#818CF8',
+    end: '#6366F1',
+    glow: '#818CF8',
+  }
+};
 
 export const MascotBlob: React.FC<Props> = ({
   mood = 'neutral',
   stressLevel = 0,
   hourOverride,
   emotionalContext,
-  scale: scaleProp = 1
+  scale: scaleProp = 1,
+  color
 }) => {
   const { currentTheme } = useThemeStore();
 
   const hour = hourOverride !== undefined ? hourOverride : new Date().getHours();
 
-  // Calculate dynamic config based on theme, mood, time and context
-  const config = useMemo(() =>
-    getMascotConfig(currentTheme, mood, hour, stressLevel, emotionalContext),
-    [currentTheme, mood, hour, stressLevel, emotionalContext]
-  );
+  // Calculate dynamic config based on theme, mood, time, context and color override
+  const config = useMemo(() => {
+    const baseConfig = getMascotConfig(currentTheme, mood, hour, stressLevel, emotionalContext);
+    if (color && COLOR_CONFIG[color]) {
+      baseConfig.colors = { ...COLOR_CONFIG[color] };
+    }
+    return baseConfig;
+  }, [currentTheme, mood, hour, stressLevel, emotionalContext, color]);
 
   // ─── Shared Values for Animation ───────────────────────────────────────────
   const radiusTL = useSharedValue(60);
