@@ -2,20 +2,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const { getZodiacSign } = require('../utils/zodiac');
-
-
-// Email Transporter (Flexible SMTP configuration)
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true', // Use explicit env variable
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const { sendEmail } = require('../services/emailService');
 
 exports.register = async (req, res) => {
   const { username, email, password, birth_date, accepted_terms } = req.body;
@@ -188,13 +176,14 @@ exports.forgotPassword = async (req, res) => {
     };
 
     try {
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`[Email] Success! Message sent to ${user.email}`);
-      console.log(`[Email] Message ID: ${info.messageId}`);
-      console.log(`[Email] Accepted:`, info.accepted);
-      if (info.rejected.length > 0) console.log(`[Email] Rejected:`, info.rejected);
+      await sendEmail({
+        to: user.email,
+        subject: 'Selfplace Şifre Sıfırlama Kodu',
+        html: mailOptions.html,
+        text: `Merhaba, şifrenizi yenilemek için sıfırlama kodunuz: ${resetCode}`
+      });
     } catch (mailError) {
-      console.error('[Email] SMTP Error:', mailError.message);
+      console.error('[Email] Delivery failure:', mailError.message);
       console.log('----------------------------------------------------');
       console.log('DEVELOPMENT MODE: PASSWORD RESET LINK');
       console.log('Target Email:', user.email);
@@ -217,20 +206,16 @@ exports.testEmail = async (req, res) => {
   console.log('SMTP_HOST:', process.env.SMTP_HOST);
   console.log('-----------------------');
 
-  const testOptions = {
-    from: process.env.SMTP_FROM || `"Selfplace Test" <${process.env.SMTP_USER}>`,
-    to: email || process.env.SMTP_USER,
-    subject: 'Selfplace SMTP Test Email',
-    text: 'If you receive this, your SMTP configuration is working correctly! ✨',
-    html: '<b>If you receive this, your SMTP configuration is working correctly! ✨</b>'
-  };
-
   try {
-    const info = await transporter.sendMail(testOptions);
+    const info = await sendEmail({
+      to: email || process.env.SMTP_USER,
+      subject: 'Selfplace SMTP Test Email',
+      text: 'If you receive this, your SMTP/HTTP configuration is working correctly! ✨',
+      html: '<b>If you receive this, your SMTP/HTTP configuration is working correctly! ✨</b>'
+    });
     res.json({ 
       message: 'Test email sent successfully!', 
-      messageId: info.messageId,
-      accepted: info.accepted 
+      messageId: info?.messageId || 'N/A'
     });
   } catch (err) {
     console.error('[testEmail] Error:', err.message);

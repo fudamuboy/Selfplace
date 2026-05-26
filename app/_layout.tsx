@@ -171,14 +171,18 @@ export default function RootLayout() {
     const inTabsGroup = segments[0] === '(tabs)';
     const onOnboarding = segments[0] === 'onboarding';
     const onPostAuthOnboarding = segments[0] === 'post-auth-onboarding';
-    const onLegal = segments[0] === 'terms' || segments[0] === 'privacy-policy';
+    const onPublic = 
+      segments[0] === 'terms' || 
+      segments[0] === 'privacy-policy' || 
+      segments[0] === 'reset-password' || 
+      segments[0] === 'forgot-password';
 
     if (!onboardingCompleted) {
       if (!onOnboarding) {
         router.replace('/onboarding');
       }
     } else if (!token) {
-      if (inTabsGroup || (!inAuthGroup && !onLegal)) {
+      if (inTabsGroup || (!inAuthGroup && !onPublic)) {
         router.replace('/(auth)/login');
       }
     } else if (token) {

@@ -46,41 +46,7 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setModal({
-        visible: true,
-        title: 'E-posta Gerekli',
-        message: 'Şifre sıfırlama kodu gönderebilmemiz için lütfen e-posta adresinizi girin.'
-      });
-      return;
-    }
 
-    setLoading(true);
-    try {
-      await client.post('/auth/forgot-password', { email });
-      setModal({
-        visible: true,
-        title: 'Kod Gönderildi',
-        message: '6 haneli sıfırlama kodu e-posta adresine gönderildi. Sıfırlama ekranına yönlendiriliyorsun.'
-      });
-      setTimeout(() => {
-        setModal(prev => ({ ...prev, visible: false }));
-        router.push({
-          pathname: '/reset-password',
-          params: { email } // Pass email to reset screen if needed
-        });
-      }, 2000);
-    } catch (error: any) {
-      setModal({
-        visible: true,
-        title: 'Hata',
-        message: error.response?.data?.message || 'Bağlantı gönderilirken bir sorun oluştu.'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <GradientBackground style={styles.container}>
@@ -129,7 +95,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordContainer}>
+          <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')} style={styles.forgotPasswordContainer}>
             <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
           </TouchableOpacity>
 
