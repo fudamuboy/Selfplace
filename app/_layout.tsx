@@ -216,6 +216,7 @@ export default function RootLayout() {
         <Stack.Screen name="theme-selection" />
         <Stack.Screen name="privacy-data" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="account" />
         <Stack.Screen name="faq" />
         <Stack.Screen name="terms" />
         <Stack.Screen name="privacy-policy" />

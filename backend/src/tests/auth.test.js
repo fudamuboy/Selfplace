@@ -3,11 +3,13 @@ const assert = require('node:assert');
 const express = require('express');
 const db = require('../config/db');
 const authRoutes = require('../routes/authRoutes');
+const userRoutes = require('../routes/userRoutes');
 const crypto = require('crypto');
 
 describe('Auth Integration Tests', () => {
   let server;
   let baseUrl;
+  let userBaseUrl;
   const testEmail = 'test_user_' + Math.random().toString(36).substring(7) + '@example.com';
   const testUsername = 'test_username_' + Math.random().toString(36).substring(7);
   const testPassword = 'SecurePassword123!';
@@ -20,12 +22,14 @@ describe('Auth Integration Tests', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/auth', authRoutes);
+    app.use('/api/user', userRoutes);
 
     // 3. Start server on dynamic port
     await new Promise((resolve) => {
       server = app.listen(0, () => {
         const port = server.address().port;
         baseUrl = `http://localhost:${port}/api/auth`;
+        userBaseUrl = `http://localhost:${port}/api/user`;
         console.log(`[TEST-SERVER] Running on ${baseUrl}`);
         resolve();
       });
@@ -216,6 +220,67 @@ describe('Auth Integration Tests', () => {
       const data = await response.json();
       assert.strictEqual(response.status, 400);
       assert.ok(data.message.includes('Geçersiz veya süresi dolmuş'));
+    });
+  });
+
+  // --- ACCOUNT DELETION TESTS ---
+  describe('DELETE /api/user/delete-account', () => {
+    test('Should successfully delete authenticated user account and all personal data', async () => {
+      // 1. Log in to get fresh token
+      const loginResponse = await fetch(`${baseUrl}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: testEmail,
+          password: 'NewSecurePassword789!'
+        })
+      });
+      assert.strictEqual(loginResponse.status, 200);
+      const { token } = await loginResponse.json();
+      assert.ok(token);
+
+      // 2. Add some test data in a table referencing this user to test ON DELETE CASCADE
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [testEmail]);
+      const userId = userRes.rows[0].id;
+      await db.query(
+        "INSERT INTO check_ins (user_id, mood, note) VALUES ($1, 'happy', 'Test check-in')",
+        [userId]
+      );
+
+      // Verify the check-in exists
+      const checkInBefore = await db.query('SELECT id FROM check_ins WHERE user_id = $1', [userId]);
+      assert.strictEqual(checkInBefore.rows.length, 1);
+
+      // 3. Perform account deletion
+      const deleteResponse = await fetch(`${userBaseUrl}/delete-account`, {
+        method: 'DELETE',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        }
+      });
+      const deleteData = await deleteResponse.json();
+      assert.strictEqual(deleteResponse.status, 200);
+      assert.ok(deleteData.message.includes('başarıyla silindi'));
+
+      // 4. Verify user record is completely gone from DB
+      const userAfter = await db.query('SELECT id FROM users WHERE id = $1', [userId]);
+      assert.strictEqual(userAfter.rows.length, 0);
+
+      // 5. Verify related records are cascaded and deleted (ON DELETE CASCADE)
+      const checkInAfter = await db.query('SELECT id FROM check_ins WHERE user_id = $1', [userId]);
+      assert.strictEqual(checkInAfter.rows.length, 0);
+
+      // 6. Verify logging in with the deleted credentials fails
+      const postDeleteLogin = await fetch(`${baseUrl}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: testEmail,
+          password: 'NewSecurePassword789!'
+        })
+      });
+      assert.strictEqual(postDeleteLogin.status, 400);
     });
   });
 });

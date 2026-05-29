@@ -132,6 +132,11 @@ export default function SettingsScreen() {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
+          {renderSectionHeader('HESAP')}
+          {renderRow('person-outline', 'Hesap Ayarları', 'Hesap bilgileri ve silme', () => router.push('/account'))}
+
+          <View style={{ height: 24 }} />
+
           {renderSectionHeader('BİLDİRİMLER')}
           {renderRow(
             'notifications-outline', 

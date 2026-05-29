@@ -69,7 +69,7 @@ export default function ForgotPasswordScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <View style={styles.mascotContainer}>
-              <MascotBlob mood={loading ? "thinking" : "calm"} />
+              <MascotBlob mood={loading ? "reflective" : "calm"} />
             </View>
 
             <Text style={styles.title}>Şifremi Unuttum</Text>
