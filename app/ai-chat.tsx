@@ -30,6 +30,7 @@ import * as Haptics from 'expo-haptics';
 import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
+import { CHAT_MAX_WIDTH, isTablet } from '../constants/Layout';
 
 const { width } = Dimensions.get('window');
 
@@ -178,43 +179,45 @@ export default function AIChatScreen() {
           <View style={{ width: 40 }} />
         </BlurView>
 
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id.toString()}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListFooterComponent={
-            isTyping ? (
-              <Animated.View entering={FadeIn} style={styles.typingIndicatorWrapper}>
-                <TypingIndicator color={currentTheme.colors.primary} />
-              </Animated.View>
-            ) : null
-          }
-        />
+        <View style={styles.chatColumn}>
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListFooterComponent={
+              isTyping ? (
+                <Animated.View entering={FadeIn} style={styles.typingIndicatorWrapper}>
+                  <TypingIndicator color={currentTheme.colors.primary} />
+                </Animated.View>
+              ) : null
+            }
+          />
 
-        {/* Input Area */}
-        <BlurView intensity={40} tint="dark" style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Neler düşünüyorsun?"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-            />
-            <TouchableOpacity 
-              onPress={handleSend} 
-              style={[styles.sendButton, { backgroundColor: currentTheme.colors.primary }]}
-              disabled={!inputText.trim()}
-            >
-              <Ionicons name="arrow-up" size={24} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        </BlurView>
+          {/* Input Area */}
+          <BlurView intensity={40} tint="dark" style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Neler düşünüyorsun?"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity 
+                onPress={handleSend} 
+                style={[styles.sendButton, { backgroundColor: currentTheme.colors.primary }]}
+                disabled={!inputText.trim()}
+              >
+                <Ionicons name="arrow-up" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+        </View>
       </KeyboardAvoidingView>
     </GradientBackground>
   );
@@ -223,6 +226,12 @@ export default function AIChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  chatColumn: {
+    flex: 1,
+    width: '100%',
+    maxWidth: CHAT_MAX_WIDTH,
+    alignSelf: 'center',
   },
   header: {
     paddingTop: 50, // Reduced from 60
@@ -271,7 +280,7 @@ const styles = StyleSheet.create({
   },
   messageWrapper: {
     marginBottom: 20,
-    maxWidth: '85%',
+    maxWidth: isTablet ? 480 : '85%',
   },
   aiWrapper: {
     alignSelf: 'flex-start',

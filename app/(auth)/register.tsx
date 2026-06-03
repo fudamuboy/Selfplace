@@ -11,6 +11,7 @@ import { CustomModal } from '../../components/CustomModal';
 import { GradientBackground } from '../../components/GradientBackground';
 import { MascotBlob } from '../../components/MascotBlob';
 import { Colors } from '../../constants/Colors';
+import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -76,7 +77,8 @@ export default function RegisterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
+        <View style={styles.formOuter}>
+          <View style={styles.content}>
           <View style={styles.mascotContainer}>
             <MascotBlob mood="happy" />
           </View>
@@ -222,6 +224,7 @@ export default function RegisterScreen() {
           <Text style={styles.disclaimerText}>
             Selfplace duygusal destek ve farkındalık amaçlıdır. Profesyonel terapi yerine geçmez.
           </Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -245,7 +248,12 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: PAGE_PADDING_H,
+  },
+  formOuter: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
   },
   content: {
     alignItems: 'center',

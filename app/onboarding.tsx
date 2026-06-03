@@ -21,6 +21,7 @@ import { GradientBackground } from '../components/GradientBackground';
 import { MascotBlob } from '../components/MascotBlob';
 import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
+import { CONTENT_MAX_WIDTH, isTablet } from '../constants/Layout';
 
 const MOOD_DATA = [
   { id: 'Mutlu', label: 'Mutlu', image: require('../assets/images/stickers/mutlu.png'), response: 'Işığın her yeri aydınlatıyor.' },
@@ -225,7 +226,9 @@ export default function OnboardingScreen() {
   return (
     <GradientBackground>
       <View style={styles.container}>
-        {renderStep()}
+        <View style={styles.innerContent}>
+          {renderStep()}
+        </View>
       </View>
     </GradientBackground>
   );
@@ -236,6 +239,12 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  innerContent: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignItems: 'center',
   },
   stepContainer: {
     alignItems: 'center',
@@ -280,7 +289,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   moodCardWrapper: {
-    width: 100,
+    width: isTablet ? 120 : 100,
     aspectRatio: 0.85,
   },
   moodCard: {

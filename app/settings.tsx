@@ -11,6 +11,7 @@ import { CustomModal } from '../components/CustomModal';
 import client from '../api/client';
 import * as Clipboard from 'expo-clipboard';
 import { Toast } from '../components/Toast';
+import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -252,8 +253,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: PAGE_PADDING_H,
     paddingBottom: 60,
+    maxWidth: CONTENT_MAX_WIDTH,
+    width: '100%',
+    alignSelf: 'center',
   },
   sectionHeader: {
     fontSize: 12,

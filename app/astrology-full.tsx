@@ -7,6 +7,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
+import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 
 const { width } = Dimensions.get('window');
 
@@ -160,8 +161,11 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingHorizontal: PAGE_PADDING_H,
     paddingBottom: 60,
+    maxWidth: CONTENT_MAX_WIDTH,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

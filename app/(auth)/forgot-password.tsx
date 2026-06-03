@@ -8,6 +8,7 @@ import { MascotBlob } from '../../components/MascotBlob';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
+import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -67,7 +68,8 @@ export default function ForgotPasswordScreen() {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.content}>
+          <View style={styles.formOuter}>
+            <View style={styles.content}>
             <View style={styles.mascotContainer}>
               <MascotBlob mood={loading ? "reflective" : "calm"} />
             </View>
@@ -112,6 +114,7 @@ export default function ForgotPasswordScreen() {
               <Ionicons name="arrow-back-outline" size={16} color={Colors.primary} />
               <Text style={styles.backLinkText}>Giriş ekranına dön</Text>
             </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -144,7 +147,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: PAGE_PADDING_H,
+  },
+  formOuter: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
   },
   content: {
     alignItems: 'center',

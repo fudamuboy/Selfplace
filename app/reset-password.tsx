@@ -9,6 +9,7 @@ import { MascotBlob } from '../components/MascotBlob';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
+import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 
 export default function ResetPasswordScreen() {
   const { token: urlToken, email: urlEmail } = useLocalSearchParams<{ token: string, email: string }>();
@@ -72,7 +73,8 @@ export default function ResetPasswordScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.content}>
+          <View style={styles.formOuter}>
+            <View style={styles.content}>
             <View style={styles.mascotContainer}>
               <MascotBlob mood="neutral" />
             </View>
@@ -153,6 +155,7 @@ export default function ResetPasswordScreen() {
             <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backLink}>
               <Text style={[styles.backLinkText, { color: currentTheme.colors.primary }]}>Giriş ekranına dön</Text>
             </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -177,7 +180,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: PAGE_PADDING_H,
+  },
+  formOuter: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
   },
   content: {
     alignItems: 'center',

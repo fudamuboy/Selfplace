@@ -28,6 +28,7 @@ import { MascotBlob } from '../components/MascotBlob';
 import { getMascotMessage } from '../utils/mascotThemeEngine';
 import useThemeStore from '../store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
+import { CONTENT_MAX_WIDTH, PAGE_PADDING_H, isTablet, screenWidth } from '../constants/Layout';
 
 const { width } = Dimensions.get('window');
 
@@ -252,6 +253,7 @@ export default function CheckInScreen() {
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+          <View style={styles.innerContent}>
           {/* MascotArea is always mounted, never remounts on text input changes */}
           <MascotArea
             mood={selectedMood || 'neutral'}
@@ -302,6 +304,7 @@ export default function CheckInScreen() {
               theme={currentTheme}
             />
           )}
+          </View>
         </ScrollView>
 
         <CustomModal
@@ -323,6 +326,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
     zIndex: 10,
+    maxWidth: CONTENT_MAX_WIDTH,
+    width: '100%',
+    alignSelf: 'center',
   },
   topBackButton: {
     width: 44,
@@ -331,7 +337,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 22,
   },
-  container: { padding: 24, paddingBottom: 60, paddingTop: 10 },
+  container: {
+    paddingBottom: 60,
+    paddingTop: 10,
+    alignItems: 'center',
+  },
+  innerContent: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    paddingHorizontal: PAGE_PADDING_H,
+  },
   mascotArea: {
     alignItems: 'center',
     marginBottom: 30,
@@ -356,11 +371,13 @@ const styles = StyleSheet.create({
   moodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: isTablet ? 'flex-start' : 'space-between',
     gap: 12,
   },
   moodCard: {
-    width: (width - 48 - 12) / 2,
+    width: isTablet
+      ? (Math.min(screenWidth, CONTENT_MAX_WIDTH) - (PAGE_PADDING_H * 2) - 36) / 4
+      : (width - 48 - 12) / 2,
     height: 100,
     borderRadius: 24,
     borderWidth: 1.5,
