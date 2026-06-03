@@ -11,6 +11,7 @@ import useNotificationStore from '../../store/useNotificationStore';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { CONTENT_MAX_WIDTH, MODAL_MAX_WIDTH, PAGE_PADDING_H, isTablet } from '../../constants/Layout';
 
 const getZodiacSign = (day: number, month: number): string => {
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
@@ -137,6 +138,7 @@ export default function ProfileScreen() {
   return (
     <GradientBackground>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.innerContent}>
         <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Profil</Text>
         
         {/* Profile Header Card */}
@@ -251,6 +253,7 @@ export default function ProfileScreen() {
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: currentTheme.colors.text.muted }]}>Kendini tanıma yolculuğun küçük adımlarla ilerler ✨</Text>
         </View>
+        </View>
       </ScrollView>
 
       {/* Profile Details Modal */}
@@ -358,8 +361,13 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 60,
-    paddingHorizontal: 24,
     paddingBottom: 40,
+    alignItems: 'center',
+  },
+  innerContent: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    paddingHorizontal: PAGE_PADDING_H,
   },
   title: {
     fontSize: 28,
@@ -534,6 +542,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
     borderRadius: 32,
     padding: 24,
     borderWidth: 1,

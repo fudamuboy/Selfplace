@@ -9,6 +9,7 @@ import { GradientBackground } from '../../components/GradientBackground';
 import { MascotBlob } from '../../components/MascotBlob';
 import { Colors } from '../../constants/Colors';
 import useAuthStore from '../../store/useAuthStore';
+import { FORM_MAX_WIDTH, isTablet, PAGE_PADDING_H } from '../../constants/Layout';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -54,7 +55,8 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
+        <View style={styles.formOuter}>
+          <View style={styles.content}>
           <View style={styles.mascotContainer}>
             <MascotBlob mood="calm" />
           </View>
@@ -111,6 +113,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
 
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -131,7 +134,12 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: PAGE_PADDING_H,
+  },
+  formOuter: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
   },
   content: {
     alignItems: 'center',

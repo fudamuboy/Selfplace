@@ -8,6 +8,7 @@ import { CustomButton } from '../../components/CustomButton';
 import { Image } from 'expo-image';
 import useThemeStore from '../../store/useThemeStore';
 import { sanitizeText } from '../../utils/textSanitizer';
+import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
 
 const MOOD_IMAGES: { [key: string]: any } = {
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    paddingHorizontal: 24,
+    paddingHorizontal: PAGE_PADDING_H,
     marginBottom: 20,
   },
   headerComponent: {
@@ -299,8 +300,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   list: {
-    paddingHorizontal: 24,
+    paddingHorizontal: PAGE_PADDING_H,
     paddingBottom: 40,
+    maxWidth: CONTENT_MAX_WIDTH,
+    width: '100%',
+    alignSelf: 'center',
   },
   dailyCard: {
     borderRadius: 20,

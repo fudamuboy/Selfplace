@@ -9,6 +9,7 @@ import useAuthStore from '../../store/useAuthStore';
 import useThemeStore from '../../store/useThemeStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sanitizeText } from '../../utils/textSanitizer';
+import { CONTENT_MAX_WIDTH, isTablet, PAGE_PADDING_H } from '../../constants/Layout';
 
 import client from '../../api/client';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
@@ -137,6 +138,7 @@ export default function HomeScreen() {
   return (
     <GradientBackground>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.innerContent}>
         <View style={styles.header}>
           <Text style={[styles.greeting, { color: currentTheme.colors.text.primary }]}>Merhaba {user?.username},</Text>
           <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>Bugün kendin için bir şeyler yapmaya ne dersin?</Text>
@@ -223,6 +225,7 @@ export default function HomeScreen() {
             </Text>
           </Animated.View>
         )}
+        </View>
       </ScrollView>
     </GradientBackground>
   );
@@ -230,8 +233,14 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
     flexGrow: 1,
+    alignItems: 'center',
+  },
+  innerContent: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    padding: PAGE_PADDING_H,
+    paddingBottom: 40,
   },
   header: {
     marginBottom: 40,
