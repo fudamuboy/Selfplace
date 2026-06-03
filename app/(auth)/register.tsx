@@ -215,7 +215,7 @@ export default function RegisterScreen() {
             style={{ marginTop: 20, width: '100%' }}
           />
 
-          <TouchableOpacity onPress={() => router.back()} style={styles.loginLink}>
+          <TouchableOpacity onPress={() => router.replace('/(auth)/login')} style={styles.loginLink}>
             <Text style={styles.linkText}>Zaten hesabın var mı? <Text style={{ fontWeight: 'bold' }}>Giriş Yap</Text></Text>
           </TouchableOpacity>
           

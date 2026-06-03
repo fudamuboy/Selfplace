@@ -106,7 +106,7 @@ export default function LoginScreen() {
             style={{ marginTop: 10, width: '100%' }}
           />
 
-          <TouchableOpacity onPress={() => router.push('/register')} style={styles.registerLink}>
+          <TouchableOpacity onPress={() => router.replace('/(auth)/register')} style={styles.registerLink}>
             <Text style={styles.linkText}>Hesabın yok mu? <Text style={{ fontWeight: 'bold' }}>Kayıt Ol</Text></Text>
           </TouchableOpacity>
 
