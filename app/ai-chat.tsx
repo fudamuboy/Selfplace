@@ -30,7 +30,7 @@ import * as Haptics from 'expo-haptics';
 import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
-import { CHAT_MAX_WIDTH, isTablet, screenWidth } from '../constants/Layout';
+import { CHAT_MAX_WIDTH, isTablet } from '../constants/Layout';
 
 const { width } = Dimensions.get('window');
 

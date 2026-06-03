@@ -7,7 +7,7 @@
  * UI/UX ONLY — no business logic, no navigation, no auth.
  */
 
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

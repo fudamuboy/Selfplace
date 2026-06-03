@@ -9,7 +9,7 @@ import { GradientBackground } from '../../components/GradientBackground';
 import { MascotBlob } from '../../components/MascotBlob';
 import { Colors } from '../../constants/Colors';
 import useAuthStore from '../../store/useAuthStore';
-import { FORM_MAX_WIDTH, isTablet, PAGE_PADDING_H } from '../../constants/Layout';
+import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');

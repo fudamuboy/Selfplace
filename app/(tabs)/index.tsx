@@ -9,7 +9,7 @@ import useAuthStore from '../../store/useAuthStore';
 import useThemeStore from '../../store/useThemeStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sanitizeText } from '../../utils/textSanitizer';
-import { CONTENT_MAX_WIDTH, isTablet, PAGE_PADDING_H } from '../../constants/Layout';
+import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
 import client from '../../api/client';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';

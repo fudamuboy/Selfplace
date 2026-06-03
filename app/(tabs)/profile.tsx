@@ -11,7 +11,7 @@ import useNotificationStore from '../../store/useNotificationStore';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { CONTENT_MAX_WIDTH, MODAL_MAX_WIDTH, PAGE_PADDING_H, isTablet } from '../../constants/Layout';
+import { CONTENT_MAX_WIDTH, MODAL_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
 const getZodiacSign = (day: number, month: number): string => {
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
