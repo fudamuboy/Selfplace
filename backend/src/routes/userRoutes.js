@@ -8,5 +8,7 @@ router.delete('/delete-data', authenticateToken, userController.deletePersonalDa
 router.delete('/delete-account', authenticateToken, userController.deleteAccount);
 router.put('/change-password', authenticateToken, userController.changePassword);
 router.put('/profile', authenticateToken, userController.updateProfile);
+router.get('/subscription', authenticateToken, userController.getSubscription);
+router.put('/subscription', authenticateToken, userController.updateSubscription);
 
 module.exports = router;

@@ -390,6 +390,111 @@ exports.runMigrations = async () => {
       CREATE INDEX IF NOT EXISTS idx_card_responses_local_date ON card_responses(local_date);
     `);
 
+    // 18. Relationship Connections & Context
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS relationship_connections (
+        id SERIAL PRIMARY KEY,
+        requester_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        recipient_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        connection_type VARCHAR(50) DEFAULT 'partner',
+        requester_alias VARCHAR(100),
+        recipient_alias VARCHAR(100),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(requester_id, recipient_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS relationship_context (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        communication_style VARCHAR(100),
+        emotional_needs JSONB DEFAULT '[]',
+        stress_response VARCHAR(100),
+        conflict_tendency VARCHAR(100),
+        attachment_patterns VARCHAR(100),
+        disc_type VARCHAR(10),
+        emotional_rhythm VARCHAR(50),
+        empathy_score INTEGER DEFAULT 50 CHECK (empathy_score BETWEEN 0 AND 100),
+        last_synthesis_at TIMESTAMP WITH TIME ZONE,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(connection_id, user_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS relationship_privacy_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        exclude_checkins BOOLEAN DEFAULT FALSE,
+        exclude_journals BOOLEAN DEFAULT FALSE,
+        exclude_cards BOOLEAN DEFAULT FALSE,
+        exclude_ai_chat BOOLEAN DEFAULT FALSE,
+        exclude_personality BOOLEAN DEFAULT FALSE,
+        UNIQUE(user_id, connection_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS relationship_insights (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        for_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        insight_text TEXT NOT NULL,
+        insight_type VARCHAR(50) DEFAULT 'empathy',
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rel_connections_requester ON relationship_connections(requester_id);
+      CREATE INDEX IF NOT EXISTS idx_rel_connections_recipient ON relationship_connections(recipient_id);
+      CREATE INDEX IF NOT EXISTS idx_rel_context_connection ON relationship_context(connection_id);
+      CREATE INDEX IF NOT EXISTS idx_rel_insights_for_user ON relationship_insights(for_user_id);
+
+      -- 19. Relationship Phase 2 additions
+      CREATE TABLE IF NOT EXISTS relationship_daily_syncs (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        synced_date DATE DEFAULT CURRENT_DATE,
+        generated_text TEXT NOT NULL,
+        emotional_weather VARCHAR(50) NOT NULL,
+        relationship_energy VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP WITH TIME ZONE,
+        UNIQUE(connection_id, synced_date)
+      );
+
+      CREATE TABLE IF NOT EXISTS relationship_rituals (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        prompt_tr TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS relationship_ritual_responses (
+        id SERIAL PRIMARY KEY,
+        ritual_id INTEGER REFERENCES relationship_rituals(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        response_text TEXT NOT NULL,
+        include_in_synthesis BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(ritual_id, user_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS relationship_timeline (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        event_type VARCHAR(50) NOT NULL,
+        title_tr VARCHAR(255) NOT NULL,
+        description_tr TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rel_daily_syncs_conn ON relationship_daily_syncs(connection_id);
+      CREATE INDEX IF NOT EXISTS idx_rel_daily_syncs_date ON relationship_daily_syncs(synced_date);
+      CREATE INDEX IF NOT EXISTS idx_rel_rituals_conn ON relationship_rituals(connection_id);
+      CREATE INDEX IF NOT EXISTS idx_rel_timeline_conn ON relationship_timeline(connection_id);
+
+      ALTER TABLE relationship_daily_syncs ADD COLUMN IF NOT EXISTS insight_feed JSONB DEFAULT '[]'::jsonb;
+    `);
+
     // Seed astrology data
     await seedAstrologyData();
 

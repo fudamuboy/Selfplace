@@ -221,6 +221,11 @@ export default function RootLayout() {
         <Stack.Screen name="terms" />
         <Stack.Screen name="privacy-policy" />
         <Stack.Screen name="reset-password" />
+        <Stack.Screen name="connections" />
+        <Stack.Screen name="connection-invite" />
+        <Stack.Screen name="connection-detail" />
+        <Stack.Screen name="connection-rituals" />
+        <Stack.Screen name="connection-timeline" />
       </Stack>
 
       {/* Global soft session-expiry toast — rendered above all screens */}

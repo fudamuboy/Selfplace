@@ -12,6 +12,8 @@ import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { CONTENT_MAX_WIDTH, MODAL_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
+import { getSubscription } from '../../api/userApi';
+import { PremiumUpgradeModal } from '../../components/PremiumUpgradeModal';
 
 const getZodiacSign = (day: number, month: number): string => {
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
@@ -47,10 +49,23 @@ export default function ProfileScreen() {
   const { currentTheme } = useThemeStore();
   const { remindersEnabled, reminderTime, loadConfig } = useNotificationStore();
 
+  const { planType, setPlanType } = useAuthStore();
+  const [isUpgradeModalVisible, setIsUpgradeModalVisible] = useState(false);
+
   useEffect(() => {
     fetchStats();
     loadConfig();
+    fetchSubscription();
   }, []);
+
+  const fetchSubscription = async () => {
+    try {
+      const sub = await getSubscription();
+      setPlanType(sub.plan_type);
+    } catch (error) {
+      console.error('[Profile] Error fetching subscription:', error);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -209,27 +224,33 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Premium Teaser Card */}
+        {/* Premium Teaser Card / Subscription Manager */}
         <View style={styles.section}>
           <LinearGradient
-            colors={[currentTheme.colors.card, 'transparent']}
-            style={[styles.premiumCard, { borderColor: currentTheme.colors.cardBorder }]}
+            colors={[planType !== 'free' ? 'rgba(167, 139, 250, 0.08)' : currentTheme.colors.card, 'transparent']}
+            style={[styles.premiumCard, { borderColor: planType !== 'free' ? currentTheme.colors.primary : currentTheme.colors.cardBorder }]}
           >
             <View style={styles.premiumHeader}>
               <View style={[styles.premiumIconContainer, { backgroundColor: currentTheme.colors.glow }]}>
-                <Ionicons name="sparkles" size={18} color={currentTheme.colors.primary} />
+                <Ionicons name="sparkles" size={18} color={planType === 'signature' ? currentTheme.colors.mascot.start : currentTheme.colors.primary} />
               </View>
-              <Text style={[styles.premiumTitle, { color: currentTheme.colors.text.primary }]}>Daha fazlası yakında ✨</Text>
+              <Text style={[styles.premiumTitle, { color: currentTheme.colors.text.primary }]}>
+                {planType === 'free' ? "Selfplace Premium'a Geçin ✨" : 
+                 planType === 'plus' ? "Selfplace Plus Üyesi 🌿" : "Selfplace Signature Üyesi 🌟"}
+              </Text>
             </View>
             <Text style={[styles.premiumSubtitle, { color: currentTheme.colors.text.secondary }]}>
-              Selfplace zamanla daha kişisel içgörüler ve daha derin farkındalıklar sunacak.
+              {planType === 'free' ? "Uyum analizi, ritüeller, zaman tüneli ve zengin AI yansımalarını hemen açın." : 
+               "Tüm premium özellikler aktif. Duygusal yoldaşınız sizinle birlikte uyum kuruyor."}
             </Text>
             <TouchableOpacity 
               style={[styles.notifyButton, { backgroundColor: currentTheme.colors.glow }]}
-              onPress={() => setIsPremiumModalVisible(true)}
+              onPress={() => setIsUpgradeModalVisible(true)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.notifyButtonText, { color: currentTheme.colors.primary }]}>Beni haberdar et</Text>
+              <Text style={[styles.notifyButtonText, { color: planType === 'signature' ? currentTheme.colors.mascot.start : currentTheme.colors.primary }]}>
+                {planType === 'free' ? "Planları İncele" : "Planı Yönet / Değiştir"}
+              </Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>
@@ -237,6 +258,7 @@ export default function ProfileScreen() {
         {/* Menu */}
         <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
           {renderMenuItem('calendar-clear-outline', 'Duygusal Arşiv', 'Tüm geçmiş paylaşımlarını gör', () => router.push('/history-full'))}
+          {renderMenuItem('heart-circle-outline', 'İlişki Bağlantısı', 'Birlikte empati ve anlayış kurun', () => router.push('/connections'))}
           {renderMenuItem('settings-outline', 'Ayarlar', undefined, () => router.push('/settings'))}
           {renderMenuItem(
             'notifications-outline', 
@@ -349,6 +371,13 @@ export default function ProfileScreen() {
         message="Yeni özellikler hazır olduğunda seni nazikçe bilgilendireceğiz."
         onClose={() => setIsPremiumModalVisible(false)}
         confirmText="Tamam"
+      />
+
+      <PremiumUpgradeModal
+        visible={isUpgradeModalVisible}
+        onClose={() => setIsUpgradeModalVisible(false)}
+        currentPlan={planType}
+        onPlanUpdated={(newPlan) => setPlanType(newPlan)}
       />
     </GradientBackground>
   );

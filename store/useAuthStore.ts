@@ -13,6 +13,7 @@ interface User {
 interface AuthState {
   token: string | null;
   user: User | null;
+  planType: 'free' | 'plus' | 'signature';
   onboardingCompleted: boolean | null;
   postAuthOnboardingCompleted: boolean | null;
   sessionExpired: boolean;
@@ -24,14 +25,18 @@ interface AuthState {
   setPostAuthOnboardingCompleted: (completed: boolean) => Promise<void>;
   resetAll: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
+  setPlanType: (planType: 'free' | 'plus' | 'signature') => void;
 }
 
 const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
+  planType: 'free',
   onboardingCompleted: null,
   postAuthOnboardingCompleted: null,
   sessionExpired: false,
+
+  setPlanType: (planType) => set({ planType }),
 
   setAuth: async (token, user) => {
     await AsyncStorage.setItem('token', token);

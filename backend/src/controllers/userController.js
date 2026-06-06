@@ -120,3 +120,65 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ message: 'Profil güncellenirken bir hata oluştu.' });
   }
 };
+
+// ---------------------------------------------------------------------------
+// GET /api/user/subscription
+// ---------------------------------------------------------------------------
+exports.getSubscription = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await db.query(
+      'SELECT plan_type, is_active, expires_at FROM subscription_status WHERE user_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ plan_type: 'free', is_active: true });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[userController] getSubscription error:', err.message);
+    res.status(500).json({ message: 'Abonelik bilgileri getirilemedi.' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// PUT /api/user/subscription
+// ---------------------------------------------------------------------------
+exports.updateSubscription = async (req, res) => {
+  const userId = req.user.id;
+  const { planType } = req.body; // 'free', 'plus', 'signature'
+
+  if (!['free', 'plus', 'signature'].includes(planType)) {
+    return res.status(400).json({ message: 'Geçersiz abonelik planı.' });
+  }
+
+  try {
+    const check = await db.query('SELECT * FROM subscription_status WHERE user_id = $1', [userId]);
+
+    let result;
+    if (check.rows.length === 0) {
+      result = await db.query(
+        `INSERT INTO subscription_status (user_id, plan_type, is_active, updated_at) 
+         VALUES ($1, $2, true, NOW()) RETURNING plan_type, is_active, expires_at`,
+        [userId, planType]
+      );
+    } else {
+      result = await db.query(
+        `UPDATE subscription_status 
+         SET plan_type = $1, is_active = true, updated_at = NOW() 
+         WHERE user_id = $2 RETURNING plan_type, is_active, expires_at`,
+        [planType, userId]
+      );
+    }
+
+    res.json({
+      message: 'Abonelik planınız güncellendi.',
+      subscription: result.rows[0]
+    });
+  } catch (err) {
+    console.error('[userController] updateSubscription error:', err.message);
+    res.status(500).json({ message: 'Abonelik güncellenemedi.' });
+  }
+};
