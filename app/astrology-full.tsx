@@ -72,6 +72,7 @@ export default function AstrologyFullScreen() {
   }
 
   const { zodiacProfile, activeEvents, aiGuidance } = data;
+  const hasZodiac = !!zodiacProfile;
 
   return (
     <GradientBackground>
@@ -94,57 +95,75 @@ export default function AstrologyFullScreen() {
           <Text style={[styles.heroSign, { color: currentTheme.colors.text.primary }]}>
             {zodiacProfile?.sign || 'Gökyüzü'}
           </Text>
-          <Text style={[styles.heroElement, { color: currentTheme.colors.text.muted }]}>
-            {zodiacProfile?.element} Grubu
-          </Text>
+          {hasZodiac && (
+            <Text style={[styles.heroElement, { color: currentTheme.colors.text.muted }]}>
+              {zodiacProfile.element} Grubu
+            </Text>
+          )}
         </Animated.View>
 
-        {/* AI Synthesis Guidance */}
-        <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.guidanceContainer}>
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Gökyüzü Fısıltısı</Text>
-          <Text style={[styles.guidanceText, { color: currentTheme.colors.text.secondary }]}>
-            {aiGuidance}
-          </Text>
-        </Animated.View>
-
-        {/* Current Sky Events */}
-        {activeEvents && activeEvents.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.eventsContainer}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Şu Anki Gökyüzü</Text>
-            {activeEvents.map((event: any, idx: number) => (
-              <View key={idx} style={[styles.eventCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-                <View style={styles.eventHeader}>
-                  <Ionicons name="moon-outline" size={20} color={currentTheme.colors.primary} />
-                  <Text style={[styles.eventTitle, { color: currentTheme.colors.text.primary }]}>{event.event_name}</Text>
-                </View>
-                <Text style={[styles.eventDesc, { color: currentTheme.colors.text.secondary }]}>{event.description}</Text>
-              </View>
-            ))}
-          </Animated.View>
-        )}
-
-        {/* Zodiac Profile Reminders */}
-        {zodiacProfile && (
-          <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.profileContainer}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>İçsel Doğanın Hatırlatıcısı</Text>
-            
-            <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-              <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Yönetici Gezegen</Text>
-              <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>{zodiacProfile.ruling_planet}</Text>
-            </View>
-
-            <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-              <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Temel İhtiyacın</Text>
-              <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>{zodiacProfile.core_needs}</Text>
-            </View>
-
-            <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-              <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Güçlü Yönlerin</Text>
-              <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>
-                {parseStrengths(zodiacProfile.strengths).join(' • ') || 'N/A'}
+        {hasZodiac ? (
+          <>
+            {/* AI Synthesis Guidance */}
+            <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.guidanceContainer}>
+              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Gökyüzü Fısıltısı</Text>
+              <Text style={[styles.guidanceText, { color: currentTheme.colors.text.secondary }]}>
+                {aiGuidance}
               </Text>
-            </View>
+            </Animated.View>
 
+            {/* Current Sky Events */}
+            {activeEvents && activeEvents.length > 0 && (
+              <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.eventsContainer}>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Şu Anki Gökyüzü</Text>
+                {activeEvents.map((event: any, idx: number) => (
+                  <View key={idx} style={[styles.eventCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                    <View style={styles.eventHeader}>
+                      <Ionicons name="moon-outline" size={20} color={currentTheme.colors.primary} />
+                      <Text style={[styles.eventTitle, { color: currentTheme.colors.text.primary }]}>{event.event_name}</Text>
+                    </View>
+                    <Text style={[styles.eventDesc, { color: currentTheme.colors.text.secondary }]}>{event.description}</Text>
+                  </View>
+                ))}
+              </Animated.View>
+            )}
+
+            {/* Zodiac Profile Reminders */}
+            {zodiacProfile && (
+              <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.profileContainer}>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>İçsel Doğanın Hatırlatıcısı</Text>
+                
+                <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Yönetici Gezegen</Text>
+                  <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>{zodiacProfile.ruling_planet}</Text>
+                </View>
+
+                <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Temel İhtiyacın</Text>
+                  <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>{zodiacProfile.core_needs}</Text>
+                </View>
+
+                <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Güçlü Yönlerin</Text>
+                  <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>
+                    {parseStrengths(zodiacProfile.strengths).join(' • ') || 'N/A'}
+                  </Text>
+                </View>
+
+              </Animated.View>
+            )}
+          </>
+        ) : (
+          <Animated.View entering={FadeInDown.delay(200).duration(800)} style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder, padding: 24, alignItems: 'center' }]}>
+            <Text style={{ color: currentTheme.colors.text.secondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>
+              Doğum tarihini eklediğinde gökyüzü yorumların ve yıldız haritan burada görünecek. ✨
+            </Text>
+            <TouchableOpacity 
+              onPress={() => router.push('/(tabs)/profile')}
+              style={{ backgroundColor: currentTheme.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '700' }}>Profilimi Güncelle</Text>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -192,9 +211,8 @@ const styles = StyleSheet.create({
     width: width * 0.5,
     height: width * 0.5,
     borderRadius: width * 0.25,
-    opacity: 0.15,
+    opacity: 0.1,
     transform: [{ scale: 1.5 }],
-    filter: 'blur(30px)',
   },
   heroIcon: {
     fontSize: 48,

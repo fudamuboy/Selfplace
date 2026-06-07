@@ -20,7 +20,7 @@ export default function ConnectionsScreen() {
       const data = await getConnections();
       setConnections(data);
     } catch (error) {
-      console.error('[Connections] Fetch error:', error);
+      console.warn('[Connections] Fetch error:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -42,7 +42,7 @@ export default function ConnectionsScreen() {
       await respondToInvite(id, action);
       await fetchConnections();
     } catch (error) {
-      console.error(`[Connections] Response error (${action}):`, error);
+      console.warn(`[Connections] Response error (${action}):`, error);
     } finally {
       setActionLoading(null);
     }

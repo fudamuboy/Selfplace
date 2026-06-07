@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, ActivityIndicator, Modal, TextInput, Platform, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { GradientBackground } from '../components/GradientBackground';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +47,29 @@ export default function ConnectionDetailScreen() {
   const [insightDate, setInsightDate] = useState<string | null>(null);
   const [dailySync, setDailySync] = useState<RelationshipDailySync | null>(null);
   const [insightFeed, setInsightFeed] = useState<string[]>([]);
+
+  // Animation values for premium emotional transitions
+  const syncOrbScale = useRef(new Animated.Value(1)).current;
+  const cardScale = useRef(new Animated.Value(1)).current;
+  const insightOpacity = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(syncOrbScale, {
+          toValue: 1.18,
+          duration: 3500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(syncOrbScale, {
+          toValue: 0.92,
+          duration: 3500,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  }, []);
   
   const [loading, setLoading] = useState(true);
   const [insightLoading, setInsightLoading] = useState(false);
@@ -100,7 +123,7 @@ export default function ConnectionDetailScreen() {
       }
 
     } catch (error) {
-      console.error('[ConnectionDetail] Error loading data:', error);
+      console.warn('[ConnectionDetail] Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -114,15 +137,61 @@ export default function ConnectionDetailScreen() {
 
   const handleRefreshInsight = async () => {
     setInsightLoading(true);
+    
+    // Dim the text and scale the card down slightly to indicate atmospheric processing
+    Animated.parallel([
+      Animated.timing(insightOpacity, {
+        toValue: 0.15,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardScale, {
+        toValue: 0.96,
+        duration: 350,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    // Start a pulsing neon glow during refresh
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 900,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+
     try {
       const insightData = await getConnectionInsight(connectionId, true);
       setInsightText(insightData.insightText);
       setInsightDate(insightData.generatedAt);
       showToast('İlişki analizi güncellendi ✨');
     } catch (error) {
-      console.error('[ConnectionDetail] Error refreshing insight:', error);
+      console.warn('[ConnectionDetail] Error refreshing insight:', error);
       showToast('İçgörü şu an güncellenemedi.');
     } finally {
+      // Restore the card scale and fade new insights in smoothly
+      Animated.parallel([
+        Animated.timing(insightOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardScale, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      ]).start();
+      
+      glowAnim.setValue(0);
       setInsightLoading(false);
     }
   };
@@ -143,7 +212,7 @@ export default function ConnectionDetailScreen() {
 
       showToast('Günlük uyum sentezlendi 🌤️');
     } catch (error: any) {
-      console.error('[ConnectionDetail] Error generating daily sync:', error);
+      console.warn('[ConnectionDetail] Error generating daily sync:', error);
       if (error.response?.status === 403) {
         setUpgradeModalVisible(true);
       } else {
@@ -170,7 +239,7 @@ export default function ConnectionDetailScreen() {
       setPrivacy(res.settings);
       showToast('Gizlilik sınırları güncellendi.');
     } catch (error) {
-      console.error('[ConnectionDetail] Error updating privacy:', error);
+      console.warn('[ConnectionDetail] Error updating privacy:', error);
       showToast('Ayarlar güncellenirken bir sorun oluştu.');
     }
   };
@@ -181,7 +250,7 @@ export default function ConnectionDetailScreen() {
       await disconnectConnection(connectionId);
       router.replace('/connections');
     } catch (error) {
-      console.error('[ConnectionDetail] Error disconnecting:', error);
+      console.warn('[ConnectionDetail] Error disconnecting:', error);
       showToast('Bağlantı kesilemedi.');
     }
   };
@@ -193,7 +262,7 @@ export default function ConnectionDetailScreen() {
       showToast('Bağlantı güncellendi.');
       loadAllData();
     } catch (error) {
-      console.error('[ConnectionDetail] Error updating settings:', error);
+      console.warn('[ConnectionDetail] Error updating settings:', error);
       showToast('Bağlantı güncellenemedi.');
     }
   };
@@ -212,16 +281,29 @@ export default function ConnectionDetailScreen() {
     }
   };
 
-  const getWeatherGradient = (weather: string): [string, string] => {
+  const getWeatherGradient = (weather: string): [string, string, ...string[]] => {
     switch (weather) {
-      case 'Sakin': return ['rgba(15, 32, 39, 0.95)', 'rgba(32, 58, 67, 0.95)'];
-      case 'Dingin': return ['rgba(26, 27, 53, 0.95)', 'rgba(36, 36, 62, 0.95)'];
-      case 'Yumuşak': return ['rgba(43, 16, 85, 0.95)', 'rgba(117, 151, 222, 0.95)'];
-      case 'Hassas': return ['rgba(101, 78, 163, 0.95)', 'rgba(234, 175, 200, 0.95)'];
-      case 'Derin': return ['rgba(67, 198, 172, 0.95)', 'rgba(25, 22, 84, 0.95)'];
-      case 'Hafif Yoğun': return ['rgba(230, 92, 0, 0.95)', 'rgba(249, 212, 35, 0.95)'];
-      case 'Yenileyici': return ['rgba(17, 153, 142, 0.95)', 'rgba(56, 239, 125, 0.95)'];
-      default: return [currentTheme.colors.card, 'transparent'];
+      case 'Sakin': return ['#0f172a', '#1e293b', '#334155'];
+      case 'Dingin': return ['#0b0f19', '#111827', '#1f2937'];
+      case 'Yumuşak': return ['#1e1b4b', '#312e81', '#4338ca'];
+      case 'Hassas': return ['#3b0764', '#581c87', '#701a75'];
+      case 'Derin': return ['#022c22', '#064e3b', '#0f766e'];
+      case 'Hafif Yoğun': return ['#2e1065', '#db2777', '#f97316'];
+      case 'Yenileyici': return ['#064e3b', '#0f766e', '#0d9488'];
+      default: return [currentTheme.colors.card, 'rgba(255,255,255,0.02)'];
+    }
+  };
+
+  const getAtmosphereChips = (weather: string) => {
+    switch (weather) {
+      case 'Sakin': return ['Sakinlik', 'Denge', 'Sabır'];
+      case 'Dingin': return ['Sessizlik', 'Huzur', 'Derin Bağ'];
+      case 'Yumuşak': return ['Şefkat', 'Gözlem', 'Yumuşaklık'];
+      case 'Hassas': return ['Duyarlılık', 'Empati', 'İletişim'];
+      case 'Derin': return ['Zihinsel Uyum', 'Süreklilik', 'Samimiyet'];
+      case 'Hafif Yoğun': return ['Paylaşım', 'Özen', 'Farkındalık'];
+      case 'Yenileyici': return ['Tazelik', 'Karşılıklı Destek', 'Neşe'];
+      default: return ['Empati', 'Anlayış', 'Destek'];
     }
   };
 
@@ -252,6 +334,8 @@ export default function ConnectionDetailScreen() {
 
   return (
     <GradientBackground>
+      <View style={styles.glowOrb1} />
+      <View style={styles.glowOrb2} />
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -299,6 +383,21 @@ export default function ConnectionDetailScreen() {
                 colors={getWeatherGradient(dailySync.emotional_weather)}
                 style={[styles.weatherCard, { borderColor: currentTheme.colors.primary }]}
               >
+                {/* Pulsing emotional atmosphere orb */}
+                <View style={styles.orbContainer}>
+                  <Animated.View style={[
+                    styles.emotionalOrb,
+                    {
+                      transform: [{ scale: syncOrbScale }],
+                      backgroundColor: dailySync.emotional_weather === 'Hafif Yoğun' 
+                        ? 'rgba(244, 63, 94, 0.18)' 
+                        : dailySync.emotional_weather === 'Hassas'
+                        ? 'rgba(236, 72, 153, 0.18)'
+                        : 'rgba(167, 139, 250, 0.18)'
+                    }
+                  ]} />
+                </View>
+
                 <View style={styles.weatherHeader}>
                   <View style={styles.weatherBadgeRow}>
                     <View style={styles.weatherIconBg}>
@@ -323,7 +422,7 @@ export default function ConnectionDetailScreen() {
                 </Text>
 
                 <TouchableOpacity 
-                  style={[styles.syncRefreshBtn, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+                  style={[styles.syncRefreshBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
                   onPress={handleGenerateDailySync}
                 >
                   <Ionicons name="refresh-outline" size={14} color="#FFF" />
@@ -426,7 +525,29 @@ export default function ConnectionDetailScreen() {
 
           {/* AI Empathy Insight section */}
           <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Derin Uyum Analizi ✨</Text>
-          <View style={[styles.insightCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+          <Animated.View style={[
+            styles.insightCard, 
+            { 
+              backgroundColor: currentTheme.colors.card, 
+              borderColor: currentTheme.colors.cardBorder,
+              transform: [{ scale: cardScale }],
+              shadowColor: currentTheme.colors.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowRadius: glowAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [8, 20]
+              }),
+              shadowOpacity: glowAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.1, 0.4]
+              }),
+              elevation: 4
+            }
+          ]}>
+            <View style={styles.cardWatermarkContainer}>
+              <Ionicons name="heart-half-outline" size={80} color="rgba(255,255,255,0.012)" />
+            </View>
+
             {insightLoading ? (
               <View style={styles.insightLoadingBox}>
                 <ActivityIndicator size="small" color={currentTheme.colors.primary} />
@@ -435,10 +556,29 @@ export default function ConnectionDetailScreen() {
                 </Text>
               </View>
             ) : (
-              <>
-                <Text style={[styles.insightText, { color: currentTheme.colors.text.primary }]}>
-                  {insightText || 'Henüz bir uyum içgörüsü oluşturulmamış. Analiz etmek için aşağıdaki butona basın.'}
-                </Text>
+              <Animated.View style={{ opacity: insightOpacity }}>
+                {insightText && (
+                  <View style={styles.chipsRow}>
+                    {getAtmosphereChips(dailySync?.emotional_weather || 'Default').map((chip, i) => (
+                      <View key={i} style={[styles.chipItem, { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }]}>
+                        <Ionicons name="sparkles" size={10} color={currentTheme.colors.primary} style={{ marginRight: 4 }} />
+                        <Text style={[styles.chipText, { color: currentTheme.colors.text.secondary }]}>{chip}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {insightText ? (
+                  insightText.split('\n\n').map((para, pIdx) => (
+                    <Text key={pIdx} style={[styles.insightParagraph, { color: currentTheme.colors.text.primary }]}>
+                      {para.trim()}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={[styles.insightText, { color: currentTheme.colors.text.primary, fontStyle: 'italic', marginBottom: 12 }]}>
+                    Henüz bir uyum içgörüsü oluşturulmamış. Analiz etmek için aşağıdaki butona basın.
+                  </Text>
+                )}
                 
                 {insightDate && (
                   <Text style={[styles.insightDate, { color: currentTheme.colors.text.muted }]}>
@@ -447,33 +587,39 @@ export default function ConnectionDetailScreen() {
                 )}
 
                 <TouchableOpacity 
-                  style={[styles.refreshBtn, { backgroundColor: currentTheme.colors.primary }]}
+                  style={styles.premiumButtonOuter}
                   onPress={handleRefreshInsight}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="refresh-outline" size={16} color="#FFF" style={styles.refreshIcon} />
-                  <Text style={styles.refreshBtnText}>Uyum Analizini Yenile</Text>
+                  <LinearGradient
+                    colors={[currentTheme.colors.primary, '#EC4899']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.premiumButtonInner}
+                  >
+                    <Ionicons name="sparkles" size={16} color="#FFF" style={styles.refreshIcon} />
+                    <Text style={styles.refreshBtnText}>Uyum Analizini Yenile</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
-              </>
+              </Animated.View>
             )}
-          </View>
-
-          <Text style={[styles.disclaimer, { color: currentTheme.colors.text.muted }]}>
-            🛡️ Bu analiz, özel günlük yazılarınızı veya AI sohbetlerinizi birbirinizle paylaşmadan, yalnızca genel kişilik tipleri ve ruh hali eğilimlerinizin yapay zeka tarafından sentezlenmesi ile oluşturulmuştur.
-          </Text>
+          </Animated.View>
 
           {/* Privacy settings */}
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Gizlilik Sınırlarınız 🔒</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Gizlilik ve Sınırlar 🛡️</Text>
           <Text style={[styles.privacyDesc, { color: currentTheme.colors.text.muted }]}>
-            Ortağınızla paylaşmak istemediğiniz ve uyum analizine dahil edilmesini engellemek istediğiniz verileri buradan kapatabilirsiniz.
+            İlişki alanınızı kendinize göre koruyun. Paylaşmak istemediğiniz veya analize dahil olmasını tercih etmediğiniz alanları kapatarak, sessizce güvende kalabilirsiniz. Değişiklikler anında yansır.
           </Text>
 
           <View style={[styles.switchContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
             
             <View style={styles.switchRow}>
               <View style={styles.switchTexts}>
-                <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Duygu Durumları</Text>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Günlük mood check-in’lerini hariç tut</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="heart-outline" size={16} color={currentTheme.colors.primary} />
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Duygusal Akışın</Text>
+                </View>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Günlük mood check-in’lerini analiz dışında tut</Text>
               </View>
               <Switch
                 value={privacy.exclude_checkins}
@@ -487,8 +633,11 @@ export default function ConnectionDetailScreen() {
 
             <View style={styles.switchRow}>
               <View style={styles.switchTexts}>
-                <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Günlük Yazıları</Text>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Günlük notlarının genel temasını analiz dışı bırak</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="book-outline" size={16} color={currentTheme.colors.primary} />
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Kişisel Günlüğün</Text>
+                </View>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Günlük yazılarının duygusal izlerini analize dahil etme</Text>
               </View>
               <Switch
                 value={privacy.exclude_journals}
@@ -502,8 +651,11 @@ export default function ConnectionDetailScreen() {
 
             <View style={styles.switchRow}>
               <View style={styles.switchTexts}>
-                <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Eylem Kartları</Text>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Seçtiğiniz ruhsal kart seçimlerini hariç tut</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="sparkles-outline" size={16} color={currentTheme.colors.primary} />
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Ruhsal Kart Tercihlerin</Text>
+                </View>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Seçtiğin eylem kartlarını gizli tut</Text>
               </View>
               <Switch
                 value={privacy.exclude_cards}
@@ -517,8 +669,11 @@ export default function ConnectionDetailScreen() {
 
             <View style={styles.switchRow}>
               <View style={styles.switchTexts}>
-                <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Yapay Zeka Sohbetleri</Text>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>AI arkadaşınızla yaptığınız sohbet kalıplarını hariç tut</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={currentTheme.colors.primary} />
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>AI Sohbet Kalıpları</Text>
+                </View>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Yapay zeka arkadaşınla dertleşmelerini analizden hariç tut</Text>
               </View>
               <Switch
                 value={privacy.exclude_ai_chat}
@@ -532,8 +687,11 @@ export default function ConnectionDetailScreen() {
 
             <View style={styles.switchRow}>
               <View style={styles.switchTexts}>
-                <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Kişilik Özellikleri</Text>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>DISC renk testi sonuçlarını hariç tut</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="color-palette-outline" size={16} color={currentTheme.colors.primary} />
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>DISC Kişilik Yapın</Text>
+                </View>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Kişilik rengi ve analizlerini sınırların içinde sakla</Text>
               </View>
               <Switch
                 value={privacy.exclude_personality}
@@ -1022,5 +1180,90 @@ const styles = StyleSheet.create({
   whisperEmptyText: {
     fontSize: 13,
     textAlign: 'center',
+  },
+  glowOrb1: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(167, 139, 250, 0.04)',
+    top: 80,
+    right: -60,
+    zIndex: -1,
+  },
+  glowOrb2: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(236, 72, 153, 0.03)',
+    bottom: 120,
+    left: -90,
+    zIndex: -1,
+  },
+  orbContainer: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    overflow: 'hidden',
+    zIndex: 1,
+  },
+  emotionalOrb: {
+    width: '140%',
+    height: '140%',
+    borderRadius: 90,
+    opacity: 0.8,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  chipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  insightParagraph: {
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  premiumButtonOuter: {
+    marginTop: 20,
+    borderRadius: 22,
+    alignSelf: 'flex-start',
+    shadowColor: '#EC4899',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  premiumButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 22,
+  },
+  cardWatermarkContainer: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    opacity: 0.5,
   },
 });

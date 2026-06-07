@@ -15,6 +15,85 @@ async function getUserPlan(userId) {
 }
 
 /**
+ * Dynamically calculates the user's Emotional Depth Level based on system-wide interaction points
+ */
+exports.calculateDepthLevel = async (userId) => {
+  try {
+    const plan = await getUserPlan(userId);
+
+    const countsRes = await db.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM check_ins WHERE user_id = $1) as checkins_count,
+        (SELECT COUNT(*) FROM journal_entries WHERE user_id = $1) as journals_count,
+        (SELECT COUNT(*) FROM card_responses WHERE user_id = $1) as cards_count,
+        (SELECT COUNT(*) FROM daily_reflections WHERE user_id = $1) as reflections_count,
+        (SELECT COUNT(*) FROM ai_messages m JOIN ai_conversations c ON m.conversation_id = c.id WHERE c.user_id = $1) as ai_messages_count,
+        (SELECT COUNT(*) FROM relationship_ritual_responses WHERE user_id = $1) as rituals_count,
+        (SELECT COUNT(DISTINCT DATE(created_at)) FROM check_ins WHERE user_id = $1) as checkin_days,
+        (SELECT COUNT(DISTINCT DATE(created_at)) FROM journal_entries WHERE user_id = $1) as journal_days,
+        (SELECT COUNT(*) FROM emotional_memories WHERE user_id = $1 AND category = 'continuity') as continuity_count,
+        (SELECT EXTRACT(DAY FROM NOW() - created_at) FROM relationship_connections WHERE (requester_id = $1 OR recipient_id = $1) AND status = 'active' LIMIT 1) as connection_days
+    `, [userId]);
+
+    const counts = countsRes.rows[0] || {};
+    const checkins_count = parseInt(counts.checkins_count || 0, 10);
+    const journals_count = parseInt(counts.journals_count || 0, 10);
+    const cards_count = parseInt(counts.cards_count || 0, 10);
+    const reflections_count = parseInt(counts.reflections_count || 0, 10);
+    const ai_messages_count = parseInt(counts.ai_messages_count || 0, 10);
+    const rituals_count = parseInt(counts.rituals_count || 0, 10);
+    const checkin_days = parseInt(counts.checkin_days || 0, 10);
+    const journal_days = parseInt(counts.journal_days || 0, 10);
+    const continuity_count = parseInt(counts.continuity_count || 0, 10);
+    const connection_days = parseInt(counts.connection_days || 0, 10);
+
+    // 1. Total Raw Interactions Count
+    const total = checkins_count + journals_count + cards_count + reflections_count + ai_messages_count + rituals_count;
+
+    // 2. Base Interaction Score (weighted by emotional depth required)
+    const baseScore = (checkins_count * 1) + 
+                      (journals_count * 2) + 
+                      (cards_count * 1.5) + 
+                      (reflections_count * 1) + 
+                      (ai_messages_count * 0.5) + 
+                      (rituals_count * 2);
+
+    // 3. Consistency Score (weighting unique days of check-ins and journaling)
+    const consistencyScore = (checkin_days * 3) + (journal_days * 5);
+
+    // 4. Emotional Continuity Memory Boost (number of parsed and saved continuity traits)
+    const continuityScore = continuity_count * 4;
+
+    // 5. Relationship Continuity (active connection days bonus)
+    const relationshipScore = connection_days ? Math.min(20, connection_days * 1.5) : 0;
+
+    // 6. Premium Tier Acceleration (Signature & Plus users evolve naturally faster)
+    let planBoost = 0;
+    if (plan === 'plus') {
+      planBoost = 15;
+    } else if (plan === 'signature') {
+      planBoost = 35;
+    }
+
+    // Combine all behaviors into a final evolution score
+    const evolutionScore = baseScore + consistencyScore + continuityScore + relationshipScore + planBoost;
+
+    let level = 'NEW';
+    if (evolutionScore >= 10 && evolutionScore < 30) level = 'LIGHT';
+    else if (evolutionScore >= 30 && evolutionScore < 75) level = 'GROWING';
+    else if (evolutionScore >= 75 && evolutionScore < 150) level = 'DEEP';
+    else if (evolutionScore >= 150) level = 'IMMERSIVE';
+
+    console.log(`[SmartProgression] User: ${userId}, Total: ${total}, Score: ${evolutionScore}, Plan: ${plan}, Level: ${level}`);
+
+    return { level, total, evolutionScore };
+  } catch (err) {
+    console.error('[calculateDepthLevel] error:', err.message);
+    return { level: 'NEW', total: 0, evolutionScore: 0 };
+  }
+};
+
+/**
  * Builds a dynamic, privacy-aware emotional context dossier for a user.
  * 
  * Context Priority Order:
@@ -31,10 +110,12 @@ exports.buildEmotionalContext = async (userId) => {
     const isPlus = plan === 'plus';
     const isSignature = plan === 'signature';
 
+    const { level: emotionalDepthLevel, total: totalInteractions } = await exports.calculateDepthLevel(userId);
+
     // 1. Resolve User Base Details (Astrology/Zodiac)
     const userRes = await db.query('SELECT username, zodiac_sign FROM users WHERE id = $1', [userId]);
     if (userRes.rows.length === 0) {
-      return { dossier: '', isDistressed: false, hasPartner: false, planType: 'free' };
+      return { dossier: '', isDistressed: false, hasPartner: false, planType: 'free', emotionalDepthLevel: 'NEW', totalInteractions: 0 };
     }
     const user = userRes.rows[0];
 
@@ -214,6 +295,7 @@ exports.buildEmotionalContext = async (userId) => {
     let dossier = `[KULLANICI DUYGUSAL PORTRESİ & AKILLI BAĞLAM]\n`;
     dossier += `Zodiac Sign: ${user.zodiac_sign || 'Bilinmiyor'}\n`;
     dossier += `Mevcut Abonelik Planı: ${plan.toUpperCase()}\n`;
+    dossier += `Duygusal Olgunluk Seviyesi: ${emotionalDepthLevel} (${totalInteractions} toplam etkileşim)\n`;
 
     if (colorTest) {
       dossier += `DISC Kişilik Rengi: Dominant ${colorTest.dominantColor} (${colorTest.title}). Güçlü Yönler: ${colorTest.strengths?.join(', ')}. Stres Eğilimi: ${colorTest.stressBehavior}.\n`;
@@ -236,7 +318,7 @@ exports.buildEmotionalContext = async (userId) => {
       dossier += `\n\nZihinsel Bellek Kodları (Çıkarılan Anılar): ${generalMemories.map(m => `${m.memory_key}: ${m.memory_value}`).join(' | ')}`;
     }
 
-    // Continuity memories segment
+    // Alignment of continuity memories
     if (continuityMemories.length > 0) {
       dossier += `\n\n[SÜREKLİ DUYGUSAL RİTİM & ALIŞKANLIKLAR (Continuous Memory)]\n`;
       continuityMemories.forEach(m => {
@@ -263,12 +345,23 @@ exports.buildEmotionalContext = async (userId) => {
       dossier += `\n[YALNIZ KULLANICI MODU]\n- Bu kullanıcı şu an tek başına yol alıyor. İlişkisel tavsiyeler vermek yerine, kendisiyle kurduğu bağa odaklan, onu yalnız hissettirmeyen sıcak bir duygusal yoldaş ol.\n`;
     }
 
-    return {
+    const resultContext = {
       dossier,
       isDistressed,
       hasPartner,
-      planType: plan
+      planType: plan,
+      emotionalDepthLevel,
+      totalInteractions
     };
+    
+    console.log('[DEBUG] buildEmotionalContext output:', {
+      isDistressed,
+      hasPartner,
+      planType: plan,
+      dossierLength: dossier.length
+    });
+
+    return resultContext;
 
   } catch (error) {
     console.error('[emotionalContextBuilder] Error building context:', error);
@@ -377,6 +470,7 @@ Do not write markdown formatting or backticks.`;
       );
     }
 
+    console.log('[DEBUG] getInsightFeed output:', formattedWhispers);
     return formattedWhispers;
 
   } catch (error) {

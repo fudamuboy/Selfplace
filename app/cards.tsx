@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -532,8 +532,11 @@ export default function CardsScreen() {
     opacity: interpolate(shimmer.value, [0, 1], [0.7, 1]),
   }));
 
+  const isSelectingRef = useRef(false);
+
   const handleSelect = (index: number) => {
-    if (selectedIndex !== null) return;
+    if (selectedIndex !== null || isSelectingRef.current) return;
+    isSelectingRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedIndex(index);
   };
@@ -568,6 +571,7 @@ export default function CardsScreen() {
   };
 
   const handleReset = () => {
+    isSelectingRef.current = false;
     setSelectedIndex(null);
   };
 

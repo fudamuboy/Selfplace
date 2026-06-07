@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { generateWeeklyInsight, generateDailyReflection } = require('../services/aiService');
+const { calculateDepthLevel, buildEmotionalContext } = require('../services/emotionalContextBuilder');
 
 // ---------------------------------------------------------------------------
 // Fallbacks
@@ -152,6 +153,13 @@ exports.getWeeklyInsight = async (req, res) => {
   const userId = req.user.id;
 
   try {
+    const { level: depthLevel } = await calculateDepthLevel(userId);
+    const connCheck = await db.query(
+      "SELECT 1 FROM relationship_connections WHERE (requester_id = $1 OR recipient_id = $1) AND status = 'active' LIMIT 1",
+      [userId]
+    );
+    const hasPartner = connCheck.rows.length > 0;
+
     // 1. Check if insight exists (less than 7 days old)
     const existing = await db.query(
       'SELECT text, generated_at FROM weekly_insights WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 1',
@@ -164,7 +172,17 @@ exports.getWeeklyInsight = async (req, res) => {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
       if (lastGenerated > sevenDaysAgo) {
-        return res.json({ insight: existing.rows[0].text, source: 'cache' });
+        let insightData = {};
+        try {
+          insightData = JSON.parse(existing.rows[0].text);
+        } catch (_e) {
+          insightData = { insight: existing.rows[0].text };
+        }
+        return res.json({
+          ...insightData,
+          depthLevel,
+          source: 'cache'
+        });
       }
     }
 
@@ -176,6 +194,7 @@ exports.getWeeklyInsight = async (req, res) => {
       console.error('[insightController] fetch error, using fallback:', dataErr.message);
       return res.json({ 
         insight: ruleBasedWeekly([], []), 
+        depthLevel,
         source: 'error-fallback' 
       });
     }
@@ -187,6 +206,12 @@ exports.getWeeklyInsight = async (req, res) => {
       return res.json({
         insight: "Kendini tanıma yolculuğun küçük adımlarla başlar. Birkaç check-in sonrası burada sana küçük içgörüler göstereceğim.",
         source: 'placeholder',
+        depthLevel,
+        rhythm: null,
+        comfortPattern: null,
+        thoughtFocus: null,
+        questions: [],
+        shifts: null
       });
     }
 
@@ -194,7 +219,8 @@ exports.getWeeklyInsight = async (req, res) => {
     let source = 'ai';
 
     try {
-      insight = await generateWeeklyInsight(userData);
+      insight = await generateWeeklyInsight(userData, depthLevel, hasPartner);
+      console.log('[DEBUG] generateWeeklyInsight generated:', insight);
       // Store in DB
       await db.query(
         'INSERT INTO weekly_insights (user_id, text) VALUES ($1, $2)',
@@ -202,17 +228,29 @@ exports.getWeeklyInsight = async (req, res) => {
       );
     } catch (aiErr) {
       console.error('[insightController] Weekly AI failed, using fallback:', aiErr.message);
-      insight = ruleBasedWeekly(checkIns, cardResponses);
+      const fallbackText = ruleBasedWeekly(checkIns, cardResponses);
+      insight = JSON.stringify({ insight: fallbackText });
       source = 'rule-fallback';
     }
 
-    res.json({ insight, source });
+    let resultPayload = {};
+    try {
+      resultPayload = JSON.parse(insight);
+    } catch (_e) {
+      resultPayload = { insight };
+    }
+
+    res.json({
+      ...resultPayload,
+      depthLevel,
+      source
+    });
 
   } catch (err) {
     console.error('[insightController] getWeeklyInsight error:', err.message);
-    // Absolute final fallback to prevent 500
     res.json({ 
       insight: "Bu hafta kendine biraz daha alan açmaya ihtiyaç duymuş olabilirsin. Sakinlik ve denge arayışı bu günlerde daha görünür görünüyor.", 
+      depthLevel: 'NEW',
       source: 'final-fallback' 
     });
   }

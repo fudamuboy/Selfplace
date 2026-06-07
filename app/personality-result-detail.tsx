@@ -95,6 +95,7 @@ export default function PersonalityResultDetailScreen() {
   }
 
   const { result_data } = result;
+  const colorHex = result_data.colorHex || result_data.color || '#3B82F6';
   // If it's an old test without percentages, fake them or show legacy mode
   const percentages = result_data.percentages || {
     red: result_data.dominantColor === 'red' ? 60 : 10,
@@ -103,7 +104,7 @@ export default function PersonalityResultDetailScreen() {
     yellow: result_data.dominantColor === 'yellow' ? 60 : 10,
   };
 
-  const gradientColors = result_data.gradient || [result_data.colorHex, currentTheme.colors.background[1]];
+  const gradientColors = result_data.gradient || [colorHex, currentTheme.colors.background[1]];
 
   return (
     <GradientBackground>
@@ -124,7 +125,7 @@ export default function PersonalityResultDetailScreen() {
           />
           <View style={styles.heroContent}>
             <Text style={[styles.heroSubtitle, { color: currentTheme.colors.text.muted }]}>DOMİNANT RENK</Text>
-            <Text style={[styles.heroTitle, { color: result_data.colorHex }]}>{result_data.title}</Text>
+            <Text style={[styles.heroTitle, { color: colorHex }]}>{result_data.title}</Text>
             <Text style={[styles.heroDesc, { color: currentTheme.colors.text.primary }]}>{result_data.description}</Text>
           </View>
         </Animated.View>
@@ -214,9 +215,8 @@ const styles = StyleSheet.create({
     width: width * 0.8,
     height: width * 0.8,
     borderRadius: width * 0.4,
-    opacity: 0.15,
+    opacity: 0.1,
     transform: [{ scale: 1.2 }],
-    filter: 'blur(40px)', // Only works on web, but on native we rely on opacity
   },
   heroContent: {
     alignItems: 'center',

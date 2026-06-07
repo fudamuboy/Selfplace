@@ -45,7 +45,8 @@ export default function PersonalityTestScreen() {
     try {
       const res = await client.get(`/personality/tests/${type}`);
       setTestData(res.data.test);
-    } catch (err) {
+    } catch (err: any) {
+      console.error(`[PersonalityTest] Error fetching test of type "${type}":`, err.message || err);
       // Show a soft fallback if backend fails (e.g. 404 during deployment)
       setTestData(null);
       // We could use a toast here, but returning quietly is safer than crashing
@@ -86,7 +87,8 @@ export default function PersonalityTestScreen() {
           params: { resultId: res.data.id }
         });
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error(`[PersonalityTest] Error submitting test answers:`, err.message || err);
       // Soft failure, return to previous screen gracefully
       setSubmitting(false);
       setTimeout(() => router.back(), 1500);
@@ -103,7 +105,23 @@ export default function PersonalityTestScreen() {
     );
   }
 
-  if (!testData) return null;
+  if (!testData) {
+    return (
+      <GradientBackground>
+        <View style={styles.centerContainer}>
+          <Text style={{ color: currentTheme.colors.text.primary, fontSize: 16, marginBottom: 20, textAlign: 'center', paddingHorizontal: 24 }}>
+            Test yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.
+          </Text>
+          <TouchableOpacity 
+            style={{ backgroundColor: currentTheme.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 }}
+            onPress={() => router.back()}
+          >
+            <Text style={{ color: '#FFF', fontWeight: '700' }}>Geri Dön</Text>
+          </TouchableOpacity>
+        </View>
+      </GradientBackground>
+    );
+  }
 
   const currentQuestion = testData.questions[currentIndex];
   const progress = ((currentIndex + 1) / testData.questions.length) * 100;

@@ -46,7 +46,8 @@ export default function PersonalityResultsScreen() {
   };
 
   const renderColorResult = (result: TestResult, isLatest: boolean) => {
-    const { dominantColor, title, description, colorHex, percentages } = result.result_data;
+    const { dominantColor, title, description, percentages } = result.result_data;
+    const colorHex = result.result_data.colorHex || result.result_data.color || '#3B82F6';
     const date = new Date(result.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 
     return (

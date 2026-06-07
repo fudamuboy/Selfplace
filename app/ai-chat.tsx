@@ -361,8 +361,7 @@ const styles = StyleSheet.create({
     width: width * 0.8,
     height: width * 0.8,
     borderRadius: width * 0.4,
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    filter: 'blur(100px)',
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
   },
   ambientGlowSecondary: {
     position: 'absolute',
@@ -371,7 +370,6 @@ const styles = StyleSheet.create({
     width: width * 0.6,
     height: width * 0.6,
     borderRadius: width * 0.3,
-    backgroundColor: 'rgba(109, 40, 217, 0.1)',
-    filter: 'blur(80px)',
+    backgroundColor: 'rgba(109, 40, 217, 0.06)',
   },
 });

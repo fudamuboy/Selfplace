@@ -76,7 +76,12 @@ exports.getHomeWidget = async (req, res) => {
     if (!zodiacSign) {
       return res.json({
         success: true,
-        data: null // They haven't set their birthday yet
+        data: {
+          zodiacSign: null,
+          userZodiac: null,
+          event_name: 'Gökyüzü',
+          preview_text: 'Doğum tarihini eklediğinde gökyüzü yorumların burada görünecek ✨'
+        }
       });
     }
 
@@ -91,14 +96,17 @@ exports.getHomeWidget = async (req, res) => {
       description: 'Gezegenler sakin seyrinde. İçsel huzuruna odaklanmak için harika bir gün.'
     };
 
-    res.json({
+    const responseData = {
       success: true,
       data: {
         zodiacSign,
         event_name: event.event_name,
         preview_text: `Bugün ${event.event_name} etkisinde ${zodiacSign} enerjin ön planda. ${event.description.substring(0, 50)}...`
       }
-    });
+    };
+    
+    console.log('[DEBUG] /api/astrology/home output:', responseData.data);
+    res.json(responseData);
 
   } catch (err) {
     console.error('[Astrology Home Error]', err);
@@ -119,7 +127,14 @@ exports.getWeeklyGuidance = async (req, res) => {
     const zodiacSign = userRes.rows[0]?.zodiac_sign;
 
     if (!zodiacSign) {
-      return res.status(400).json({ success: false, message: 'Doğum tarihi bulunamadı.' });
+      return res.json({
+        success: true,
+        data: {
+          zodiacProfile: null,
+          activeEvents: [],
+          aiGuidance: 'Doğum tarihini eklediğinde gökyüzü yorumların burada görünecek ✨'
+        }
+      });
     }
 
     // 2. Get Zodiac Profile

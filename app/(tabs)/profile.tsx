@@ -63,7 +63,7 @@ export default function ProfileScreen() {
       const sub = await getSubscription();
       setPlanType(sub.plan_type);
     } catch (error) {
-      console.error('[Profile] Error fetching subscription:', error);
+      console.warn('[Profile] Error fetching subscription:', error);
     }
   };
 

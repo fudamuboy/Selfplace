@@ -498,6 +498,196 @@ exports.runMigrations = async () => {
     // Seed astrology data
     await seedAstrologyData();
 
+    // 17. Safe Legacy Data Reconciliation & Sync
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS data_migrations (
+        name VARCHAR(255) PRIMARY KEY,
+        run_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const migCheck = await db.query("SELECT 1 FROM data_migrations WHERE name = 'legacy_reconciliation_v2'");
+    if (migCheck.rows.length === 0) {
+      console.log('[MIGRATION] Starting legacy data reconciliation to emotional_entries...');
+      
+      let migratedCount = 0;
+      let skippedCount = 0;
+      let invalidCount = 0;
+      let orphanedCount = 0;
+
+      // A. Sync Legacy Check-ins
+      const checkIns = await db.query("SELECT id, user_id, mood, reflection_question, note, created_at FROM check_ins");
+      for (const row of checkIns.rows) {
+        if (!row.user_id) {
+          orphanedCount++;
+          continue;
+        }
+        if (!row.mood) {
+          invalidCount++;
+          continue;
+        }
+
+        const dupCheck1 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'checkin' AND (metadata->>'check_in_id')::int = $2",
+          [row.user_id, row.id]
+        );
+        const dupCheck2 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'checkin' AND content = $2 AND created_at = $3",
+          [row.user_id, row.note || '', row.created_at]
+        );
+
+        if (dupCheck1.rows.length > 0 || dupCheck2.rows.length > 0) {
+          skippedCount++;
+        } else {
+          await db.query(
+            "INSERT INTO emotional_entries (user_id, source_type, emotion, prompt, content, metadata, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [
+              row.user_id,
+              'checkin',
+              row.mood,
+              row.reflection_question || 'Günlük Check-in',
+              row.note || '',
+              JSON.stringify({ check_in_id: row.id }),
+              row.created_at
+            ]
+          );
+          migratedCount++;
+        }
+      }
+
+      // B. Sync Legacy Card Responses
+      const cardResponses = await db.query(
+        "SELECT cr.id, cr.user_id, cr.card_id, cr.response, cr.category, cr.created_at, ic.title FROM card_responses cr LEFT JOIN invitation_cards ic ON cr.card_id = ic.id"
+      );
+      for (const row of cardResponses.rows) {
+        if (!row.user_id) {
+          orphanedCount++;
+          continue;
+        }
+        if (!row.response) {
+          invalidCount++;
+          continue;
+        }
+
+        const dupCheck1 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'card' AND (metadata->>'card_response_id')::int = $2",
+          [row.user_id, row.id]
+        );
+        const dupCheck2 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'card' AND content = $2 AND created_at = $3",
+          [row.user_id, row.response, row.created_at]
+        );
+
+        if (dupCheck1.rows.length > 0 || dupCheck2.rows.length > 0) {
+          skippedCount++;
+        } else {
+          await db.query(
+            "INSERT INTO emotional_entries (user_id, source_type, emotion, prompt, content, metadata, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [
+              row.user_id,
+              'card',
+              'Motive',
+              row.title || 'Kart Daveti',
+              row.response,
+              JSON.stringify({ card_id: row.card_id, card_response_id: row.id, action: 'respond' }),
+              row.created_at
+            ]
+          );
+          migratedCount++;
+        }
+      }
+
+      // C. Sync Legacy Journal Entries
+      const journalEntries = await db.query("SELECT id, user_id, title, content, created_at FROM journal_entries");
+      for (const row of journalEntries.rows) {
+        if (!row.user_id) {
+          orphanedCount++;
+          continue;
+        }
+        if (!row.content) {
+          invalidCount++;
+          continue;
+        }
+
+        const dupCheck1 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'journal' AND (metadata->>'journal_id')::int = $2",
+          [row.user_id, row.id]
+        );
+        const dupCheck2 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'journal' AND content = $2 AND created_at = $3",
+          [row.user_id, row.content, row.created_at]
+        );
+
+        if (dupCheck1.rows.length > 0 || dupCheck2.rows.length > 0) {
+          skippedCount++;
+        } else {
+          await db.query(
+            "INSERT INTO emotional_entries (user_id, source_type, emotion, prompt, content, metadata, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [
+              row.user_id,
+              'journal',
+              'Sakin',
+              row.title || 'Günlük Yazısı',
+              row.content,
+              JSON.stringify({ journal_id: row.id }),
+              row.created_at
+            ]
+          );
+          migratedCount++;
+        }
+      }
+
+      // D. Sync Legacy Daily Reflections
+      const dailyReflections = await db.query("SELECT id, user_id, text, created_at FROM daily_reflections");
+      for (const row of dailyReflections.rows) {
+        if (!row.user_id) {
+          orphanedCount++;
+          continue;
+        }
+        if (!row.text) {
+          invalidCount++;
+          continue;
+        }
+
+        const dupCheck1 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'reflection' AND (metadata->>'reflection_id')::int = $2",
+          [row.user_id, row.id]
+        );
+        const dupCheck2 = await db.query(
+          "SELECT 1 FROM emotional_entries WHERE user_id = $1 AND source_type = 'reflection' AND content = $2",
+          [row.user_id, row.text]
+        );
+
+        if (dupCheck1.rows.length > 0 || dupCheck2.rows.length > 0) {
+          skippedCount++;
+        } else {
+          await db.query(
+            "INSERT INTO emotional_entries (user_id, source_type, emotion, prompt, content, metadata, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [
+              row.user_id,
+              'reflection',
+              'Sakin',
+              'Günlük Küçük Yansıma',
+              row.text,
+              JSON.stringify({ reflection_id: row.id }),
+              row.created_at
+            ]
+          );
+          migratedCount++;
+        }
+      }
+
+      await db.query("INSERT INTO data_migrations (name) VALUES ('legacy_reconciliation_v2')");
+
+      console.log(`[MIGRATION-COMPLETED] Legacy data reconciliation summary:`);
+      console.log(` - Migrated entries: ${migratedCount}`);
+      console.log(` - Skipped duplicates: ${skippedCount}`);
+      console.log(` - Invalid legacy rows: ${invalidCount}`);
+      console.log(` - Orphaned legacy records: ${orphanedCount}`);
+    } else {
+      console.log('[MIGRATION] Legacy data reconciliation v2 already ran. Skipping.');
+    }
+
     console.log('[MIGRATION] Database schema checks completed successfully.');
   } catch (err) {
     console.error('[MIGRATION] Error during schema check:', err.message);

@@ -33,7 +33,7 @@ export default function ConnectionRitualsScreen() {
         setIncludeInSynthesis(data.myResponse.include_in_synthesis);
       }
     } catch (error) {
-      console.error('[ConnectionRituals] Fetch error:', error);
+      console.warn('[ConnectionRituals] Fetch error:', error);
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function ConnectionRitualsScreen() {
       showToast('Cevabınız kaydedildi ✨');
       fetchDailyRitual();
     } catch (error) {
-      console.error('[ConnectionRituals] Submit error:', error);
+      console.warn('[ConnectionRituals] Submit error:', error);
       showToast('Cevap kaydedilemedi.');
     } finally {
       setSubmitLoading(false);

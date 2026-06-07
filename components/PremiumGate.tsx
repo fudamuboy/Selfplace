@@ -41,13 +41,13 @@ export const PremiumGate: React.FC<Props> = ({
 
   return (
     <View style={[styles.wrapper, containerStyle]}>
-      {/* Blurred background view of children */}
-      <View style={styles.contentBlurred} pointerEvents="none">
+      {/* Blurred background view of children, positioned absolutely behind the lock content */}
+      <View style={[StyleSheet.absoluteFill, styles.contentBlurred]} pointerEvents="none">
         {children}
       </View>
 
-      {/* Glassmorphic lock overlay */}
-      <BlurView intensity={Platform.OS === 'ios' ? 35 : 85} tint="dark" style={StyleSheet.absoluteFill}>
+      {/* Glassmorphic lock overlay, now rendering in normal flow (not absolute) so parent wrapper has natural height! */}
+      <BlurView intensity={Platform.OS === 'ios' ? 35 : 85} tint="dark" style={styles.blurContainer}>
         <LinearGradient
           colors={['rgba(20, 15, 38, 0.65)', 'rgba(30, 20, 50, 0.85)']}
           style={styles.overlay}
@@ -84,10 +84,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   contentBlurred: {
-    opacity: 0.25,
+    opacity: 0.15,
+  },
+  blurContainer: {
+    width: '100%',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,

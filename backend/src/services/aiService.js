@@ -75,19 +75,15 @@ async function generateDailyReflection() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// generateWeeklyInsight
-// ---------------------------------------------------------------------------
-
 /**
- * Generates a gentle weekly reflection using OpenAI gpt-4o-mini.
+ * Generates a gentle weekly reflection using OpenAI gpt-4o-mini, tailored to the user's emotional depth level.
  *
  * @param {Object} userData
- * @param {Array}  userData.checkIns       - last 7 days check-ins
- * @param {Array}  userData.cardResponses  - last 7 days card responses
- * @returns {Promise<string>} A 2-3 sentence Turkish reflection
+ * @param {string} depthLevel      - 'NEW' | 'LIGHT' | 'GROWING' | 'DEEP' | 'IMMERSIVE'
+ * @param {boolean} hasPartner     - true | false
+ * @returns {Promise<string>} A JSON string representing the Weekly Wrapped
  */
-async function generateWeeklyInsight(userData) {
+async function generateWeeklyInsight(userData, depthLevel = 'NEW', hasPartner = false) {
   try {
     const { checkIns = [], cardResponses = [], advancedCheckIns = [] } = userData;
     const client = getClient();
@@ -97,7 +93,6 @@ async function generateWeeklyInsight(userData) {
     const notesSummary    = checkIns.map(c => c.note).filter(Boolean).slice(0, 5).join(' | ') || null;
     const questionsSummary = checkIns.map(c => c.reflection_question).filter(Boolean).slice(0, 5).join(' | ') || null;
     
-    // Add advanced check-in responses for deeper AI context
     const advancedSummary = advancedCheckIns
       .map(a => `${a.question_id}: ${a.answer}`)
       .slice(0, 8)
@@ -116,17 +111,67 @@ async function generateWeeklyInsight(userData) {
 
     const userMessage = lines.join('\n');
 
+    let systemPrompt = `You are "Selfplace", a gentle, calm, and emotionally intelligent weekly reflection guide.
+Your goal is to generate a personalized Weekly Wrapped reflection in Turkish for the user, returned strictly as a JSON object.
+
+Current User Emotional Level: ${depthLevel}
+Connected partner status: ${hasPartner ? 'CONNECTED' : 'SOLO'}
+`;
+
+    if (depthLevel === 'NEW' || depthLevel === 'LIGHT') {
+      systemPrompt += `
+Format your response as a JSON object containing only the "insight" key:
+{
+  "insight": "Write a gentle, soft, 2-sentence summary noticing simple moods/patterns. Turkish language."
+}
+Do not include any other fields. Use soft, probabilistic language ("olabilir", "görünüyor"). No deep emotional claims.
+`;
+    } else if (depthLevel === 'GROWING') {
+      systemPrompt += `
+Format your response as a JSON object containing "insight", "rhythm", "comfortPattern", "thoughtFocus", and "questions" keys:
+{
+  "insight": "Write a gentle 2-sentence summary. Turkish.",
+  "rhythm": "Describe their emotional rhythm this week (e.g. dynamic, calm, rising energy). Max 1 sentence.",
+  "comfortPattern": "Identify comfort patterns or soothing tendencies (e.g. reading, quiet walks, resting). Max 1 sentence.",
+  "thoughtFocus": "Identify their main thought focus or theme this week (e.g. work, relationships). Max 1 sentence.",
+  "questions": [
+    { "q": "Bu hafta seni en çok ne yordu?", "a": "Answer this based on their entries. Keep it soft, max 1 sentence." },
+    { "q": "Kendini en huzurlu hissettiğin an neydi?", "a": "Answer this based on their entries. Keep it soft, max 1 sentence." },
+    { "q": "Son zamanlarda içinde en çok hangi düşünce dönüyor?", "a": "Answer this based on their entries. Keep it soft, max 1 sentence." }
+  ]
+}
+`;
+    } else { // DEEP or IMMERSIVE
+      systemPrompt += `
+Format your response as a JSON object containing "insight", "rhythm", "comfortPattern", "thoughtFocus", "questions", "shifts", and "relationshipSynthesis" keys:
+{
+  "insight": "Write a quiet, cinematic 2-sentence emotional summary. Turkish.",
+  "rhythm": "Describe emotional rhythm. Max 1 sentence.",
+  "comfortPattern": "Identify comfort patterns. Max 1 sentence.",
+  "thoughtFocus": "Identify main thought focus. Max 1 sentence.",
+  "questions": [
+    { "q": "Bu hafta seni en çok ne yordu?", "a": "Answer based on entries." },
+    { "q": "Kendini en huzurlu hissettiğin an neydi?", "a": "Answer based on entries." },
+    { "q": "Son zamanlarda içinde en çok hangi düşünce dönüyor?", "a": "Answer based on entries." }
+  ],
+  "shifts": "Describe emotional evolution or shifts compared to previous timelines (e.g. more self-compassion, letting go of worry). Max 1-2 sentences.",
+  "relationshipSynthesis": "${hasPartner ? 'Synthesize relational atmosphere, pacing, rhythm comparison, tension guidance. Do not expose partner logs directly. Max 2 sentences.' : 'Skip relational synthesis.'}"
+}
+`;
+    }
+
     const completion = await client.chat.completions.create({
       model:      'gpt-4o-mini',
       messages:   [
-        { role: 'system', content: WEEKLY_INSIGHT_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user',   content: userMessage },
       ],
-      max_tokens:  150,
-      temperature: 0.8,
+      response_format: { type: 'json_object' },
+      max_tokens:  400,
+      temperature: 0.7,
     });
 
-    const result = completion.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, '');
+    const result = completion.choices?.[0]?.message?.content?.trim();
     if (!result) throw new Error('OpenAI returned empty content.');
 
     return result;

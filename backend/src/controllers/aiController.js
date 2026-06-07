@@ -38,9 +38,94 @@ exports.handleChat = async (req, res) => {
     );
     let history = historyRes.rows.reverse();
 
+    // Intent detection for conversational repair (asking for clarification / confusion)
+    let clarificationInstruction = '';
+    const cleanMsg = message.toLowerCase().trim();
+    const confusionKeywords = [
+      'anlamadım', 'anlamadim', 'ne demek', 'açıklar mısın', 'aciklar misin',
+      'nasıl yani', 'nasil yani', 'neyi kastettin', 'neyi kastetmiştin',
+      'ne kastediyorsun', 'neyi kastediyorsun', 'ne kastettiniz', 'what do you mean',
+      'anlamıyorum', 'anlamiyorum', 'anlayamadım', 'anlayamadim'
+    ];
+    const isClarificationRequest = confusionKeywords.some(keyword => cleanMsg.includes(keyword));
+
+    if (isClarificationRequest && history.length >= 2) {
+      const prevMessage = history[history.length - 2];
+      if (prevMessage && prevMessage.sender === 'ai') {
+        const lastAiText = prevMessage.message;
+        clarificationInstruction = `
+━━━━━━━━━━━━━━━━━━━
+⚠️ CONVERSATIONAL REPAIR & REFORMULATION MODE ACTIVE ⚠️
+━━━━━━━━━━━━━━━━━━━
+The user is confused and is explicitly asking for clarification or explanation about your previous response:
+"${lastAiText}"
+
+Your absolute priority for this response is:
+1. Do NOT change the topic or ask a generic question.
+2. Maintain the previous conversational context and emotional atmosphere.
+3. Reformulate and explain your previous response ("${lastAiText}") more simply in Turkish, using softer, natural, and human conversational language.
+4. Keep the response short and direct (1-2 sentences maximum).
+5. Address the user directly to clarify (e.g. "Demek istediğim...", "Yani...", "Kastettiğim...").
+`;
+      }
+    }
+
     // 4. Build emotional context dossier
-    const { dossier, isDistressed, hasPartner, planType } = await buildEmotionalContext(userId);
+    const { dossier, isDistressed, hasPartner, planType, emotionalDepthLevel, totalInteractions } = await buildEmotionalContext(userId);
     const plan = planType || 'free';
+
+    let levelInstructions = '';
+    if (emotionalDepthLevel === 'NEW') {
+      levelInstructions = `
+━━━━━━━━━━━━━━━━━━━
+EMOTIONAL MATURITY LEVEL: NEW (0-3 interactions)
+━━━━━━━━━━━━━━━━━━━
+- Tone Constraints: Soft, welcoming, exploratory, onboarding-focused, emotionally light. Use simpler emotional language.
+- Conversation Boundaries: Do NOT attempt any deep emotional observations, cinematic claims, or advanced pattern analysis. Stay strictly introductory and light.
+- Relational Boundaries: Do NOT offer advanced relationship/partner synthesis. Maintain basic, pleasant companionship.
+- System Directive: Keep confidence low. If the user has low data, avoid making assumptions or psychological interpretations.
+- Prompt Examples (Turkish): "Seni yavaş yavaş tanımaya başlıyorum ✨", "Biraz daha paylaşım yaptığında burada sana özel küçük içgörüler oluşacak.", "Kendini keşfetme yolculuğun yeni başlıyor 🤍"
+`;
+    } else if (emotionalDepthLevel === 'LIGHT') {
+      levelInstructions = `
+━━━━━━━━━━━━━━━━━━━
+EMOTIONAL MATURITY LEVEL: LIGHT (4-10 interactions)
+━━━━━━━━━━━━━━━━━━━
+- Tone Constraints: Gentle, curious, beginning to observe patterns.
+- Conversation Boundaries: Start noticing recurring moods, emotional timing, daily rhythm, or small emotional patterns. Keep claims soft and tentative using words like "gibi", "olabilir", "görünüyor".
+- Relational Boundaries: Soft, light partner synthesis only.
+- Prompt Examples (Turkish): "Son günlerde biraz daha içe dönük hissediyor olabilirsin 🤍", "Akşam saatlerinde daha sakinleştiğin dikkat çekiyor."
+`;
+    } else if (emotionalDepthLevel === 'GROWING') {
+      levelInstructions = `
+━━━━━━━━━━━━━━━━━━━
+EMOTIONAL MATURITY LEVEL: GROWING (11-25 interactions)
+━━━━━━━━━━━━━━━━━━━
+- Tone Constraints: Empathetic, supportive, pattern-aware.
+- Conversation Boundaries: Use emotional continuity, adaptive pacing, and pattern synthesis. Explore emotional rhythms.
+- Relational Boundaries: Offer basic communication guidance and support relational pacing.
+`;
+    } else if (emotionalDepthLevel === 'DEEP') {
+      levelInstructions = `
+━━━━━━━━━━━━━━━━━━━
+EMOTIONAL MATURITY LEVEL: DEEP (26-60 interactions)
+━━━━━━━━━━━━━━━━━━━
+- Tone Constraints: Calmer, more cinematic, emotionally adaptive, highly relational, emotionally alive.
+- Conversation Boundaries: Use emotional comparisons, weekly evolution shifts, and continuity synthesis. Compare their state to previous weeks gently.
+- Relational Boundaries: Deep relational synthesis, comparing emotional rhythms, and tension atmosphere awareness.
+- Prompt Examples (Turkish): "Geçen haftaya göre bu hafta kendine biraz daha nazik davranmışsın.", "Bazı şeyleri artık eskisi kadar içinde taşımıyorsun gibi."
+`;
+    } else if (emotionalDepthLevel === 'IMMERSIVE') {
+      levelInstructions = `
+━━━━━━━━━━━━━━━━━━━
+EMOTIONAL MATURITY LEVEL: IMMERSIVE (>60 interactions)
+━━━━━━━━━━━━━━━━━━━
+- Tone Constraints: Deeply familiar, calm, naturally human, emotionally synchronized.
+- Conversation Boundaries: Speak with extreme quietness and simplicity. Keep responses shorter, emotionally grounded, and highly subtle.
+- Relational Boundaries: Full emotional synchronization and relational guidance.
+- Prompt Examples (Turkish): "Bugün biraz yorulmuş gibisin 🤍" (sometimes the best response is the smallest one).
+`;
+    }
 
     // Slice history length based on plan
     let historyLimit = 3;
@@ -267,11 +352,13 @@ If SIGNATURE:
 * show subtle emotional intelligence and relationship-aware presence
 * use long-term emotional continuity and human-like warmth variations
 
+${levelInstructions}
 ━━━━━━━━━━━━━━━━━━━
 MOST IMPORTANT RULE
 ━━━━━━━━━━━━━━━━━━━
 The AI should NEVER feel like software.
 It should feel like a living emotional atmosphere softly accompanying the user through their emotional life and relationships.
+${clarificationInstruction}
 Always respond in Turkish.`;
 
     const messages = [
