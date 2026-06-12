@@ -32,6 +32,18 @@ const REQUIRED_SCHEMA = {
   ],
   weekly_guidance: [
     'id', 'user_id', 'zodiac_sign', 'guidance_text', 'themes', 'generated_at', 'expires_at'
+  ],
+  couple_memories: [
+    'id', 'connection_id', 'memory_type', 'summary', 'participants', 
+    'emotional_weight', 'resolved', 'last_referenced_at', 'created_at', 'updated_at', 'symbol'
+  ],
+  relationship_garden: [
+    'id', 'connection_id', 'garden_state', 'growth_level', 'updated_at'
+  ],
+  relationship_daily_syncs: [
+    'id', 'connection_id', 'synced_date', 'generated_text', 'emotional_weather', 
+    'relationship_energy', 'created_at', 'expires_at', 'insight_feed', 
+    'emotional_aura', 'connection_state', 'relationship_rhythm', 'emotional_closeness'
   ]
 };
 
@@ -46,15 +58,21 @@ async function validateSchema() {
 
   try {
     for (const [table, columns] of Object.entries(REQUIRED_SCHEMA)) {
-      // 1. Check if the table exists
+      // 1. Check if the table exists using to_regclass for safety
       const tableCheck = await db.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' AND table_name = $1
-        );
-      `, [table]);
+        SELECT to_regclass($1) AS reg;
+      `, [`public.${table}`]);
 
-      if (!tableCheck.rows[0].exists) {
+      const tableExists = tableCheck.rows[0] && tableCheck.rows[0].reg !== null;
+
+      if (!tableExists) {
+        // Skip validation of signature tables if they don't exist yet
+        const isSignatureTable = ['couple_memories', 'relationship_garden', 'relationship_daily_syncs'].includes(table);
+        if (isSignatureTable) {
+          console.log(`[SCHEMA-VALIDATOR] Signature table '${table}' does not exist yet. Skipping validation.`);
+          continue;
+        }
+        
         failed = true;
         const msg = `[CRITICAL-SCHEMA] Missing table: '${table}'`;
         console.error(msg);
@@ -74,6 +92,20 @@ async function validateSchema() {
       // 3. Verify all required columns are present
       for (const col of columns) {
         if (!dbColumns.has(col)) {
+          // Soft-ignore missing Signature columns
+          const isSignatureColumn = [
+            'emotional_aura', 
+            'connection_state', 
+            'relationship_rhythm', 
+            'emotional_closeness',
+            'symbol'
+          ].includes(col);
+          
+          if (isSignatureColumn) {
+            console.log(`[SCHEMA-VALIDATOR] Signature column '${col}' on table '${table}' does not exist yet. Soft-ignoring.`);
+            continue;
+          }
+
           failed = true;
           const msg = `[CRITICAL-SCHEMA] Missing column: '${col}' on table '${table}'`;
           console.error(msg);

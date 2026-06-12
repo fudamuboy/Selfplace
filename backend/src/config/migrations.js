@@ -5,8 +5,10 @@ const db = require('./db');
  * This runs on every server startup to prevent 'column does not exist' errors.
  */
 exports.runMigrations = async () => {
+  console.log('[MIGRATION] Acquiring database migration advisory lock...');
+  await db.query('SELECT pg_advisory_lock(7429183)');
+  console.log('[MIGRATION] Migration advisory lock acquired.');
 
-  
   try {
     // 1. Rename users.password_hash if it exists (migration to 'password')
     const checkUserCols = await db.query(`
@@ -473,6 +475,24 @@ exports.runMigrations = async () => {
       CREATE INDEX IF NOT EXISTS idx_rel_context_connection ON relationship_context(connection_id);
       CREATE INDEX IF NOT EXISTS idx_rel_insights_for_user ON relationship_insights(for_user_id);
 
+      -- Early creation of couple_memories to prevent dependency race conditions on bootstrap
+      CREATE TABLE IF NOT EXISTS couple_memories (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        memory_type VARCHAR(50) NOT NULL,
+        summary TEXT NOT NULL,
+        participants VARCHAR(20) DEFAULT 'both',
+        emotional_weight INTEGER DEFAULT 3 CHECK (emotional_weight BETWEEN 1 AND 5),
+        resolved BOOLEAN DEFAULT FALSE,
+        last_referenced_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_couple_memories_conn ON couple_memories(connection_id);
+      CREATE INDEX IF NOT EXISTS idx_couple_memories_type ON couple_memories(memory_type);
+      CREATE INDEX IF NOT EXISTS idx_couple_memories_resolved ON couple_memories(resolved);
+
       -- 19. Relationship Phase 2 additions
       CREATE TABLE IF NOT EXISTS relationship_daily_syncs (
         id SERIAL PRIMARY KEY,
@@ -738,32 +758,6 @@ exports.runMigrations = async () => {
 
     // ─── RELATIONSHIP INTELLIGENCE UPGRADE ────────────────────────────────────
 
-    // Shared couple memory — stores emotional events per relationship connection
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS couple_memories (
-        id SERIAL PRIMARY KEY,
-        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
-        memory_type VARCHAR(50) NOT NULL,
-        -- 'conflict' | 'reconciliation' | 'milestone' | 'recurring_issue'
-        -- | 'positive_moment' | 'communication_pattern' | 'relationship_goal'
-        summary TEXT NOT NULL,
-        participants VARCHAR(20) DEFAULT 'both',
-        -- 'both' | 'partner_a' (requester) | 'partner_b' (recipient)
-        emotional_weight INTEGER DEFAULT 3 CHECK (emotional_weight BETWEEN 1 AND 5),
-        resolved BOOLEAN DEFAULT FALSE,
-        last_referenced_at TIMESTAMP WITH TIME ZONE,
-        -- cooldown: don't repeat within 12 h per trigger
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_couple_memories_conn ON couple_memories(connection_id);
-      CREATE INDEX IF NOT EXISTS idx_couple_memories_type ON couple_memories(memory_type);
-      CREATE INDEX IF NOT EXISTS idx_couple_memories_resolved ON couple_memories(resolved);
-    `);
-
     // Per-user behavioral & emotional trait memory
     await db.query(`
       CREATE TABLE IF NOT EXISTS individual_behavioral_memory (
@@ -790,6 +784,10 @@ exports.runMigrations = async () => {
   } catch (err) {
     console.error('[MIGRATION] Error during schema check:', err.message);
     throw err;
+  } finally {
+    console.log('[MIGRATION] Releasing database migration advisory lock...');
+    await db.query('SELECT pg_advisory_unlock(7429183)');
+    console.log('[MIGRATION] Migration advisory lock released.');
   }
 };
 
