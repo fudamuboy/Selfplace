@@ -29,4 +29,8 @@ router.get('/:id/timeline', relationshipController.getTimeline);
 // Phase 3 additions
 router.get('/:id/insight-feed', relationshipController.getInsightFeed);
 
+// Signature Tier additions
+router.get('/:id/crystals', relationshipController.getCrystals);
+router.get('/:id/garden', relationshipController.getGardenState);
+
 module.exports = router;

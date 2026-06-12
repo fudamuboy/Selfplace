@@ -183,7 +183,182 @@ Format your response as a JSON object containing "insight", "rhythm", "comfortPa
   }
 }
 
+// ---------------------------------------------------------------------------
+// generatePersonalityArchetype
+// ---------------------------------------------------------------------------
+async function generatePersonalityArchetype(baseArchetype, dimensionScores) {
+  try {
+    const client = getClient();
+    const systemPrompt = `You are "Selfplace", a calm, emotionally intelligent personality guide.
+Your goal is to enrich a base personality archetype into a deeply personalized, poetic, and atmospheric evaluation in Turkish.
+DO NOT use clinical, psychiatric, or medically diagnostic language (e.g. avoid "avoidant attachment disorder", "unstable").
+Instead, use soft, empathetic, and relational energy descriptions (e.g. "Bazen duygularını kendi içinde yaşamayı tercih ediyorsun").
+
+Base Archetype: ${baseArchetype.name}
+Base Description: ${baseArchetype.description}
+User's Dimension Scores:
+${JSON.stringify(dimensionScores, null, 2)}
+
+Generate a JSON object with the following fields:
+{
+  "archetype_name": "A unique, beautiful Turkish name inspired by the Base Archetype but personalized (e.g., 'Sakin Gölge Suyu', 'Parlayan Ateş Ruhu')",
+  "description": "A 2-3 sentence poetic, cinematic summary of their inner world.",
+  "relationship_style": "1-2 sentences on how they bond, love, or connect with others.",
+  "strengths": ["Strength 1 (short phrase)", "Strength 2", "Strength 3"],
+  "blind_spots": ["Blind spot 1 (softly worded phrase)", "Blind spot 2"],
+  "communication_energy": "A short sentence on how they express themselves."
+}`;
+
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: systemPrompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 500,
+      temperature: 0.7,
+    });
+
+    const result = completion.choices?.[0]?.message?.content?.trim();
+    if (!result) throw new Error('OpenAI returned empty content.');
+
+    return JSON.parse(result);
+  } catch (err) {
+    console.error('[aiService] generatePersonalityArchetype error:', err.message);
+    throw err;
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// generatePersonalityDrift
+// ---------------------------------------------------------------------------
+async function generatePersonalityDrift(oldScores, newScores) {
+  try {
+    const client = getClient();
+    const systemPrompt = `You are "Selfplace", a calm, emotionally intelligent personality guide.
+The user has retaken their personality journey. We want to observe how their emotional energy has subtly shifted.
+
+Old Scores: ${JSON.stringify(oldScores)}
+New Scores: ${JSON.stringify(newScores)}
+
+DO NOT use diagnostic, medical, or judgmental language (e.g., "better", "worse", "improved", "declined").
+DO NOT use clinical terms like "avoidant" or "unstable".
+Use poetic, atmospheric, and soft emotional language (e.g., "Son zamanlarda duygularını daha sessiz ama daha net yaşamaya başladığın hissediliyor.").
+
+Write a single, beautiful 1-2 sentence observation in Turkish about how their emotional style is evolving based on the differences in scores. If the scores are almost identical, mention how their core energy remains deeply rooted and stable.
+
+Respond ONLY with a valid JSON object containing the following fields:
+{
+  "evolution_summary": "A 2-3 sentence poetic reflection on their overall emotional journey and how their core rhythms are evolving.",
+  "dominant_shift": "A 1-2 sentence specific observation of the most noticeable dimensional change (e.g., '🌙 İçindeki yoğun ritim biraz daha sakinleşmiş gibi görünüyor. Kendini ifade ederken artık daha yumuşak bir açıklık hissediliyor.')"
+}`;
+
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: systemPrompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 200,
+      temperature: 0.7,
+    });
+
+    const result = completion.choices?.[0]?.message?.content?.trim();
+    if (!result) return null;
+
+    return JSON.parse(result);
+  } catch (err) {
+    console.error('[aiService] generatePersonalityDrift error:', err.message);
+    return null; // Graceful fallback
+  }
+}
+
+// ---------------------------------------------------------------------------
+// generateRitualReflection
+// ---------------------------------------------------------------------------
+async function generateRitualReflection(ritualQuestion, partnerAAnswer, partnerBAnswer) {
+  try {
+    const client = getClient();
+    const systemPrompt = `You are the emotional reflection engine of a relationship wellness app called Selfplace.
+
+Your task is to analyze two relationship ritual answers written by romantic partners and generate a deeply human, emotionally intelligent shared reflection.
+
+IMPORTANT RULES:
+* NEVER sound robotic, clinical, or generic.
+* NEVER invent emotions that are not supported by the answers.
+* The reflection MUST be based directly on the emotional tone, wording, vulnerability, affection, gratitude, tension, reassurance, emotional distance, or warmth detected in BOTH answers.
+* The response should feel calm, emotionally aware, poetic, soft, and psychologically immersive.
+* Avoid exaggeration.
+* Do not repeat the users' exact words.
+* Do not make the reflection too long.
+* Generate all fields (relationship_reflection and gentle_suggestion) in Turkish.
+* The tone should feel like:
+  "an emotionally intelligent mirror gently reflecting the state of the relationship."
+
+You must generate:
+1. relationship_reflection
+   → A warm emotional synthesis of both answers in Turkish.
+2. emotional_climate
+   → A short emotional atmosphere label.
+   Examples:
+   * "Sakin Yakınlık"
+   * "Derin Minnettarlık"
+   * "Hassas Denge"
+   * "Sessiz Özlem"
+   * "Yumuşak Güven"
+   * "Yoğun Bağ"
+   * "Duygusal Yenilenme"
+3. gentle_suggestion
+   → A small emotionally supportive suggestion based on the answers.
+4. is_memory_crystal
+   → A boolean indicating if the combined answers represent a truly deep, vulnerable, or emotionally significant milestone/breakthrough/healing moment.
+     CRITICAL RULES FOR CRYSTALS:
+     - Default value must be FALSE.
+     - ONLY set to TRUE if BOTH answers demonstrate highly profound emotional disclosures, heavy vulnerability (e.g. sharing fears, crying, severe anxiety, breakthroughs), intense mutual gratitude, or resolving a major conflict/silence.
+     - Set to FALSE for typical daily check-ins, polite expressions, casual updates, or short responses.
+5. crystal_summary
+   → A short poetic summary/title in Turkish (max 4 words) describing the milestone, if is_memory_crystal is true (e.g., "İlk Kez Dürüstçe Paylaşım", "Karanlıkta Birbirine Sığınma"). Otherwise empty.
+6. crystal_symbol
+   → An emotional symbol string choosing from: 'sparkles', 'heart', 'star', 'moon', 'leaf', 'rose', 'sun'.
+
+OUTPUT FORMAT (STRICT JSON):
+{
+  "relationship_reflection": "...",
+  "emotional_climate": "...",
+  "gentle_suggestion": "...",
+  "is_memory_crystal": true/false,
+  "crystal_summary": "...",
+  "crystal_symbol": "..."
+}
+
+RITUAL QUESTION:
+${ritualQuestion}
+
+PARTNER A ANSWER:
+${partnerAAnswer}
+
+PARTNER B ANSWER:
+${partnerBAnswer}`;
+
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: systemPrompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 400,
+      temperature: 0.7,
+    });
+
+    const result = completion.choices?.[0]?.message?.content?.trim();
+    if (!result) return null;
+
+    return JSON.parse(result);
+  } catch (err) {
+    console.error('[aiService] generateRitualReflection error:', err.message);
+    return null;
+  }
+}
+
 module.exports = { 
   generateWeeklyInsight,
-  generateDailyReflection
+  generateDailyReflection,
+  generatePersonalityArchetype,
+  generatePersonalityDrift,
+  generateRitualReflection
 };

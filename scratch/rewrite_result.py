@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import re
+
+with open('app/personality-result-detail.tsx', 'r') as f:
+    content = f.read()
+
+new_content = """import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,13 +27,6 @@ interface TestResult {
     blind_spots: string[];
     communication_energy: string;
     scores: Record<string, number>;
-    drift_insight?: string;
-    color_family?: {
-      name: string;
-      hex: string;
-      symbol: string;
-      description: string;
-    };
   };
   created_at: string;
 }
@@ -51,7 +49,7 @@ const DimensionBar = ({ label, score, color, delay }: { label: string, score: nu
   return (
     <View style={styles.dimensionWrapper}>
       <Text style={[styles.dimensionLabel, { color: currentTheme.colors.text.primary }]}>{label}</Text>
-      <View style={[styles.dimensionTrack, { backgroundColor: currentTheme.colors.card }]}>
+      <View style={[styles.dimensionTrack, { backgroundColor: currentTheme.colors.cardBackground }]}>
         <Animated.View style={[styles.dimensionFill, { backgroundColor: color }, animatedStyle]} />
       </View>
     </View>
@@ -109,8 +107,6 @@ export default function PersonalityResultDetailScreen() {
     strengths,
     blind_spots,
     communication_energy,
-    drift_insight,
-    color_family,
     scores
   } = result.result_data;
 
@@ -120,16 +116,7 @@ export default function PersonalityResultDetailScreen() {
     <GradientBackground>
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => {
-              if (router.canDismiss && router.canDismiss()) {
-                router.dismissAll();
-              } else {
-                router.back();
-              }
-            }} 
-            style={styles.closeBtn}
-          >
+          <TouchableOpacity onPress={() => router.replace('/account')} style={styles.closeBtn}>
             <Ionicons name="close" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
         </Animated.View>
@@ -150,50 +137,8 @@ export default function PersonalityResultDetailScreen() {
           </View>
         </Animated.View>
 
-        
-        {/* Drift Insight (Evrimsel Gözlem) */}
-        {drift_insight && (
-          <Animated.View entering={FadeInDown.duration(1200).delay(400)} style={[styles.driftCard, { backgroundColor: currentTheme.colors.card, shadowColor: accentColor }]}>
-            <View style={styles.driftHeader}>
-              <Ionicons name="sparkles" size={18} color={accentColor} style={{ marginRight: 8 }} />
-              <Text style={[styles.driftTitle, { color: accentColor }]}>Evrimsel Gözlem</Text>
-            </View>
-            <Text style={[styles.driftText, { color: currentTheme.colors.text.primary }]}>
-              {drift_insight}
-            </Text>
-          </Animated.View>
-        )}
-
-        
-        {/* Color Identity (Enerji Rengin) */}
-        {color_family && (
-          <Animated.View entering={FadeInDown.duration(600).delay(150)} style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 24, marginRight: 8 }}>{color_family.symbol}</Text>
-              <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>
-                Senin Enerji Rengin
-              </Text>
-            </View>
-            
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: color_family.hex, marginRight: 12, shadowColor: color_family.hex, shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: {width: 0, height: 0} }} />
-              <Text style={{ fontSize: 18, fontWeight: '700', color: color_family.hex }}>
-                {color_family.name}
-              </Text>
-            </View>
-            
-            <Text style={[styles.cardText, { color: currentTheme.colors.text.secondary }]}>
-              {color_family.description.includes('introspective') ? 'İçsel derinliğin ve sakin ritmin seni bu renge yaklaştırıyor. Duygularını kendi içinde, sessiz bir bağ kurarak yaşıyorsun.' :
-               color_family.description.includes('expressive') ? 'Yoğun duygusal ifade ve yüksek içsel ritmin, seni sıcak ve hareketli bir enerji tonuna yaklaştırıyor.' :
-               color_family.description.includes('grounding') ? 'Sakinleştirici doğan ve duygusal dengen, seni çevrene güven veren toprak ve doğa tonlarına yaklaştırıyor.' :
-               color_family.description.includes('curious') ? 'Zihinsel merakın ve coşkulu enerjin, seni aydınlık ve dışa dönük bir enerji frekansına taşıyor.' :
-               'Soyut ve şiirsel iç dünyan, seni hayal gücünün ve derin düşüncenin renklerine yaklaştırıyor.'}
-            </Text>
-          </Animated.View>
-        )}
-
         {/* Dynamic Dimensions */}
-        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={[styles.card, { backgroundColor: currentTheme.colors.cardBackground, borderColor: currentTheme.colors.cardBorder }]}>
           <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>Duygusal Enerji Boyutların</Text>
           <View style={styles.dimensionsList}>
             <DimensionBar label="Sosyal Enerji" score={scores.social_energy || 0} color={accentColor} delay={300} />
@@ -206,7 +151,7 @@ export default function PersonalityResultDetailScreen() {
 
         {/* Strengths & Blind Spots */}
         <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.splitRow}>
-          <View style={[styles.splitCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+          <View style={[styles.splitCard, { backgroundColor: currentTheme.colors.cardBackground, borderColor: currentTheme.colors.cardBorder }]}>
             <View style={[styles.iconCircle, { backgroundColor: 'rgba(74, 222, 128, 0.15)' }]}>
               <Ionicons name="leaf" size={24} color="#4ade80" />
             </View>
@@ -216,7 +161,7 @@ export default function PersonalityResultDetailScreen() {
             ))}
           </View>
 
-          <View style={[styles.splitCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+          <View style={[styles.splitCard, { backgroundColor: currentTheme.colors.cardBackground, borderColor: currentTheme.colors.cardBorder }]}>
             <View style={[styles.iconCircle, { backgroundColor: 'rgba(248, 113, 113, 0.15)' }]}>
               <Ionicons name="eye-off" size={24} color="#f87171" />
             </View>
@@ -228,7 +173,7 @@ export default function PersonalityResultDetailScreen() {
         </Animated.View>
 
         {/* Relational Style */}
-        <Animated.View entering={FadeInDown.duration(600).delay(600)} style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+        <Animated.View entering={FadeInDown.duration(600).delay(600)} style={[styles.card, { backgroundColor: currentTheme.colors.cardBackground, borderColor: currentTheme.colors.cardBorder }]}>
           <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>İlişki ve İletişim Tarzın</Text>
           <Text style={[styles.cardText, { color: currentTheme.colors.text.secondary, marginBottom: 12 }]}>
             <Text style={{ fontWeight: '700', color: currentTheme.colors.text.primary }}>Bağlanma: </Text>
@@ -300,36 +245,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
-  },
-
-  driftCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 5,
-  },
-  driftHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  driftTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  driftText: {
-    fontSize: 16,
-    fontStyle: 'italic',
-    lineHeight: 26,
-    fontWeight: '400',
   },
   card: {
     marginHorizontal: 20,
@@ -404,3 +319,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   }
 });
+"""
+
+with open('app/personality-result-detail.tsx', 'w') as f:
+    f.write(new_content)

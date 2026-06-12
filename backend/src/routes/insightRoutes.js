@@ -6,6 +6,9 @@ const authenticateToken = require('../middleware/auth');
 // Weekly Insight (Hybrid AI + Persistence)
 router.get('/weekly', authenticateToken, insightController.getWeeklyInsight);
 
+// Journey Stats & Archive
+router.get('/journey', authenticateToken, insightController.getJourneyStats);
+
 // Stats for Profile
 router.get('/stats', authenticateToken, insightController.getStats);
 

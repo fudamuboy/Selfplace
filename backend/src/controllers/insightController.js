@@ -199,10 +199,10 @@ exports.getWeeklyInsight = async (req, res) => {
       });
     }
 
-    const { checkIns, cardResponses } = userData;
+    const { checkIns, cardResponses, entries } = userData;
 
     // Not enough data fallback
-    if (checkIns.length < 2) {
+    if (entries.length < 2) {
       return res.json({
         insight: "Kendini tanıma yolculuğun küçük adımlarla başlar. Birkaç check-in sonrası burada sana küçük içgörüler göstereceğim.",
         source: 'placeholder',
@@ -359,5 +359,136 @@ exports.getPatterns = async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ message: 'Örüntüler analiz edilirken bir hata oluştu.' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/insights/journey
+// ---------------------------------------------------------------------------
+
+exports.getJourneyStats = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // 1. Current Week Stats
+    const currentWeekRes = await db.query(
+      `SELECT source_type, emotion
+       FROM emotional_entries
+       WHERE user_id = $1 AND created_at >= date_trunc('week', CURRENT_DATE)`,
+      [userId]
+    );
+
+    const checkinCount = currentWeekRes.rows.filter(r => r.source_type === 'checkin').length;
+    const cardsCount = currentWeekRes.rows.filter(r => r.source_type === 'card').length;
+    const journalCount = currentWeekRes.rows.filter(r => r.source_type === 'reflection' || r.source_type === 'journal').length;
+
+    // 2. Previous Week Stats for Progression
+    const prevWeekRes = await db.query(
+      `SELECT source_type, emotion
+       FROM emotional_entries
+       WHERE user_id = $1 
+         AND created_at >= date_trunc('week', CURRENT_DATE - INTERVAL '1 week')
+         AND created_at < date_trunc('week', CURRENT_DATE)`,
+      [userId]
+    );
+
+    const prevCheckinCount = prevWeekRes.rows.filter(r => r.source_type === 'checkin').length;
+    const prevJournalCount = prevWeekRes.rows.filter(r => r.source_type === 'reflection' || r.source_type === 'journal').length;
+
+    const totalCurrent = checkinCount + journalCount;
+    const totalPrev = prevCheckinCount + prevJournalCount;
+
+    let progressionText = "Kendini tanıma yolculuğunda yeni bir haftaya başlıyorsun.";
+    if (totalCurrent > totalPrev && totalCurrent > 3) {
+      progressionText = "Son haftalarda kendini ifade etme biçiminde güzel bir derinlik oluşuyor.";
+    } else if (totalCurrent < totalPrev && totalCurrent <= 1) {
+      progressionText = "Bu hafta biraz daha sessizdin. Bazen geri çekilmek de yolculuğun bir parçası.";
+    } else if (totalCurrent >= 3) {
+      progressionText = "Bu hafta kendinle güçlü bir bağ kurmuşsun. Düşüncelerine dikkatle yaklaşman güzel bir derinlik yaratıyor.";
+    } else if (totalCurrent > 0) {
+      progressionText = "Kendine alan tanıman yolculuğunun çok değerli bir parçası.";
+    }
+
+    // 3. Archive Aggregation
+    // We fetch all weekly insights generated BEFORE the start of this week
+    const archiveRes = await db.query(
+      `SELECT id, text, generated_at
+       FROM weekly_insights
+       WHERE user_id = $1 AND generated_at < date_trunc('week', CURRENT_DATE)
+       ORDER BY generated_at DESC`,
+      [userId]
+    );
+
+    const archive = [];
+    for (const row of archiveRes.rows) {
+      // Calculate 7-day window prior to generated_at to get the dominant mood and counts
+      const pastEntriesRes = await db.query(
+        `SELECT source_type, emotion 
+         FROM emotional_entries
+         WHERE user_id = $1 
+           AND created_at >= $2::timestamp - INTERVAL '7 days'
+           AND created_at < $2::timestamp`,
+        [userId, row.generated_at]
+      );
+
+      const pastEntries = pastEntriesRes.rows;
+      const pastCheckins = pastEntries.filter(r => r.source_type === 'checkin').length;
+      const pastJournals = pastEntries.filter(r => r.source_type === 'reflection' || r.source_type === 'journal').length;
+
+      const moods = pastEntries.map(e => e.emotion).filter(Boolean);
+      let dominantMood = 'Sakin';
+      if (moods.length > 0) {
+        const moodCounts = moods.reduce((acc, mood) => {
+          acc[mood] = (acc[mood] || 0) + 1;
+          return acc;
+        }, {});
+        dominantMood = Object.keys(moodCounts).reduce((a, b) => moodCounts[a] > moodCounts[b] ? a : b);
+      }
+
+      let insightData = {};
+      try {
+        insightData = JSON.parse(row.text);
+      } catch (e) {
+        insightData = { insight: row.text };
+      }
+
+      // Title parsing
+      let themeTitle = "Duygularınla yüzleşmeye başladığın hafta";
+      if (insightData.depthLevel === 'NEW' || insightData.depthLevel === 'LIGHT') themeTitle = "Kendine doğru sessiz bir adım";
+      if (insightData.depthLevel === 'GROWING') themeTitle = "Duygularınla yüzleşmeye başladığın hafta";
+      if (insightData.depthLevel === 'DEEP') themeTitle = "İçe dönüş ve farkındalık haftası";
+      if (insightData.depthLevel === 'IMMERSIVE') themeTitle = "Kendi gerçeğinle bağ kurduğun hafta";
+
+      // Soft reflection sentence
+      let reflectionSentence = insightData.insight 
+        ? (insightData.insight.length > 75 ? insightData.insight.substring(0, 75) + '...' : insightData.insight)
+        : "Bu hafta kendine karşı dürüst görünüyordun.";
+
+      archive.push({
+        id: row.id,
+        date: row.generated_at,
+        themeTitle,
+        dominantMood,
+        checkinCount: pastCheckins,
+        journalCount: pastJournals,
+        reflectionSentence
+      });
+    }
+
+    res.json({
+      success: true,
+      stats: {
+        checkinCount,
+        cardsCount,
+        journalCount
+      },
+      progressionText,
+      archive,
+      hasArchive: archive.length > 0
+    });
+
+  } catch (err) {
+    console.error('[insightController] getJourneyStats error:', err);
+    res.status(500).json({ success: false, message: 'Yolculuk verileri alınamadı.' });
   }
 };

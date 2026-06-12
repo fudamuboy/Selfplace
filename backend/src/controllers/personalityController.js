@@ -1,476 +1,227 @@
 const db = require('../config/db');
+const { FULL_POOL, DIMENSIONS, BASE_ARCHETYPES } = require('../data/personalityQuestions');
+const { generatePersonalityArchetype, generatePersonalityDrift } = require('../services/aiService');
+const { resolveColorFamily } = require('../services/personalityColorEngine');
 
-// --- 4-Color Personality Test (DISC Based) ---
+console.log(
+  '[PERSONALITY ENGINE]',
+  FULL_POOL.length,
+  FULL_POOL.slice(0, 5).map(q => q.id)
+);
 
-const COLOR_TEST = {
-  id: 'color',
-  title: 'Ruhunun Renkleri',
-  description: 'Dört temel renk üzerinden davranışlarını, iletişim tarzını ve içsel motivasyonlarını keşfet.',
-  questions: [
-    {
-      id: 'c1',
-      text: 'Bir grup projesinde çalışırken ilk odaklandığın şey nedir?',
-      options: [
-        { text: 'Hemen harekete geçmek ve hedefe ulaşmak', value: 'red' },
-        { text: 'Herkesin fikrini almak ve uyumu sağlamak', value: 'green' },
-        { text: 'Detaylı bir plan yapmak ve analiz etmek', value: 'blue' },
-        { text: 'Yeni fikirler bulmak ve enerji katmak', value: 'yellow' }
-      ]
-    },
-    {
-      id: 'c2',
-      text: 'Baskı ve stres altında hissettiğinde genellikle nasıl tepki verirsin?',
-      options: [
-        { text: 'Daha sessizleşir ve içime kapanırım', value: 'green' },
-        { text: 'Hemen bir çözüm bulmaya ve kontrolü ele almaya çalışırım', value: 'red' },
-        { text: 'Detaylara boğulur ve hata yapmaktan korkarım', value: 'blue' },
-        { text: 'Aceleci davranır ve durumu şakaya vurmaya çalışırım', value: 'yellow' }
-      ]
-    },
-    {
-      id: 'c3',
-      text: 'İnsanlarla iletişim kurarken tarzın nasıldır?',
-      options: [
-        { text: 'Heyecanlı, enerjik ve konuşkan', value: 'yellow' },
-        { text: 'Dinleyici, sakin ve destekleyici', value: 'green' },
-        { text: 'Net, doğrudan ve sonuca odaklı', value: 'red' },
-        { text: 'Ölçülü, düşünceli ve gerçeklere dayalı', value: 'blue' }
-      ]
-    },
-    {
-      id: 'c4',
-      text: 'Seni en çok ne motive eder?',
-      options: [
-        { text: 'Düzen, kesinlik ve kaliteyi yakalamak', value: 'blue' },
-        { text: 'Başarı, zafer ve zorlukların üstesinden gelmek', value: 'red' },
-        { text: 'Sosyal onay, eğlence ve yeni şeyler denemek', value: 'yellow' },
-        { text: 'Güven, huzur ve başkalarına yardım etmek', value: 'green' }
-      ]
-    },
-    {
-      id: 'c5',
-      text: 'Bir karar alman gerektiğinde nasıl bir yol izlersin?',
-      options: [
-        { text: 'İçgüdülerimle hızlıca karar veririm', value: 'yellow' },
-        { text: 'Kararımın başkalarını nasıl etkileyeceğini düşünürüm', value: 'green' },
-        { text: 'Tüm verileri toplar, avantaj ve dezavantajları tartar, öyle karar veririm', value: 'blue' },
-        { text: 'Kararsızlık sevmem, en mantıklı olanı hemen seçerim', value: 'red' }
-      ]
-    },
-    {
-      id: 'c6',
-      text: 'Çatışma veya tartışma anlarında ne yaparsın?',
-      options: [
-        { text: 'Tartışmadan kaçınır, orta yolu bulmaya çalışırım', value: 'green' },
-        { text: 'Haklıysam sonuna kadar savunur, geri adım atmam', value: 'red' },
-        { text: 'Duyguları bir kenara bırakır, gerçekler üzerinden konuşurum', value: 'blue' },
-        { text: 'Gerginliği kırmak için konuyu değiştirmeye çalışırım', value: 'yellow' }
-      ]
-    },
-    {
-      id: 'c7',
-      text: 'Yeni bir ortama girdiğinde nasıl davranırsın?',
-      options: [
-        { text: 'Hemen insanlarla tanışır ve sohbet başlatırım', value: 'yellow' },
-        { text: 'Sessizce kenarda durur, ortamı gözlemlerim', value: 'blue' },
-        { text: 'Tanıdığım birilerini bulur veya onlara yakın dururum', value: 'green' },
-        { text: 'Ortamın merkezine geçer ve ilgiyi üzerime çekerim', value: 'red' }
-      ]
-    },
-    {
-      id: 'c8',
-      text: 'Biri sana işinde hata yaptığını söylerse tepkin ne olur?',
-      options: [
-        { text: 'Hatamı kanıtlayan verilere bakar, sonra düzeltirim', value: 'blue' },
-        { text: 'Hemen savunmaya geçerim veya umursamam', value: 'red' },
-        { text: 'Üzülürüm ama ilişkimi bozmamaya çalışırım', value: 'green' },
-        { text: 'Konuyu şakaya vurup durumu hafifletirim', value: 'yellow' }
-      ]
-    },
-    {
-      id: 'c9',
-      text: 'Boş zamanlarında en çok ne yapmaktan keyif alırsın?',
-      options: [
-        { text: 'Kitap okumak, araştırmak veya bir şeyler düzenlemek', value: 'blue' },
-        { text: 'Arkadaşlarımla dışarı çıkmak, eğlenmek', value: 'yellow' },
-        { text: 'Doğada yürüyüş yapmak veya sessizce dinlenmek', value: 'green' },
-        { text: 'Rekabetçi sporlar veya yeni bir hedefe çalışmak', value: 'red' }
-      ]
-    },
-    {
-      id: 'c10',
-      text: 'Çalışma masan genellikle nasıldır?',
-      options: [
-        { text: 'Çok düzenli ve her şey yerli yerinde', value: 'blue' },
-        { text: 'Biraz dağınık ama benim için yaratıcı bir kaos', value: 'yellow' },
-        { text: 'Sade, sıcak ve kişisel eşyalarla dolu', value: 'green' },
-        { text: 'Fonksiyonel, sadece işime yarayan şeyler var', value: 'red' }
-      ]
-    },
-    {
-      id: 'c11',
-      text: 'Bir arkadaşın üzgün olduğunda ilk olarak ne yaparsın?',
-      options: [
-        { text: 'Ona problemi çözmesi için mantıklı bir yol sunarım', value: 'blue' },
-        { text: 'Onu güldürmeye ve neşelendirmeye çalışırım', value: 'yellow' },
-        { text: 'Sadece yanında durur, ona sarılır ve dinlerim', value: 'green' },
-        { text: 'Onu üzen şeyi gidip çözmek için harekete geçerim', value: 'red' }
-      ]
-    },
-    {
-      id: 'c12',
-      text: 'Hayatındaki en büyük korkun nedir?',
-      options: [
-        { text: 'Kontrolü kaybetmek ve başarısız olmak', value: 'red' },
-        { text: 'Hata yapmak ve eleştirilmek', value: 'blue' },
-        { text: 'Sevdiklerim tarafından dışlanmak veya yalnız kalmak', value: 'yellow' },
-        { text: 'Güvenliğimin ve huzurumun bozulması', value: 'green' }
-      ]
-    },
-    {
-      id: 'c13',
-      text: 'Bir göreve başlarken yaklaşımın nasıldır?',
-      options: [
-        { text: 'Hemen şimdi, hızlıca bitirelim!', value: 'red' },
-        { text: 'Önce mükemmel bir plan çıkaralım.', value: 'blue' },
-        { text: 'Herkesin ne yapacağı konusunda anlaşalım.', value: 'green' },
-        { text: 'Eğlenceli ve farklı bir şekilde nasıl yaparız?', value: 'yellow' }
-      ]
-    },
-    {
-      id: 'c14',
-      text: 'Biri sana aniden sürpriz bir planla geldiğinde hissin?',
-      options: [
-        { text: 'Harika! Hemen hazırlanıyorum.', value: 'yellow' },
-        { text: 'Bunu programıma nasıl uyduracağımı hesaplamam lazım.', value: 'blue' },
-        { text: 'Benim planım var, o plana uymuyorsa reddederim.', value: 'red' },
-        { text: 'Eğer çok yorucu değilse uyum sağlarım.', value: 'green' }
-      ]
-    },
-    {
-      id: 'c15',
-      text: 'Kurallarla aran nasıldır?',
-      options: [
-        { text: 'Kurallar uyulmak içindir, onlarsız düzen olmaz.', value: 'blue' },
-        { text: 'Kurallar beni engelliyorsa, onları esnetebilirim.', value: 'red' },
-        { text: 'Kurallar sıkıcıdır, kendi kurallarımı yaratmayı severim.', value: 'yellow' },
-        { text: 'Başkalarını rahatsız etmediği sürece kurallara uyarım.', value: 'green' }
-      ]
-    },
-    {
-      id: 'c16',
-      text: 'Yeni bir teknolojik alet aldığında ne yaparsın?',
-      options: [
-        { text: 'Kullanım kılavuzunu baştan sona okurum.', value: 'blue' },
-        { text: 'Hemen düğmelere basıp kurcalamaya başlarım.', value: 'yellow' },
-        { text: 'Bilen birine sorar, yardım isterim.', value: 'green' },
-        { text: 'Direkt kurup hemen amaca yönelik kullanmaya başlarım.', value: 'red' }
-      ]
-    },
-    {
-      id: 'c17',
-      text: 'Biri çok ağır konuştuğunda içindeki tepki ne olur?',
-      options: [
-        { text: 'Sessiz kalır, ama içten içe derin kırılırım.', value: 'green' },
-        { text: 'Ona çok daha sert ve net bir cevap veririm.', value: 'red' },
-        { text: 'Onun bu mantıksız sözlerini analiz eder, haksızlığını yüzüne vururum.', value: 'blue' },
-        { text: 'Konuyu duymazdan gelir veya gülüp geçerim.', value: 'yellow' }
-      ]
-    },
-    {
-      id: 'c18',
-      text: 'Ekip lideri olsaydın, tarzın nasıl olurdu?',
-      options: [
-        { text: 'Hedefe kitlenen, talepkar ve sonuç odaklı.', value: 'red' },
-        { text: 'Sistematik, kuralları olan ve kaliteyi ölçen.', value: 'blue' },
-        { text: 'Motivasyon veren, enerjik ve eğlenceli.', value: 'yellow' },
-        { text: 'Herkesin fikrini dinleyen ve destekleyici.', value: 'green' }
-      ]
-    },
-    {
-      id: 'c19',
-      text: 'Para harcama alışkanlıkların nasıldır?',
-      options: [
-        { text: 'Çok dikkatli, bütçe yapar ve gereksiz harcamam.', value: 'blue' },
-        { text: 'Anlık zevkler için düşünmeden harcayabilirim.', value: 'yellow' },
-        { text: 'Güvenliğim ve sevdiklerimin ihtiyaçları için harcarım.', value: 'green' },
-        { text: 'Güç, prestij ve kalite gösteren şeylere para veririm.', value: 'red' }
-      ]
-    },
-    {
-      id: 'c20',
-      text: 'Değişim senin için ne ifade eder?',
-      options: [
-        { text: 'Tehdit! Ben alıştığım düzeni severim.', value: 'green' },
-        { text: 'Fırsat! Yeni şeyler denemek beni çok heyecanlandırır.', value: 'yellow' },
-        { text: 'Eğer mantıklı bir sebebi varsa uyum sağlarım.', value: 'blue' },
-        { text: 'Meydan okuma! Değişimi ben başlatmayı severim.', value: 'red' }
-      ]
-    }
-  ],
-  results: {
-    red: {
-      title: 'Güçlü Kırmızı',
-      description: 'Lider, kararlı ve eylem odaklı bir yapıya sahipsin. Engeller seni korkutmaz, aksine motive eder.',
-      color: '#EF4444',
-      gradient: ['#EF4444', '#B91C1C'],
-      strengths: ['Hızlı karar alma', 'Liderlik', 'Sonuç odaklılık', 'Cesaret'],
-      weaknesses: ['Sabırsızlık', 'Bazen fazla buyurgan olma', 'Detayları gözden kaçırma'],
-      relationship: 'Dürüst ve doğrudan ilişkileri seversin. Ne istediğini bilir ve net olursun.',
-      stressBehavior: 'Stres altında daha kontrolcü ve öfkeli olabilirsin.',
-      communication: 'Kısa, net ve hedefe yönelik iletişim kurarsın.',
-      motivation: 'Başarmak, kazanmak ve kontrolü elde tutmak.'
-    },
-    yellow: {
-      title: 'Enerjik Sarı',
-      description: 'Sosyal, yaratıcı ve ilham verici bir yapın var. Girdiğin ortama enerji ve neşe katarsın.',
-      color: '#F59E0B',
-      gradient: ['#F59E0B', '#D97706'],
-      strengths: ['İletişim becerisi', 'İyimserlik', 'İkna kabiliyeti', 'Yaratıcılık'],
-      weaknesses: ['Düzensizlik', 'Dikkat dağınıklığı', 'Bazen fazla konuşma'],
-      relationship: 'Eğlenceli, dinamik ve dışa dönük ilişkiler kurarsın.',
-      stressBehavior: 'Stres altında dağınık, savunmacı veya aşırı duygusal olabilirsin.',
-      communication: 'Duygusal, hikayeleştirici ve canlı bir iletişim tarzın var.',
-      motivation: 'Onaylanmak, sosyalleşmek ve fark edilmek.'
-    },
-    green: {
-      title: 'Huzurlu Yeşil',
-      description: 'Sakin, empatik ve destekleyici bir yapıya sahipsin. Çevrendekilere güven ve huzur verirsin.',
-      color: '#10B981',
-      gradient: ['#10B981', '#047857'],
-      strengths: ['Empati', 'İyi dinleyici olma', 'Sabır', 'Uyum sağlama'],
-      weaknesses: ['Değişime direnç', 'Hayır diyememe', 'Kendi ihtiyaçlarını erteleme'],
-      relationship: 'Derin, sadık ve güvene dayalı ilişkiler kurarsın.',
-      stressBehavior: 'Stres altında içe kapanır ve pasif-agresif davranışlar sergileyebilirsin.',
-      communication: 'Yumuşak, dinlemeye odaklı ve yapıcı iletişim kurarsın.',
-      motivation: 'Güvenlik, uyum ve başkalarına fayda sağlamak.'
-    },
-    blue: {
-      title: 'Analitik Mavi',
-      description: 'Detaycı, düzenli ve mantık odaklı bir yapın var. Kusursuzluğu ve kaliteyi hedeflersin.',
-      color: '#3B82F6',
-      gradient: ['#3B82F6', '#1D4ED8'],
-      strengths: ['Analitik düşünme', 'Planlama', 'Detaylara hakimiyet', 'Kalite odaklılık'],
-      weaknesses: ['Aşırı eleştirel olma', 'Kararsızlık', 'Duyguları ifade etmede zorlanma'],
-      relationship: 'Sınırları belli, saygılı ve mantıklı ilişkiler kurarsın.',
-      stressBehavior: 'Stres altında fazla eleştirel, soğuk ve mesafeli olabilirsin.',
-      communication: 'Verilere dayalı, mesafeli ve yazılı iletişimi tercih eden bir yapın var.',
-      motivation: 'Doğruluk, düzen ve mükemmele ulaşmak.'
-    }
-  }
-};
-
-const MBTI_TEST = {
-  id: 'mbti',
-  title: 'İçsel Pusulan',
-  description: 'Dünyayı algılama ve karar verme şeklini anlamak için küçük bir yolculuk.',
-  questions: [
-    {
-      id: 'm1',
-      trait: 'E_I',
-      text: 'Uzun ve yorucu bir günün ardından enerjini nasıl toplarsın?',
-      options: [
-        { text: 'Kendi başıma kalarak, sessizliğe sığınarak.', value: 'I' },
-        { text: 'Sevdiğim insanlarla sohbet edip paylaşarak.', value: 'E' }
-      ]
-    },
-    {
-      id: 'm2',
-      trait: 'S_N',
-      text: 'Bir karar alırken genellikle neye güvenirsin?',
-      options: [
-        { text: 'Geçmiş deneyimlerime ve somut gerçeklere.', value: 'S' },
-        { text: 'İçgüdülerime ve gelecekteki ihtimallere.', value: 'N' }
-      ]
-    },
-    {
-      id: 'm3',
-      trait: 'T_F',
-      text: 'Bir arkadaşın zor bir durumdayken ilk tepkin ne olur?',
-      options: [
-        { text: 'Ona problemi çözmesi için mantıklı yollar sunmak.', value: 'T' },
-        { text: 'Önce duygularını anladığımı ve yanında olduğumu hissettirmek.', value: 'F' }
-      ]
-    },
-    {
-      id: 'm4',
-      trait: 'J_P',
-      text: 'Hayatın akışı içinde hangisi sana daha güvenli hissettirir?',
-      options: [
-        { text: 'Planlı olmak ve ne olacağını bilmek.', value: 'J' },
-        { text: 'Esnek olmak ve duruma göre uyum sağlamak.', value: 'P' }
-      ]
-    },
-    {
-      id: 'm5',
-      trait: 'E_I',
-      text: 'Kalabalık bir ortamda genellikle nerede hissedersin kendini?',
-      options: [
-        { text: 'Olayların merkezinde, sohbeti başlatan tarafta.', value: 'E' },
-        { text: 'Biraz daha kenarda, gözlemleyen ve dinleyen tarafta.', value: 'I' }
-      ]
-    },
-    {
-      id: 'm6',
-      trait: 'S_N',
-      text: 'Yeni bir şey öğrenirken hangisini tercih edersin?',
-      options: [
-        { text: 'Adım adım, net detaylarla ilerlemeyi.', value: 'S' },
-        { text: 'Önce büyük resmi ve anlamını kavramayı.', value: 'N' }
-      ]
-    },
-    {
-      id: 'm7',
-      trait: 'T_F',
-      text: 'Bir anlaşmazlık yaşadığında senin için hangisi daha önemlidir?',
-      options: [
-        { text: 'Kim haklıysa gerçeğin ortaya çıkması.', value: 'T' },
-        { text: 'İlişkinin zarar görmemesi ve uyumun korunması.', value: 'F' }
-      ]
-    },
-    {
-      id: 'm8',
-      trait: 'J_P',
-      text: 'Bir yolculuğa çıkmadan önce hangisi sana daha çok uyar?',
-      options: [
-        { text: 'Gidilecek yerleri ve rotayı önceden belirlemek.', value: 'J' },
-        { text: 'Rüzgarın estiği yöne gidip anın tadını çıkarmak.', value: 'P' }
-      ]
-    }
-  ]
-};
-
-// Extremely simplified MBTI profile descriptions focusing on emotional tone
-const MBTI_PROFILES = {
-  INTJ: { title: 'Mimar', subtitle: 'Bağımsız ve Stratejik', description: 'Kendi iç dünyanda sağlam bir kalen var. Duygularını mantık süzgecinden geçirerek anlamlandırmayı seviyorsun.' },
-  INTP: { title: 'Düşünür', subtitle: 'Meraklı ve Derin', description: 'Evrenin ve kendi zihninin sırlarını çözmek istiyorsun. Duygular bazen senin için çözülmesi gereken birer bulmaca gibidir.' },
-  ENTJ: { title: 'Lider', subtitle: 'Cesur ve Kararlı', description: 'İçindeki gücü dışarıya yansıtmak konusunda doğal bir yeteneğin var. Duygularını hedeflerine ulaşmak için bir yakıt olarak kullanıyorsun.' },
-  ENTP: { title: 'Tartışmacı', subtitle: 'Zeki ve Yenilikçi', description: 'Zihnin sürekli yeni ihtimallerle meşgul. Duygusal zorlukları bile zihinsel bir meydan okuma olarak görüp hızla adapte olabiliyorsun.' },
-  INFJ: { title: 'Danışman', subtitle: 'Sezgisel ve Şefkatli', description: 'Başkalarının hislerini derinden anlayan, sessiz ama çok güçlü bir empati yeteneğin var. Kendi sınırlarını koruman önemli.' },
-  INFP: { title: 'Arabulucu', subtitle: 'İdealist ve Şiirsel', description: 'Dünyayı kalbinin penceresinden izliyorsun. Çok zengin bir iç dünyan var ve her duygunun bir anlamı olduğuna inanıyorsun.' },
-  ENFJ: { title: 'Önder', subtitle: 'İlham Verici ve Sıcak', description: 'İnsanlara dokunmak ve onları yükseltmek senin doğanda var. Etrafına yaydığın bu sıcaklık bazen kendi ihtiyaçlarını unutmana neden olabilir.' },
-  ENFP: { title: 'Kampanyacı', subtitle: 'Coşkulu ve Özgür', description: 'Hayat senin için sonsuz bir keşif alanı. Duygularını renklice ve özgürce yaşıyor, çevrendekilere de bu özgürlüğü aşılıyorsun.' },
-  ISTJ: { title: 'Lojistikçi', subtitle: 'Güvenilir ve Düzenli', description: 'Sessiz ve sağlam bir dayanaksın. Duygularını çok büyük sözlerle değil, sessiz ve güven veren eylemlerle ifade edersin.' },
-  ISFJ: { title: 'Savunmacı', subtitle: 'Koruyucu ve İnce Ruhlu', description: 'Sevdiklerini korumak ve onlara güvenli bir alan yaratmak senin içgüdün. Bu nezaketini kendine de göstermeyi unutma.' },
-  ESTJ: { title: 'Yönetici', subtitle: 'Pratik ve Sorumlu', description: 'Belirsizlikler yerine net olanı seversin. Hayatında düzen kurmak, duygusal dalgalanmaları yönetmenin en iyi yoludur senin için.' },
-  ESFJ: { title: 'Konsolos', subtitle: 'Sosyal ve Yardımsever', description: 'Etrafındaki herkesin mutlu olması seni besliyor. Harmony ve uyum senin için çok önemli, duygusal dengeyi birlikte sağlarsın.' },
-  ISTP: { title: 'Usta', subtitle: 'Gözlemci ve Mantıklı', description: 'Hayatı kendi akışında, anı yaşayarak deneyimliyorsun. Karmaşık duygulardansa, pratik ve anlık çözümleri tercih edersin.' },
-  ISFP: { title: 'Maceracı', subtitle: 'Sanatkar ve Zarif', description: 'Kelimelerden çok, renkler, sesler ve hareketlerle kendini ifade etmeyi seviyorsun. İç dünyan oldukça yumuşak ve esnek.' },
-  ESTP: { title: 'Girişimci', subtitle: 'Cesur ve Enerjik', description: 'Duygularının üstünde çok düşünmek yerine, onları doğrudan deneyimleyip geçmeyi seçiyorsun. Anı yaşamak en büyük ilacın.' },
-  ESFP: { title: 'Eğlendirici', subtitle: 'Canlı ve Samimi', description: 'Hayat bir sahne ve sen onun keyfini çıkarıyorsun. Duygularını saklamaz, etrafındaki insanlarla hemen paylaşırsın.' }
-};
-
-/**
- * GET /api/personality/tests/:type
- * Get the test questions for 'color' or 'mbti'
- */
 exports.getTest = async (req, res) => {
   const { type } = req.params;
+  if (type !== 'journey') {
+    return res.status(404).json({ success: false, message: 'Geçersiz test tipi. Sadece journey destekleniyor.' });
+  }
   try {
-    if (type === 'color') {
-      // Create a copy of COLOR_TEST
-      const testResponse = { ...COLOR_TEST };
-      
-      // Randomize questions and pick 10
-      const shuffled = [...testResponse.questions].sort(() => 0.5 - Math.random());
-      testResponse.questions = shuffled.slice(0, 10);
-      
-      // Randomize the order of options for each question to prevent position bias
-      testResponse.questions = testResponse.questions.map(q => ({
-        ...q,
-        options: [...q.options].sort(() => 0.5 - Math.random())
-      }));
-
-      res.json({ success: true, test: testResponse });
-    } else if (type === 'mbti') {
-      res.json({ success: true, test: MBTI_TEST });
-    } else {
-      res.status(404).json({ success: false, message: 'Test bulunamadı.' });
+    const sessionFingerprint = `journey_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const testResponse = {
+      id: 'journey',
+      title: 'Selfplace Deep Personality Journey',
+      description: 'Duygusal kimliğini ve ilişkisel enerjini keşfedeceğin derin bir yolculuk.',
+      sessionFingerprint
+    };
+    
+    // Deduplicate the pool
+    const uniquePoolMap = new Map();
+    for (const q of FULL_POOL) {
+      if (!uniquePoolMap.has(q.id)) {
+        uniquePoolMap.set(q.id, q);
+      }
     }
+    const uniquePool = Array.from(uniquePoolMap.values());
+
+    // Group questions by dimension
+    const questionsByDimension = {};
+    DIMENSIONS.forEach(d => {
+      questionsByDimension[d] = [];
+    });
+
+    uniquePool.forEach(q => {
+      const dim = q.dimension || 'social_energy';
+      if (!questionsByDimension[dim]) {
+        questionsByDimension[dim] = [];
+      }
+      questionsByDimension[dim].push(q);
+    });
+
+    // Shuffle each dimension group to ensure randomness
+    DIMENSIONS.forEach(d => {
+      questionsByDimension[d].sort(() => 0.5 - Math.random());
+    });
+
+    // Build the 50-question queue using dimension rotation and semantic protection
+    const selectedQuestions = [];
+    const usedQuestionIds = new Set();
+    const usedSemanticTags = new Set();
+    const recentTypes = [];
+
+    // We will cycle through the 7 dimensions
+    const rotation = [...DIMENSIONS];
+
+    for (let i = 0; i < 50; i++) {
+      const targetDim = rotation[i % rotation.length];
+      const candidates = questionsByDimension[targetDim] || [];
+      let chosen = null;
+
+      // 1. Strict try: Unused ID, no semantic overlap, type variation (different from immediately preceding type)
+      for (const q of candidates) {
+        if (usedQuestionIds.has(q.id)) continue;
+
+        const hasSemanticOverlap = q.semanticTags && q.semanticTags.some(tag => usedSemanticTags.has(tag));
+        if (hasSemanticOverlap) continue;
+
+        const isConsecutiveType = recentTypes.length > 0 && recentTypes[recentTypes.length - 1] === q.type;
+        if (isConsecutiveType) continue;
+
+        chosen = q;
+        break;
+      }
+
+      // 2. Relaxed type variety, but keep strict semantic check
+      if (!chosen) {
+        for (const q of candidates) {
+          if (usedQuestionIds.has(q.id)) continue;
+
+          const hasSemanticOverlap = q.semanticTags && q.semanticTags.some(tag => usedSemanticTags.has(tag));
+          if (hasSemanticOverlap) continue;
+
+          chosen = q;
+          break;
+        }
+      }
+
+      // 3. Fallback: Pick any unused question in this dimension (ignore semantic overlap)
+      if (!chosen) {
+        for (const q of candidates) {
+          if (!usedQuestionIds.has(q.id)) {
+            chosen = q;
+            break;
+          }
+        }
+      }
+
+      // 4. Ultimate fallback: Pick any unused question from the entire pool
+      if (!chosen) {
+        for (const q of uniquePool) {
+          if (!usedQuestionIds.has(q.id)) {
+            chosen = q;
+            break;
+          }
+        }
+      }
+
+      if (chosen) {
+        selectedQuestions.push(chosen);
+        usedQuestionIds.add(chosen.id);
+        if (chosen.semanticTags) {
+          chosen.semanticTags.forEach(tag => usedSemanticTags.add(tag));
+        }
+        recentTypes.push(chosen.type);
+        if (recentTypes.length > 3) {
+          recentTypes.shift();
+        }
+      }
+    }
+
+    testResponse.questions = selectedQuestions;
+
+    console.log(
+      '[ACTIVE TEST PAYLOAD]',
+      selectedQuestions.map(q => q.id)
+    );
+
+    res.json({ success: true, test: testResponse });
   } catch (err) {
     console.error('[personalityController] getTest error:', err);
     res.status(500).json({ success: false, message: 'Sunucu hatası.' });
   }
 };
-
-/**
- * POST /api/personality/tests/:type/submit
- * Submit test answers and get result
- */
 exports.submitTest = async (req, res) => {
   const { type } = req.params;
-  const { answers } = req.body; // e.g., { "c1": "blue", "c2": "red" }
+  const { answers } = req.body; 
   const userId = req.user.id;
 
+  if (type !== 'journey') {
+    return res.status(404).json({ success: false, message: 'Geçersiz test tipi.' });
+  }
+
   try {
-    let resultData = {};
+    let scores = {};
+    DIMENSIONS.forEach(d => scores[d] = 0);
 
-    if (type === 'color') {
-      // Calculate percentages
-      const counts = { red: 0, blue: 0, green: 0, yellow: 0 };
-      let total = 0;
-      for (const key in answers) {
-        if (counts[answers[key]] !== undefined) {
-          counts[answers[key]]++;
-          total++;
+    // Calculate scores based on the answers
+    for (const qId in answers) {
+      const q = FULL_POOL.find(x => x.id === qId);
+      if (q) {
+        const optionIndex = answers[qId];
+        const selectedOption = q.options[optionIndex];
+        if (selectedOption && selectedOption.weights) {
+          for (const [dim, weight] of Object.entries(selectedOption.weights)) {
+            scores[dim] += weight;
+          }
         }
       }
-      
-      const percentages = {
-        red: total > 0 ? Math.round((counts.red / total) * 100) : 0,
-        blue: total > 0 ? Math.round((counts.blue / total) * 100) : 0,
-        green: total > 0 ? Math.round((counts.green / total) * 100) : 0,
-        yellow: total > 0 ? Math.round((counts.yellow / total) * 100) : 0
-      };
-
-      // Find dominant color
-      let dominant = 'blue';
-      let maxCount = -1;
-      for (const color in counts) {
-        if (counts[color] > maxCount) {
-          maxCount = counts[color];
-          dominant = color;
-        }
-      }
-      
-      const resultObj = COLOR_TEST.results[dominant];
-      resultData = {
-        dominantColor: dominant,
-        percentages,
-        ...resultObj // title, description, color, gradient, strengths, etc.
-      };
-
-    } else if (type === 'mbti') {
-      // Calculate MBTI
-      const scores = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
-      for (const qId in answers) {
-        const val = answers[qId];
-        if (scores[val] !== undefined) scores[val]++;
-      }
-      
-      const e_i = scores.E >= scores.I ? 'E' : 'I';
-      const s_n = scores.S >= scores.N ? 'S' : 'N';
-      const t_f = scores.T >= scores.F ? 'T' : 'F';
-      const j_p = scores.J >= scores.P ? 'J' : 'P';
-      
-      const personalityType = `${e_i}${s_n}${t_f}${j_p}`;
-      const profile = MBTI_PROFILES[personalityType] || MBTI_PROFILES['INFP']; // fallback
-      
-      resultData = {
-        type: personalityType,
-        title: profile.title,
-        subtitle: profile.subtitle,
-        description: profile.description,
-        scores
-      };
-    } else {
-      return res.status(404).json({ success: false, message: 'Test bulunamadı.' });
     }
 
-    // Save to database. Use '{}' for traits to bypass legacy NOT NULL constraint safely
+    // Determine Base Archetype by finding the closest match
+    let bestArchetype = BASE_ARCHETYPES[0];
+    let maxMatchScore = -999;
+
+    for (const arch of BASE_ARCHETYPES) {
+      let matchScore = 0;
+      for (const [dim, expectedSign] of Object.entries(arch.conditions)) {
+        if (expectedSign > 0 && scores[dim] > 0) matchScore += scores[dim];
+        if (expectedSign < 0 && scores[dim] < 0) matchScore += Math.abs(scores[dim]);
+        if (expectedSign === 0 && Math.abs(scores[dim]) <= 1) matchScore += 1;
+      }
+      if (matchScore > maxMatchScore) {
+        maxMatchScore = matchScore;
+        bestArchetype = arch;
+      }
+    }
+
+    // Generate hybrid enriched archetype via AI
+    const enrichedResult = await generatePersonalityArchetype(bestArchetype, scores);
+
+
+    // --- DYNAMIC COLOR RESOLUTION ---
+    const colorData = resolveColorFamily(scores);
+
+    // --- DRIFT DETECTION & EVOLUTION TIMELINE ---
+    const prevRes = await db.query(
+      "SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'journey' ORDER BY created_at DESC LIMIT 1",
+      [userId]
+    );
+    
+    let driftData = null;
+    let dimensionDrift = {};
+    if (prevRes.rows.length > 0) {
+      const oldScores = prevRes.rows[0].result_data.scores;
+      if (oldScores) {
+        // Calculate numerical drift
+        for (const [dim, val] of Object.entries(scores)) {
+          dimensionDrift[dim] = val - (oldScores[dim] || 0);
+        }
+        driftData = await generatePersonalityDrift(oldScores, scores);
+      }
+    }
+
+    const resultData = {
+      ...enrichedResult,
+      scores,
+      baseArchetype: bestArchetype.name,
+      color_family: colorData, // Contains name, hex, symbol
+      dominant_color: colorData.hex, // Compatibility with existing UI
+      dimension_drift: dimensionDrift,
+      evolution_summary: driftData ? driftData.evolution_summary : null,
+      dominant_shift: driftData ? driftData.dominant_shift : null
+    };
+
     const insertRes = await db.query(
       'INSERT INTO personality_results (user_id, test_type, result_data, traits) VALUES ($1, $2, $3, $4) RETURNING id',
-      [userId, type, resultData, '{}']
+      [userId, 'journey', resultData, '{}']
     );
 
     res.json({
@@ -484,11 +235,6 @@ exports.submitTest = async (req, res) => {
     res.status(500).json({ success: false, message: 'Sonuçlar kaydedilemedi.' });
   }
 };
-
-/**
- * GET /api/personality/history
- * Get user's past test results
- */
 exports.getHistory = async (req, res) => {
   const userId = req.user.id;
   try {
@@ -500,11 +246,13 @@ exports.getHistory = async (req, res) => {
     // Group by test type
     const mbtiHistory = historyRes.rows.filter(r => r.test_type === 'mbti');
     const colorHistory = historyRes.rows.filter(r => r.test_type === 'color');
+    const journeyHistory = historyRes.rows.filter(r => r.test_type === 'journey');
 
     res.json({
       success: true,
       mbti: mbtiHistory,
-      color: colorHistory
+      color: colorHistory,
+      journey: journeyHistory
     });
   } catch (err) {
     console.error('[Emotional Evolution ERROR]', err);

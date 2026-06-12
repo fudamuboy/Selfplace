@@ -1,102 +1,297 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import { useNavigation } from '@react-navigation/native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GradientBackground } from '../../components/GradientBackground';
 import client from '../../api/client';
+import usePersonalitySessionStore from '../../store/usePersonalitySessionStore';
 import useThemeStore from '../../store/useThemeStore';
-
 
 interface Option {
   text: string;
-  value: string;
+  weights: Record<string, number>;
 }
 
-interface Question {
-  id: string;
-  text: string;
-  options: Option[];
-}
-
-interface TestData {
-  id: string;
-  title: string;
-  description: string;
-  questions: Question[];
-}
+const INTERSTITIALS = [
+  "Cevapların iç dünyandaki bazı sessiz desenleri ortaya çıkarıyor...",
+  "Duygusal ritmini yavaş yavaş hissetmeye başlıyoruz...",
+  "Kendini ifade etme biçimin eşsiz bir hikaye anlatıyor...",
+  "Enerjinin gerçek rengi belirginleşiyor..."
+];
 
 export default function PersonalityTestScreen() {
-  const { type } = useLocalSearchParams<{ type: string }>();
+  useLocalSearchParams<{ type: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const { currentTheme } = useThemeStore();
   
-  const [testData, setTestData] = useState<TestData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const { 
+    isActive, questions, currentIndex, answers, dimensionScores, sessionFingerprint, queueHash,
+    renderedQuestionIds, renderedSemanticTags, consecutiveSkipCount,
+    startSession, answerQuestion, nextQuestion, endSession,
+    markQuestionAsRendered, incrementSkipCount, rebuildQueue
+  } = usePersonalitySessionStore();
+  
+  const currentQuestion = questions[currentIndex];
+  const lastCheckedIndexRef = useRef<number>(-1);
+  
+  const [loading, setLoading] = useState(!isActive);
   const [submitting, setSubmitting] = useState(false);
+  const [showInterstitial, setShowInterstitial] = useState(false);
+  const [interstitialText, setInterstitialText] = useState("");
+  const [duplicateAlert, setDuplicateAlert] = useState<string | null>(null);
+  const [criticalRecovery, setCriticalRecovery] = useState(false);
 
+  // Reset lastCheckedIndexRef when isActive session state changes
   useEffect(() => {
-    fetchTest(); // eslint-disable-line react-hooks/exhaustive-deps
-  }, [type]);
+    lastCheckedIndexRef.current = -1;
+  }, [isActive]);
 
-  const fetchTest = async () => {
+  const submitTest = useCallback(async (finalAnswers: Record<string, number>) => {
+    setSubmitting(true);
+    setInterstitialText("Sonuçların sentezleniyor... Bu biraz zaman alabilir.");
+    setShowInterstitial(true);
+    
+    console.log('[DEBUG-SUBMIT] Submitting test answers. Fingerprint:', sessionFingerprint);
+    
     try {
-      const res = await client.get(`/personality/tests/${type}`);
-      setTestData(res.data.test);
+      const res = await client.post(`/personality/tests/journey/submit`, { answers: finalAnswers });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      endSession();
+      router.replace({
+        pathname: '/personality-result-detail',
+        params: { id: res.data.id }
+      });
     } catch (err: any) {
-      console.error(`[PersonalityTest] Error fetching test of type "${type}":`, err.message || err);
-      // Show a soft fallback if backend fails (e.g. 404 during deployment)
-      setTestData(null);
-      // We could use a toast here, but returning quietly is safer than crashing
+      console.error(`[PersonalityTest] Error submitting test answers:`, err.message || err);
+      setSubmitting(false);
+      setShowInterstitial(false);
+      setTimeout(() => router.back(), 1500);
+    }
+  }, [endSession, router, sessionFingerprint]);
+
+  // Helper log function to output complete queue status
+  const logRuntimeQueueState = useCallback((context: string) => {
+    if (!isActive || questions.length === 0) return;
+    const currentHash = questions.map(q => q.id).join('-');
+    console.log(`[DEBUG-QUEUE] Context: ${context} | Fingerprint: ${sessionFingerprint} | Index: ${currentIndex} | Hash: ${currentHash}`);
+    console.log(`[DEBUG-QUEUE-IDS]`, questions.map(q => q.id));
+
+    if (queueHash && currentHash !== queueHash) {
+      console.error(`[QUEUE MUTATION DETECTED] EXPECTED HASH: ${queueHash} | CURRENT HASH: ${currentHash}`);
+    }
+  }, [isActive, questions, sessionFingerprint, queueHash, currentIndex]);
+
+  // 1. Log on every render and check queue hash integrity
+  useEffect(() => {
+    logRuntimeQueueState('render');
+  });
+
+  const fetchTest = useCallback(async () => {
+    try {
+      const res = await client.get(`/personality/tests/journey`);
+      if (res.data && res.data.test && res.data.test.questions) {
+        console.log('[DEBUG-FETCH] Received test from backend. Fingerprint:', res.data.test.sessionFingerprint);
+        startSession(res.data.test.questions, res.data.test.sessionFingerprint || 'legacy-none');
+      } else {
+        throw new Error('Invalid test data');
+      }
+    } catch (err: any) {
+      console.error(`[PersonalityTest] Error fetching test:`, err.message || err);
       setTimeout(() => router.back(), 2000);
     } finally {
       setLoading(false);
     }
-  };
+  }, [startSession, router]);
 
-  const handleSelectOption = async (questionId: string, value: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newAnswers = { ...answers, [questionId]: value };
-    setAnswers(newAnswers);
-
-    if (testData && currentIndex < testData.questions.length - 1) {
-      // Small delay for UX feeling
-      setTimeout(() => {
-        setCurrentIndex(currentIndex + 1);
-      }, 400);
+  // 2. Lock down useEffect to disable all automatic refetch systems
+  useEffect(() => {
+    if (!isActive) {
+      console.log('[DEBUG-SESSION] No active session. Fetching test...');
+      fetchTest();
     } else {
-      submitTest(newAnswers);
+      console.log('[DEBUG-SESSION] Session already active. Fingerprint:', sessionFingerprint, 'Questions count:', questions.length);
+      setLoading(false);
+    }
+  }, [isActive, fetchTest, sessionFingerprint, questions.length]);
+
+  // 3. Navigation focus listeners
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('[DEBUG-FOCUS] Screen focused. Fingerprint:', sessionFingerprint, 'Current Index:', currentIndex);
+      logRuntimeQueueState('focus');
+    });
+    return unsubscribe;
+  }, [navigation, sessionFingerprint, currentIndex, logRuntimeQueueState]);
+
+  // 4. AppState listener
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      console.log('[DEBUG-APPSTATE] AppState changed to:', nextAppState, 'Fingerprint:', sessionFingerprint);
+      logRuntimeQueueState(`appstate-${nextAppState}`);
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [sessionFingerprint, logRuntimeQueueState]);
+
+  // 5. Runtime Render Registry & Self-Healing Protection
+  useEffect(() => {
+    if (!isActive || questions.length === 0) return;
+
+    // Remaining Queue Validator & Graceful End
+    const isOutOfQuestions = currentIndex >= questions.length;
+    if (isOutOfQuestions) {
+      console.log('[DEBUG-QUEUE] No remaining questions left in the queue. Gracefully auto-submitting existing answers...');
+      submitTest(answers);
+      return;
+    }
+
+    const currentQ = questions[currentIndex];
+    if (!currentQ) return;
+
+    // A. ID Duplicate Protection
+    const isIdRendered = renderedQuestionIds.includes(currentQ.id);
+
+    // B. Semantic Overlap Protection
+    let overlapCount = 0;
+    const overlappingTags: string[] = [];
+    if (currentQ.semanticTags) {
+      currentQ.semanticTags.forEach(tag => {
+        if (renderedSemanticTags.includes(tag)) {
+          overlapCount++;
+          overlappingTags.push(tag);
+        }
+      });
+    }
+
+    // Determine if we need to skip
+    let shouldSkip = false;
+    let skipReason = "";
+
+    if (isIdRendered) {
+      shouldSkip = true;
+      skipReason = `Question ID "${currentQ.id}" already rendered earlier in session.`;
+    } else if (overlapCount >= 2) {
+      shouldSkip = true;
+      skipReason = `Shares ${overlapCount} semantic tags [${overlappingTags.join(', ')}] with rendered questions.`;
+    }
+
+    // Check if we are in infinite skip protection (consecutiveSkipCount >= 5)
+    if (consecutiveSkipCount >= 5) {
+      console.error('[CRITICAL RECOVERY MODE] Infinite skip loop detected (skips >= 5). Freezing navigation, rebuilding clean queue...');
+      setCriticalRecovery(true);
+      
+      // Perform recovery rebuild: purge duplicate/rendered IDs from remaining queue
+      rebuildQueue();
+      
+      setTimeout(() => {
+        setCriticalRecovery(false);
+      }, 1500); // show recovery loader briefly for visual transition
+      return;
+    }
+
+    // Gate duplicate check using useRef index tracker
+    if (lastCheckedIndexRef.current === currentIndex) {
+      return; // Already processed this question index, skip redundant checks/updates
+    }
+
+    if (shouldSkip) {
+      console.warn(`[SKIP DETECTED] id: ${currentQ.id}, dimension: ${currentQ.dimension}, type: ${currentQ.type}, reason: ${skipReason}`);
+      setDuplicateAlert(skipReason);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+      // Increment skip count and move to next question immediately
+      incrementSkipCount();
+      nextQuestion();
+    } else {
+      // Clear alert, mark as successfully rendered
+      setDuplicateAlert(null);
+      lastCheckedIndexRef.current = currentIndex;
+      markQuestionAsRendered(currentQ.id, currentQ.semanticTags);
+    }
+  }, [
+    currentIndex,
+    questions,
+    isActive,
+    answers,
+    consecutiveSkipCount,
+    renderedQuestionIds,
+    renderedSemanticTags,
+    incrementSkipCount,
+    nextQuestion,
+    markQuestionAsRendered,
+    rebuildQueue,
+    submitTest
+  ]);
+
+
+
+  const handleSelectOption = async (questionId: string, optionIndex: number, option: Option) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // 1. Commit answer to Zustand session store securely
+    answerQuestion(questionId, optionIndex, option.weights || {});
+
+    console.log(`[DEBUG-ANSWER] Answered: ${questionId} with index ${optionIndex}. Next index: ${currentIndex + 1}`);
+    logRuntimeQueueState('answer');
+
+    // 2. Predict adaptive behavior
+    const nIdx = currentIndex + 1;
+    const currentMaxScore = Math.max(0, ...Object.values(dimensionScores).map(v => Math.abs(v)));
+    
+    let shouldEndEarly = false;
+    if (nIdx >= 20 && nIdx < 35 && currentMaxScore >= 18) {
+      shouldEndEarly = true; // Very high confidence
+    } else if (nIdx >= 35 && currentMaxScore >= 12) {
+      shouldEndEarly = true; // Normal confidence
+    }
+
+    // 3. Next step execution
+    if (shouldEndEarly || nIdx >= questions.length) {
+      const finalAnswers = { ...answers, [questionId]: optionIndex };
+      submitTest(finalAnswers);
+      return;
+    }
+
+    if (nIdx % 12 === 0) {
+      const textIndex = (nIdx / 12 - 1) % INTERSTITIALS.length;
+      setInterstitialText(INTERSTITIALS[textIndex]);
+      setShowInterstitial(true);
+      setTimeout(() => {
+        setShowInterstitial(false);
+        nextQuestion();
+      }, 3000);
+    } else {
+      setTimeout(() => {
+        nextQuestion();
+      }, 400);
     }
   };
 
-  const submitTest = async (finalAnswers: Record<string, string>) => {
-    setSubmitting(true);
-    try {
-      const res = await client.post(`/personality/tests/${type}/submit`, { answers: finalAnswers });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (type === 'color') {
-        router.replace({
-          pathname: '/personality-result-detail',
-          params: { id: res.data.id }
-        });
-      } else {
-        router.replace({
-          pathname: '/personality-results',
-          params: { resultId: res.data.id }
-        });
-      }
-    } catch (err: any) {
-      console.error(`[PersonalityTest] Error submitting test answers:`, err.message || err);
-      // Soft failure, return to previous screen gracefully
-      setSubmitting(false);
-      setTimeout(() => router.back(), 1500);
-    }
-  };
+
+  if (criticalRecovery || !currentQuestion) {
+    return (
+      <GradientBackground>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={currentTheme.colors.primary} style={{ marginBottom: 20 }} />
+          <Text style={{ color: currentTheme.colors.text.primary, fontSize: 18, fontWeight: '600', textAlign: 'center', paddingHorizontal: 40 }}>
+            Yolculuk Yapılandırılıyor... ✨
+          </Text>
+          <Text style={{ color: currentTheme.colors.text.secondary, fontSize: 14, textAlign: 'center', marginTop: 10, paddingHorizontal: 40 }}>
+            Uyumlu duygusal rota yeniden hesaplanıyor.
+          </Text>
+        </View>
+      </GradientBackground>
+    );
+  }
 
   if (loading) {
     return (
+
       <GradientBackground>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={currentTheme.colors.primary} />
@@ -105,7 +300,7 @@ export default function PersonalityTestScreen() {
     );
   }
 
-  if (!testData) {
+  if ((!isActive || questions.length === 0)) {
     return (
       <GradientBackground>
         <View style={styles.centerContainer}>
@@ -114,7 +309,7 @@ export default function PersonalityTestScreen() {
           </Text>
           <TouchableOpacity 
             style={{ backgroundColor: currentTheme.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 }}
-            onPress={() => router.back()}
+            onPress={() => { endSession(); router.back(); }}
           >
             <Text style={{ color: '#FFF', fontWeight: '700' }}>Geri Dön</Text>
           </TouchableOpacity>
@@ -123,13 +318,26 @@ export default function PersonalityTestScreen() {
     );
   }
 
-  const currentQuestion = testData.questions[currentIndex];
-  const progress = ((currentIndex + 1) / testData.questions.length) * 100;
+  if (showInterstitial) {
+    return (
+      <GradientBackground>
+        <Animated.View entering={FadeIn.duration(800)} exiting={FadeOut.duration(800)} style={styles.interstitialContainer}>
+          {submitting && <ActivityIndicator size="large" color={currentTheme.colors.primary} style={{ marginBottom: 20 }} />}
+          <Text style={[styles.interstitialText, { color: currentTheme.colors.text.primary }]}>
+            {interstitialText}
+          </Text>
+        </Animated.View>
+      </GradientBackground>
+    );
+  }
+
+  // Calculate dynamic progress (assume max ~40 for visual scale, but cap at 100)
+  const progress = Math.min(100, ((currentIndex + 1) / 40) * 100);
 
   return (
     <GradientBackground>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} disabled={submitting}>
+        <TouchableOpacity onPress={() => { endSession(); router.back(); }} style={styles.backBtn} disabled={submitting}>
           <Text style={[styles.backText, { color: currentTheme.colors.text.muted }]}>İptal</Text>
         </TouchableOpacity>
         
@@ -139,74 +347,49 @@ export default function PersonalityTestScreen() {
             style={[styles.progressBar, { width: `${progress}%`, backgroundColor: currentTheme.colors.primary }]} 
           />
         </View>
-        <Text style={[styles.progressText, { color: currentTheme.colors.text.muted }]}>
-          {currentIndex + 1} / {testData.questions.length}
-        </Text>
       </View>
 
       <View style={styles.content}>
-        {submitting ? (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.submittingContainer}>
-            <ActivityIndicator size="large" color={currentTheme.colors.primary} />
-            <Text style={[styles.submittingText, { color: currentTheme.colors.text.primary }]}>
-              Yanıtların derinleşiyor...
-            </Text>
-          </Animated.View>
-        ) : (
-          <Animated.View 
-            key={currentIndex}
-            entering={FadeIn.duration(400)}
-            exiting={FadeOut.duration(200)}
-            style={styles.questionContainer}
-          >
-            <Text style={[styles.questionText, { color: currentTheme.colors.text.primary }]}>
-              {currentQuestion.text}
-            </Text>
-            
-            <View style={styles.optionsContainer}>
-              {currentQuestion.options.map((option, idx) => {
-                const isSelected = answers[currentQuestion.id] === option.value;
-                const isColorTest = testData.id === 'color';
-                
-                let borderColor = isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder;
-                let textColor = isSelected ? currentTheme.colors.primary : currentTheme.colors.text.secondary;
-                let shadowColor = 'transparent';
+        <Animated.View 
+          key={`q-${currentIndex}`}
+          entering={FadeIn.duration(400)}
+          exiting={FadeOut.duration(200)}
+          style={styles.questionContainer}
+        >
+          <Text style={[styles.questionText, { color: currentTheme.colors.text.primary }]}>
+            {currentQuestion.text}
+          </Text>
 
-                if (isColorTest && isSelected) {
-                  if (option.value === 'red') { borderColor = '#EF4444'; textColor = '#EF4444'; shadowColor = '#EF4444'; }
-                  if (option.value === 'blue') { borderColor = '#3B82F6'; textColor = '#3B82F6'; shadowColor = '#3B82F6'; }
-                  if (option.value === 'green') { borderColor = '#10B981'; textColor = '#10B981'; shadowColor = '#10B981'; }
-                  if (option.value === 'yellow') { borderColor = '#F59E0B'; textColor = '#F59E0B'; shadowColor = '#F59E0B'; }
-                }
-
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    activeOpacity={0.7}
-                    onPress={() => handleSelectOption(currentQuestion.id, option.value)}
-                    style={[
-                      styles.optionCard,
-                      {
-                        backgroundColor: currentTheme.colors.card,
-                        borderColor: borderColor,
-                        shadowColor: shadowColor,
-                        shadowOpacity: isSelected && isColorTest ? 0.3 : 0,
-                        shadowRadius: 10,
-                        shadowOffset: { width: 0, height: 4 },
-                        elevation: isSelected && isColorTest ? 8 : 0
-                      }
-                    ]}
-                  >
-                    <Text style={[styles.optionText, { color: textColor }]}>
-                      {option.text}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </Animated.View>
-        )}
+          <View style={styles.optionsContainer}>
+            {currentQuestion.options.map((option, idx) => {
+              const isSelected = answers[currentQuestion.id] === idx;
+              return (
+                <TouchableOpacity
+                  key={`opt-${idx}`}
+                  style={[
+                    styles.optionBtn,
+                    { 
+                      backgroundColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.card,
+                      borderColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder
+                    }
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectOption(currentQuestion.id, idx, option)}
+                  disabled={submitting || answers[currentQuestion.id] !== undefined}
+                >
+                  <Text style={[
+                    styles.optionText,
+                    { color: isSelected ? '#FFF' : currentTheme.colors.text.primary }
+                  ]}>
+                    {option.text}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Animated.View>
       </View>
+
     </GradientBackground>
   );
 }
@@ -217,35 +400,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  interstitialContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  interstitialText: {
+    fontSize: 22,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 34,
+    fontStyle: 'italic',
+  },
   header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   backBtn: {
-    padding: 8,
-    marginLeft: -8,
+    paddingRight: 15,
   },
   backText: {
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: '500',
   },
   progressBarContainer: {
     flex: 1,
-    height: 4,
-    marginHorizontal: 16,
-    borderRadius: 2,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
+    marginHorizontal: 10,
   },
   progressBar: {
     height: '100%',
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 13,
-    fontWeight: '600',
+    borderRadius: 3,
   },
   content: {
     flex: 1,
@@ -256,31 +447,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   questionText: {
-    fontSize: 24,
-    lineHeight: 34,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     marginBottom: 40,
+    lineHeight: 36,
   },
   optionsContainer: {
     gap: 16,
   },
-  optionCard: {
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1.5,
+  optionBtn: {
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   optionText: {
     fontSize: 16,
+    fontWeight: '500',
     lineHeight: 24,
   },
-  submittingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  devOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    zIndex: 9999,
   },
-  submittingText: {
-    marginTop: 20,
-    fontSize: 18,
-    fontStyle: 'italic',
+  devOverlayText: {
+    color: '#00FF66',
+    fontSize: 11,
+    fontFamily: 'monospace',
+    lineHeight: 14,
   }
 });

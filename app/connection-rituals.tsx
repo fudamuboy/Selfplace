@@ -182,6 +182,43 @@ export default function ConnectionRitualsScreen() {
                 🔒 Yanıtınız tamamen özel kalır. Ortağınız cevabınızın içeriğini doğrudan okuyamaz. Yalnızca yapay zeka, aranızdaki uyumu sentezlemek için bu verilerden yararlanır.
               </Text>
 
+              {/* AI Ritual Reflection Synthesis Card */}
+              {ritual.relationshipReflection && (
+                <View style={[styles.synthesisCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                  <View style={styles.synthesisHeader}>
+                    <Ionicons name="sparkles" size={18} color={currentTheme.colors.primary} />
+                    <Text style={[styles.synthesisTitle, { color: currentTheme.colors.text.primary }]}>✨ Ortak Yansımanız</Text>
+                  </View>
+                  
+                  {ritual.emotionalClimate && (
+                    <View style={[styles.climateBadge, { backgroundColor: currentTheme.colors.secondary }]}>
+                      <Text style={[styles.climateText, { color: currentTheme.colors.primary }]}>
+                        Atmosfer: {ritual.emotionalClimate}
+                      </Text>
+                    </View>
+                  )}
+
+                  <Text style={[styles.reflectionText, { color: currentTheme.colors.text.primary }]}>
+                    {ritual.relationshipReflection}
+                  </Text>
+
+                  {ritual.gentleSuggestion && (
+                    <>
+                      <View style={[styles.divider, { backgroundColor: currentTheme.colors.cardBorder }]} />
+                      <View style={styles.suggestionRow}>
+                        <Ionicons name="heart" size={16} color={currentTheme.colors.accent} style={{ marginTop: 2 }} />
+                        <View style={styles.suggestionTextContainer}>
+                          <Text style={[styles.suggestionLabel, { color: currentTheme.colors.text.secondary }]}>Küçük Bir Adım</Text>
+                          <Text style={[styles.suggestionText, { color: currentTheme.colors.text.primary }]}>
+                            {ritual.gentleSuggestion}
+                          </Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -303,5 +340,59 @@ const styles = StyleSheet.create({
     marginTop: 20,
     textAlign: 'center',
     paddingHorizontal: 12,
+  },
+  synthesisCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    marginTop: 30,
+    marginBottom: 10,
+  },
+  synthesisHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  synthesisTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  climateBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 14,
+  },
+  climateText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reflectionText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 16,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  suggestionText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

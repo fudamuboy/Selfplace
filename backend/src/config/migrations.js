@@ -220,10 +220,35 @@ exports.runMigrations = async () => {
         zodiac_sign VARCHAR(50),
         guidance_text TEXT NOT NULL,
         themes JSONB,
+        event_seed VARCHAR(100),
+        content_hash VARCHAR(64),
         generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         expires_at TIMESTAMP WITH TIME ZONE
       )
     `);
+
+    try {
+      await db.query('ALTER TABLE weekly_guidance ADD COLUMN IF NOT EXISTS event_seed VARCHAR(100)');
+      await db.query('ALTER TABLE weekly_guidance ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)');
+    } catch (e) {
+      console.log('[MIGRATION] ALTER weekly_guidance error (might be expected):', e.message);
+    }
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS daily_whisper (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        zodiac_sign VARCHAR(50),
+        whisper_text TEXT NOT NULL,
+        mood_context VARCHAR(50),
+        emotional_weather VARCHAR(50),
+        content_hash VARCHAR(64),
+        generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP WITH TIME ZONE
+      )
+    `);
+    await db.query('CREATE INDEX IF NOT EXISTS idx_daily_whisper_user ON daily_whisper(user_id)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_daily_whisper_expires ON daily_whisper(expires_at)');
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS ai_messages (
@@ -468,6 +493,11 @@ exports.runMigrations = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      ALTER TABLE relationship_rituals 
+      ADD COLUMN IF NOT EXISTS relationship_reflection TEXT,
+      ADD COLUMN IF NOT EXISTS emotional_climate VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS gentle_suggestion TEXT;
+
       CREATE TABLE IF NOT EXISTS relationship_ritual_responses (
         id SERIAL PRIMARY KEY,
         ritual_id INTEGER REFERENCES relationship_rituals(id) ON DELETE CASCADE,
@@ -493,6 +523,24 @@ exports.runMigrations = async () => {
       CREATE INDEX IF NOT EXISTS idx_rel_timeline_conn ON relationship_timeline(connection_id);
 
       ALTER TABLE relationship_daily_syncs ADD COLUMN IF NOT EXISTS insight_feed JSONB DEFAULT '[]'::jsonb;
+
+      ALTER TABLE relationship_daily_syncs 
+      ADD COLUMN IF NOT EXISTS emotional_aura VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS connection_state VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS relationship_rhythm VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS emotional_closeness INTEGER DEFAULT 50;
+
+      ALTER TABLE couple_memories 
+      ADD COLUMN IF NOT EXISTS symbol VARCHAR(50);
+
+      CREATE TABLE IF NOT EXISTS relationship_garden (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        garden_state VARCHAR(50) DEFAULT 'peaceful_garden',
+        growth_level INTEGER DEFAULT 1,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(connection_id)
+      );
     `);
 
     // Seed astrology data
@@ -687,6 +735,56 @@ exports.runMigrations = async () => {
     } else {
       console.log('[MIGRATION] Legacy data reconciliation v2 already ran. Skipping.');
     }
+
+    // ─── RELATIONSHIP INTELLIGENCE UPGRADE ────────────────────────────────────
+
+    // Shared couple memory — stores emotional events per relationship connection
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS couple_memories (
+        id SERIAL PRIMARY KEY,
+        connection_id INTEGER REFERENCES relationship_connections(id) ON DELETE CASCADE,
+        memory_type VARCHAR(50) NOT NULL,
+        -- 'conflict' | 'reconciliation' | 'milestone' | 'recurring_issue'
+        -- | 'positive_moment' | 'communication_pattern' | 'relationship_goal'
+        summary TEXT NOT NULL,
+        participants VARCHAR(20) DEFAULT 'both',
+        -- 'both' | 'partner_a' (requester) | 'partner_b' (recipient)
+        emotional_weight INTEGER DEFAULT 3 CHECK (emotional_weight BETWEEN 1 AND 5),
+        resolved BOOLEAN DEFAULT FALSE,
+        last_referenced_at TIMESTAMP WITH TIME ZONE,
+        -- cooldown: don't repeat within 12 h per trigger
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_couple_memories_conn ON couple_memories(connection_id);
+      CREATE INDEX IF NOT EXISTS idx_couple_memories_type ON couple_memories(memory_type);
+      CREATE INDEX IF NOT EXISTS idx_couple_memories_resolved ON couple_memories(resolved);
+    `);
+
+    // Per-user behavioral & emotional trait memory
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS individual_behavioral_memory (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        trait_key VARCHAR(100) NOT NULL,
+        -- 'reassurance_seeking' | 'conflict_style' | 'avoidance_tendency'
+        -- | 'emotional_dependency' | 'communication_preference' | 'emotional_goals'
+        trait_value TEXT NOT NULL,
+        confidence INTEGER DEFAULT 50 CHECK (confidence BETWEEN 0 AND 100),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, trait_key)
+      )
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_indiv_behav_mem_user ON individual_behavioral_memory(user_id);
+    `);
+
+    // ──────────────────────────────────────────────────────────────────────────
 
     console.log('[MIGRATION] Database schema checks completed successfully.');
   } catch (err) {

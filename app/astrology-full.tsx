@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,9 @@ export default function AstrologyFullScreen() {
   const { currentTheme } = useThemeStore();
   
   const [data, setData] = useState<any>(null);
+  const [dailyData, setDailyData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -39,13 +41,23 @@ export default function AstrologyFullScreen() {
 
   const fetchData = async () => {
     try {
-      const res = await client.get('/astrology/weekly');
-      setData(res.data.data);
+      const [weeklyRes, dailyRes] = await Promise.all([
+        client.get('/astrology/weekly'),
+        client.get('/astrology/daily')
+      ]);
+      setData(weeklyRes.data.data);
+      setDailyData(dailyRes.data.data);
     } catch (err) {
-      console.error('[AstrologyFull] Fetch error', err);
+      console.warn('[AstrologyFull] Fetch error', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
   };
 
   if (loading) {
@@ -76,12 +88,23 @@ export default function AstrologyFullScreen() {
 
   return (
     <GradientBackground>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            tintColor={currentTheme.colors.primary}
+            colors={[currentTheme.colors.primary]}
+          />
+        }
+      >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>Haftalık Enerjin</Text>
+          <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>Gökyüzü Enerjisi</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -104,9 +127,19 @@ export default function AstrologyFullScreen() {
 
         {hasZodiac ? (
           <>
-            {/* AI Synthesis Guidance */}
+            {/* Daily Whisper */}
+            {dailyData && dailyData.whisperText && (
+              <Animated.View entering={FadeInDown.delay(100).duration(800)} style={styles.guidanceContainer}>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Bugünün Enerjisi</Text>
+                <Text style={[styles.dailyText, { color: currentTheme.colors.text.primary }]}>
+                  {dailyData.whisperText}
+                </Text>
+              </Animated.View>
+            )}
+
+            {/* AI Synthesis Guidance (Weekly) */}
             <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.guidanceContainer}>
-              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Gökyüzü Fısıltısı</Text>
+              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Haftalık Enerji</Text>
               <Text style={[styles.guidanceText, { color: currentTheme.colors.text.secondary }]}>
                 {aiGuidance}
               </Text>
@@ -243,6 +276,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 28,
     fontWeight: '400',
+  },
+  dailyText: {
+    fontSize: 16,
+    lineHeight: 28,
+    fontWeight: '300', // Slightly lighter to contrast with weekly
+    fontStyle: 'italic',
   },
   eventsContainer: {
     marginBottom: 40,

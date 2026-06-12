@@ -10,6 +10,7 @@ import { Toast } from '../components/Toast';
 import { CustomButton } from '../components/CustomButton';
 import { PremiumGate } from '../components/PremiumGate';
 import { PremiumUpgradeModal } from '../components/PremiumUpgradeModal';
+import { PremiumGateModal, PremiumFeatureType } from '../components/PremiumGateModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   getConnections,
@@ -20,11 +21,214 @@ import {
   updateSettings,
   getDailySync,
   getInsightFeed,
+  getCrystals,
+  getGardenState,
   RelationshipConnection,
   RelationshipPrivacySettings,
-  RelationshipDailySync
+  RelationshipDailySync,
+  MemoryCrystal,
+  RelationshipGarden
 } from '../api/relationshipApi';
 import { CONTENT_MAX_WIDTH, FORM_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
+
+// Helpers for Crystals and Garden States
+const getCrystalGradient = (symbol: string): [string, string, ...string[]] => {
+  switch (symbol) {
+    case 'heart': return ['rgba(244, 63, 94, 0.15)', 'rgba(244, 63, 94, 0.02)'];
+    case 'star': return ['rgba(253, 224, 71, 0.15)', 'rgba(253, 224, 71, 0.02)'];
+    case 'moon': return ['rgba(96, 165, 250, 0.15)', 'rgba(96, 165, 250, 0.02)'];
+    case 'rose': return ['rgba(236, 72, 153, 0.15)', 'rgba(236, 72, 153, 0.02)'];
+    case 'leaf': return ['rgba(52, 211, 153, 0.15)', 'rgba(52, 211, 153, 0.02)'];
+    case 'sun': return ['rgba(251, 146, 60, 0.15)', 'rgba(251, 146, 60, 0.02)'];
+    default: return ['rgba(167, 139, 250, 0.15)', 'rgba(167, 139, 250, 0.02)'];
+  }
+};
+
+const getCrystalColor = (symbol: string): string => {
+  switch (symbol) {
+    case 'heart': return '#FB7185';
+    case 'star': return '#FBBF24';
+    case 'moon': return '#60A5FA';
+    case 'rose': return '#F472B6';
+    case 'leaf': return '#34D399';
+    case 'sun': return '#FB923C';
+    default: return '#A78BFA';
+  }
+};
+
+const getCrystalIcon = (symbol: string): string => {
+  switch (symbol) {
+    case 'heart': return 'heart';
+    case 'star': return 'star';
+    case 'moon': return 'moon';
+    case 'rose': return 'rose';
+    case 'leaf': return 'leaf';
+    case 'sun': return 'sunny';
+    default: return 'sparkles';
+  }
+};
+
+const getGardenBackground = (state: string): [string, string, ...string[]] => {
+  switch (state) {
+    case 'spring_bloom': return ['#4338CA', '#DB2777', '#A78BFA']; // Pink-purple sunset
+    case 'peaceful_garden': return ['#065F46', '#059669', '#34D399']; // Emerald green
+    case 'warm_sunset': return ['#7C2D12', '#EA580C', '#FDBA74']; // Sunset orange
+    case 'silent_winter': return ['#1E1B4B', '#1E3A8A', '#3B82F6']; // Snow blue
+    case 'rainy_reflection': return ['#1F2937', '#4B5563', '#9CA3AF']; // Rainy grey
+    case 'healing_rain': return ['#115E59', '#0D9488', '#2DD4BF']; // Teal healing rain
+    default: return ['#1E1B4B', '#312E81', '#4C1D95'];
+  }
+};
+
+const getGardenStateName = (state: string): string => {
+  switch (state) {
+    case 'spring_bloom': return 'Bahar Çiçeklenmesi 🌸';
+    case 'peaceful_garden': return 'Huzurlu Bahçe ☀️';
+    case 'warm_sunset': return 'Sıcak Gün Batımı 🌅';
+    case 'silent_winter': return 'Sessiz Kış ❄️';
+    case 'rainy_reflection': return 'Yağmurlu Yansıma 🌧️';
+    case 'healing_rain': return 'Şifalı Yağmur 🌈';
+    default: return 'Gelişen Bahçe 🌱';
+  }
+};
+
+const getGardenStateIcon = (state: string): string => {
+  switch (state) {
+    case 'spring_bloom': return 'rose-outline';
+    case 'peaceful_garden': return 'sunny-outline';
+    case 'warm_sunset': return 'cloudy-night-outline';
+    case 'silent_winter': return 'snow-outline';
+    case 'rainy_reflection': return 'rainy-outline';
+    case 'healing_rain': return 'umbrella-outline';
+    default: return 'leaf-outline';
+  }
+};
+
+const FloatingParticles = () => {
+  const particles = Array.from({ length: 6 }).map((_, i) => ({
+    x: useRef(new Animated.Value(Math.random() * 200 - 100)).current,
+    y: useRef(new Animated.Value(Math.random() * 100 - 50)).current,
+    opacity: useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current,
+    size: Math.random() * 4 + 2,
+    id: i
+  }));
+
+  useEffect(() => {
+    particles.forEach(p => {
+      const animateParticle = () => {
+        Animated.parallel([
+          Animated.timing(p.x, {
+            toValue: Math.random() * 200 - 100,
+            duration: Math.random() * 8000 + 6000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(p.y, {
+            toValue: Math.random() * 120 - 60,
+            duration: Math.random() * 8000 + 6000,
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(p.opacity, {
+              toValue: Math.random() * 0.6 + 0.1,
+              duration: Math.random() * 4000 + 3000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(p.opacity, {
+              toValue: Math.random() * 0.4 + 0.2,
+              duration: Math.random() * 4000 + 3000,
+              useNativeDriver: true,
+            })
+          ])
+        ]).start(() => animateParticle());
+      };
+      animateParticle();
+    });
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {particles.map(p => (
+        <Animated.View
+          key={p.id}
+          style={{
+            position: 'absolute',
+            width: p.size,
+            height: p.size,
+            borderRadius: p.size / 2,
+            backgroundColor: p.id % 2 === 0 ? '#A78BFA' : '#F472B6',
+            opacity: p.opacity,
+            left: '50%',
+            top: '50%',
+            transform: [
+              { translateX: p.x },
+              { translateY: p.y }
+            ]
+          }}
+        />
+      ))}
+    </View>
+  );
+};
+
+const renderGardenFlora = (flowersCount: number = 0, treeHeight: number = 10, starsCount: number = 0) => {
+  const flowers = Array.from({ length: Math.min(12, flowersCount) });
+  const stars = Array.from({ length: Math.min(8, starsCount) });
+  
+  return (
+    <View style={styles.floraRow}>
+      {/* Stars in the sky */}
+      <View style={styles.gardenSky}>
+        {stars.map((_, i) => (
+          <Ionicons 
+            key={`star-${i}`} 
+            name="star" 
+            size={8 + (i % 3) * 2} 
+            color="#FDE047" 
+            style={[
+              styles.gardenStarIcon, 
+              { 
+                top: 5 + (i * 12) % 35, 
+                left: 15 + (i * 40) % 220,
+                opacity: 0.5 + (i % 3) * 0.15 
+              }
+            ]} 
+          />
+        ))}
+      </View>
+
+      {/* Main Tree representing connection depth */}
+      <View style={styles.gardenTreeContainer}>
+        <Ionicons 
+          name="leaf" 
+          size={Math.max(30, Math.min(70, treeHeight))} 
+          color="#34D399" 
+          style={{ opacity: 0.95 }} 
+        />
+        <Text style={styles.treeLabel}>Bağ Ağacı</Text>
+      </View>
+
+      {/* Ground flowers representing rituals consistency */}
+      <View style={styles.gardenGround}>
+        {flowers.map((_, i) => (
+          <Ionicons 
+            key={`flower-${i}`} 
+            name="rose" 
+            size={12} 
+            color={i % 2 === 0 ? '#F472B6' : '#FB7185'} 
+            style={[
+              styles.gardenFlowerIcon,
+              { 
+                bottom: 2, 
+                left: 15 + (i * 20) % 250, 
+                opacity: 0.9 
+              }
+            ]} 
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
 
 const RELATIONSHIP_TYPES = [
   { key: 'partner', label: '💞 Partner' },
@@ -47,12 +251,16 @@ export default function ConnectionDetailScreen() {
   const [insightDate, setInsightDate] = useState<string | null>(null);
   const [dailySync, setDailySync] = useState<RelationshipDailySync | null>(null);
   const [insightFeed, setInsightFeed] = useState<string[]>([]);
+  const [crystals, setCrystals] = useState<MemoryCrystal[]>([]);
+  const [garden, setGarden] = useState<RelationshipGarden | null>(null);
 
   // Animation values for premium emotional transitions
   const syncOrbScale = useRef(new Animated.Value(1)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
   const insightOpacity = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const orb1Scale = useRef(new Animated.Value(1)).current;
+  const orb2Scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -69,6 +277,36 @@ export default function ConnectionDetailScreen() {
         })
       ])
     ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(orb1Scale, {
+          toValue: 1.25,
+          duration: 8000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(orb1Scale, {
+          toValue: 0.85,
+          duration: 8000,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(orb2Scale, {
+          toValue: 0.8,
+          duration: 7000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(orb2Scale, {
+          toValue: 1.2,
+          duration: 7000,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
   }, []);
   
   const [loading, setLoading] = useState(true);
@@ -77,6 +315,7 @@ export default function ConnectionDetailScreen() {
   const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+  const [premiumGate, setPremiumGate] = useState<PremiumFeatureType>(null);
   const [editAlias, setEditAlias] = useState('');
   const [editType, setEditType] = useState('partner');
   const [toast, setToast] = useState({ visible: false, message: '' });
@@ -100,12 +339,33 @@ export default function ConnectionDetailScreen() {
       const privSettings = await getPrivacySettings(connectionId);
       setPrivacy(privSettings);
 
-      // Load AI Empathy Insight
-      const insightData = await getConnectionInsight(connectionId);
-      setInsightText(insightData.insightText);
-      setInsightDate(insightData.generatedAt);
+      // Smart API Protection: Load Plus / Signature locked endpoints conditionally
+      if (planType !== 'free') {
+        // Load AI Empathy Insight
+        try {
+          const insightData = await getConnectionInsight(connectionId);
+          setInsightText(insightData.insightText || '');
+          setInsightDate(insightData.generatedAt || null);
+        } catch (e) {
+          console.warn('[ConnectionDetail] Insight details fetch error:', e);
+          setInsightText('');
+          setInsightDate(null);
+        }
 
-      // Load Daily Sync details if available
+        // Load Insight Feed details if available
+        try {
+          const feedData = await getInsightFeed(connectionId);
+          setInsightFeed(feedData || []);
+        } catch (e) {
+          setInsightFeed([]);
+        }
+      } else {
+        setInsightText('');
+        setInsightDate(null);
+        setInsightFeed([]);
+      }
+
+      // Load Daily Sync details (Free tier users can load up to 3 times before 403)
       try {
         const syncData = await getDailySync(connectionId);
         setDailySync(syncData);
@@ -114,12 +374,21 @@ export default function ConnectionDetailScreen() {
         setDailySync(null);
       }
 
-      // Load Insight Feed details if available
-      try {
-        const feedData = await getInsightFeed(connectionId);
-        setInsightFeed(feedData);
-      } catch (e) {
-        setInsightFeed([]);
+      // Load Signature Tier additions if subscriber
+      if (planType === 'signature') {
+        try {
+          const crystalData = await getCrystals(connectionId);
+          setCrystals(crystalData || []);
+          const gardenData = await getGardenState(connectionId);
+          setGarden(gardenData || null);
+        } catch (e) {
+          console.warn('[ConnectionDetail] Signature details fetch error:', e);
+          setCrystals([]);
+          setGarden(null);
+        }
+      } else {
+        setCrystals([]);
+        setGarden(null);
       }
 
     } catch (error) {
@@ -210,11 +479,21 @@ export default function ConnectionDetailScreen() {
         // ignore
       }
 
+      // Refresh signature data as well
+      if (planType === 'signature') {
+        try {
+          const crystalData = await getCrystals(connectionId);
+          setCrystals(crystalData);
+          const gardenData = await getGardenState(connectionId);
+          setGarden(gardenData);
+        } catch (_) {}
+      }
+
       showToast('Günlük uyum sentezlendi 🌤️');
     } catch (error: any) {
       console.warn('[ConnectionDetail] Error generating daily sync:', error);
       if (error.response?.status === 403) {
-        setUpgradeModalVisible(true);
+        setPremiumGate('daily-sync');
       } else {
         showToast('Günlük uyum sentezi şu an yapılamadı.');
       }
@@ -334,8 +613,8 @@ export default function ConnectionDetailScreen() {
 
   return (
     <GradientBackground>
-      <View style={styles.glowOrb1} />
-      <View style={styles.glowOrb2} />
+      <Animated.View style={[styles.glowOrb1, { transform: [{ scale: orb1Scale }] }]} />
+      <Animated.View style={[styles.glowOrb2, { transform: [{ scale: orb2Scale }] }]} />
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -363,13 +642,91 @@ export default function ConnectionDetailScreen() {
             </View>
           </View>
 
+          {/* Signature Exclusive: Ruhsal Alanınız (Your Emotional Space) */}
+          <>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>🌌 Ruhsal Alanınız</Text>
+            <PremiumGate
+              requiredPlan="signature"
+              currentPlan={planType}
+              onUpgradePress={() => setUpgradeModalVisible(true)}
+              title="Ruhsal Alanınız ✨"
+              subtitle="Signature ile açılır ✨"
+              containerStyle={{ marginBottom: 28 }}
+            >
+              {(() => {
+                const activeSync = dailySync || {
+                  emotional_aura: "Gizemli Uyum 🔮",
+                  relationship_rhythm: "Yumuşak Akış 🌊",
+                  connection_state: "Derinleşen Bağlar ✨",
+                  emotional_closeness: 80
+                };
+                return (
+                  <View style={[styles.synthesisCard, { backgroundColor: 'rgba(15, 17, 26, 0.6)', borderColor: currentTheme.colors.cardBorder, overflow: 'hidden' }]}>
+                    <FloatingParticles />
+                    
+                    {/* Slow ambient glowing background element */}
+                    <View style={[styles.ambientGlow, { backgroundColor: currentTheme.colors.primary + '11' }]} />
+
+                    <View style={styles.auraHeader}>
+                      <Ionicons name="infinite-outline" size={24} color={currentTheme.colors.primary} />
+                      <View>
+                        <Text style={[styles.auraLabel, { color: currentTheme.colors.text.secondary }]}>Duygusal Aura</Text>
+                        <Text style={[styles.auraValue, { color: currentTheme.colors.text.primary }]}>
+                          {activeSync.emotional_aura}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.auraGrid}>
+                      <View style={styles.auraGridItem}>
+                        <Ionicons name="pulse" size={16} color={currentTheme.colors.accent} />
+                        <Text style={[styles.auraGridLabel, { color: currentTheme.colors.text.muted }]}>İlişki Ritmi</Text>
+                        <Text style={[styles.auraGridValue, { color: currentTheme.colors.text.primary }]} numberOfLines={1}>
+                          {activeSync.relationship_rhythm}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.auraGridItem}>
+                        <Ionicons name="git-commit-outline" size={16} color={currentTheme.colors.primary} />
+                        <Text style={[styles.auraGridLabel, { color: currentTheme.colors.text.muted }]}>Bağlantı Durumu</Text>
+                        <Text style={[styles.auraGridValue, { color: currentTheme.colors.text.primary }]} numberOfLines={1}>
+                          {activeSync.connection_state}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.closenessRow}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Text style={[styles.closenessLabel, { color: currentTheme.colors.text.secondary }]}>Duygusal Yakınlık</Text>
+                        <Text style={[styles.closenessValue, { color: currentTheme.colors.primary }]}>
+                          %{activeSync.emotional_closeness}
+                        </Text>
+                      </View>
+                      <View style={[styles.closenessTrack, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                        <View 
+                          style={[
+                            styles.closenessFill, 
+                            { 
+                              width: `${activeSync.emotional_closeness || 80}%`,
+                              backgroundColor: currentTheme.colors.primary 
+                            }
+                          ]} 
+                        />
+                      </View>
+                    </View>
+                  </View>
+                );
+              })()}
+            </PremiumGate>
+          </>
+
           {/* Phase 2: Daily Emotional Sync (Atmospheric weather & energy system) */}
           <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Günlük Duygusal Uyum 🌤️</Text>
           
           <PremiumGate
             requiredPlan="plus"
             currentPlan={planType}
-            onUpgradePress={() => setUpgradeModalVisible(true)}
+            onUpgradePress={() => setPremiumGate('daily-sync')}
             subtitle="Günlük uyum analizi, duygusal hava durumu ve ilişki enerjisi analizlerini açmak için Plus'a yükseltin."
             containerStyle={{ marginBottom: 28 }}
           >
@@ -446,12 +803,69 @@ export default function ConnectionDetailScreen() {
             )}
           </PremiumGate>
 
+          {/* Signature Exclusive: İlişki Bahçesi (Relationship Garden) */}
+          <>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>🌱 İlişki Bahçesi</Text>
+            <PremiumGate
+              requiredPlan="signature"
+              currentPlan={planType}
+              onUpgradePress={() => setUpgradeModalVisible(true)}
+              title="İlişki Bahçesi 🌱"
+              subtitle="Signature ile açılır ✨"
+              containerStyle={{ marginBottom: 28 }}
+            >
+              {(() => {
+                const activeGarden = garden || {
+                  connectionId: connectionId.toString(),
+                  gardenState: 'peaceful_garden',
+                  growthLevel: 1,
+                  flowersCount: 4,
+                  treeHeight: 30,
+                  starsUnlocked: 1,
+                  totalRituals: 4,
+                  totalCrystals: 0
+                };
+                return (
+                  <View style={[styles.gardenCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder, overflow: 'hidden' }]}>
+                    <LinearGradient
+                      colors={getGardenBackground(activeGarden.gardenState)}
+                      style={styles.gardenVisualContainer}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                    >
+                      {/* Sky/Atmosphere icon overlay */}
+                      <View style={styles.gardenWeatherIconContainer}>
+                        <Ionicons name={getGardenStateIcon(activeGarden.gardenState) as any} size={24} color="rgba(255,255,255,0.7)" />
+                      </View>
+
+                      {/* Sky/Flora visualization */}
+                      {renderGardenFlora(activeGarden.flowersCount, activeGarden.treeHeight, activeGarden.starsUnlocked)}
+
+                      {/* Overlay text detail */}
+                      <View style={styles.gardenTextPanel}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <View>
+                            <Text style={styles.gardenStateTitle}>{getGardenStateName(activeGarden.gardenState)}</Text>
+                            <Text style={styles.gardenSubtext}>Ritüel ve paylaşımlarla büyüyen ortak alanınız</Text>
+                          </View>
+                          <View style={styles.gardenLevelBadge}>
+                            <Text style={styles.gardenLevelText}>Seviye {activeGarden.growthLevel}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </LinearGradient>
+                  </View>
+                );
+              })()}
+            </PremiumGate>
+          </>
+
           {/* Phase 3: Uyum Fısıltıları (Insight Feed) */}
           <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Uyum Fısıltıları 🌿</Text>
           <PremiumGate
             requiredPlan="plus"
             currentPlan={planType}
-            onUpgradePress={() => setUpgradeModalVisible(true)}
+            onUpgradePress={() => setPremiumGate('whispers')}
             subtitle="Günün 3 hafif duygusal uyum tavsiyesini açmak için Plus'a yükseltin."
             containerStyle={{ marginBottom: 28 }}
           >
@@ -484,7 +898,7 @@ export default function ConnectionDetailScreen() {
               style={[styles.exploreBtn, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
               onPress={() => {
                 if (planType === 'free') {
-                  setUpgradeModalVisible(true);
+                  setPremiumGate('shared-ritual');
                 } else {
                   router.push(`/connection-rituals?id=${connectionId}`);
                 }
@@ -504,7 +918,7 @@ export default function ConnectionDetailScreen() {
               style={[styles.exploreBtn, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
               onPress={() => {
                 if (planType === 'free') {
-                  setUpgradeModalVisible(true);
+                  setPremiumGate('time-tunnel');
                 } else {
                   router.push(`/connection-timeline?id=${connectionId}`);
                 }
@@ -523,87 +937,149 @@ export default function ConnectionDetailScreen() {
 
           <View style={{ height: 16 }} />
 
+          {/* Signature Exclusive: Anı Kristalleri (Memory Crystals) */}
+          <>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>💎 Anı Kristalleri</Text>
+            <PremiumGate
+              requiredPlan="signature"
+              currentPlan={planType}
+              onUpgradePress={() => setUpgradeModalVisible(true)}
+              title="Anı Kristalleri 💎"
+              subtitle="Signature ile açılır ✨"
+              containerStyle={{ marginBottom: 28 }}
+            >
+              {(() => {
+                const activeCrystals = (crystals && crystals.length > 0) ? crystals : [
+                  { id: 1, summary: 'İlk kırılgan anılarınız burada parlayacak... 💎', created_at: new Date().toISOString(), symbol: 'heart' },
+                  { id: 2, summary: 'Birlikte aşacağınız yollar... 🌟', created_at: new Date().toISOString(), symbol: 'sparkles' },
+                  { id: 3, summary: 'Duygusal bağın yansıması... ✨', created_at: new Date().toISOString(), symbol: 'star' }
+                ];
+                return (
+                  <View style={styles.crystalsContainer}>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false} 
+                      contentContainerStyle={styles.crystalsScroll}
+                    >
+                      {activeCrystals.map((crystal, idx) => (
+                        <View key={crystal.id || idx} style={[styles.crystalCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+                          <LinearGradient
+                            colors={getCrystalGradient(crystal.symbol)}
+                            style={styles.crystalGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                          >
+                            <View style={[styles.crystalIconBg, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                              <Ionicons 
+                                name={getCrystalIcon(crystal.symbol) as any} 
+                                size={20} 
+                                color={getCrystalColor(crystal.symbol)} 
+                              />
+                            </View>
+                            <Text style={[styles.crystalTitle, { color: currentTheme.colors.text.primary }]} numberOfLines={2}>
+                              {crystal.summary}
+                            </Text>
+                            <Text style={[styles.crystalDate, { color: currentTheme.colors.text.muted }]}>
+                              {new Date(crystal.created_at).toLocaleDateString('tr-TR')}
+                            </Text>
+                          </LinearGradient>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                );
+              })()}
+            </PremiumGate>
+          </>
+
           {/* AI Empathy Insight section */}
           <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Derin Uyum Analizi ✨</Text>
-          <Animated.View style={[
-            styles.insightCard, 
-            { 
-              backgroundColor: currentTheme.colors.card, 
-              borderColor: currentTheme.colors.cardBorder,
-              transform: [{ scale: cardScale }],
-              shadowColor: currentTheme.colors.primary,
-              shadowOffset: { width: 0, height: 4 },
-              shadowRadius: glowAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [8, 20]
-              }),
-              shadowOpacity: glowAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.1, 0.4]
-              }),
-              elevation: 4
-            }
-          ]}>
-            <View style={styles.cardWatermarkContainer}>
-              <Ionicons name="heart-half-outline" size={80} color="rgba(255,255,255,0.012)" />
-            </View>
-
-            {insightLoading ? (
-              <View style={styles.insightLoadingBox}>
-                <ActivityIndicator size="small" color={currentTheme.colors.primary} />
-                <Text style={[styles.insightLoadingText, { color: currentTheme.colors.text.secondary }]}>
-                  Duygusal ritimleriniz analiz ediliyor...
-                </Text>
-              </View>
-            ) : (
-              <Animated.View style={{ opacity: insightOpacity }}>
-                {insightText && (
-                  <View style={styles.chipsRow}>
-                    {getAtmosphereChips(dailySync?.emotional_weather || 'Default').map((chip, i) => (
-                      <View key={i} style={[styles.chipItem, { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }]}>
-                        <Ionicons name="sparkles" size={10} color={currentTheme.colors.primary} style={{ marginRight: 4 }} />
-                        <Text style={[styles.chipText, { color: currentTheme.colors.text.secondary }]}>{chip}</Text>
-                      </View>
-                    ))}
+          <PremiumGate
+            requiredPlan="plus"
+            currentPlan={planType}
+            onUpgradePress={() => setPremiumGate('advanced-ai')}
+            title="Derin Uyum Analizi ✨"
+            subtitle="Plus ile açılır ✨"
+            containerStyle={{ marginBottom: 28 }}
+          >
+            {(() => {
+              const activeInsightText = insightText || "İletişim tarzınız ve duygusal dalgalanmalarınız analiz edilerek burada derin uyum tavsiyeleri oluşturulur.";
+              const activeInsightDate = insightDate || new Date().toISOString();
+              return (
+                <Animated.View style={[
+                  styles.insightCard, 
+                  { 
+                    backgroundColor: currentTheme.colors.card, 
+                    borderColor: currentTheme.colors.cardBorder,
+                    transform: [{ scale: cardScale }],
+                    shadowColor: currentTheme.colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowRadius: glowAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [8, 20]
+                    }),
+                    shadowOpacity: glowAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.1, 0.4]
+                    }),
+                    elevation: 4
+                  }
+                ]}>
+                  <View style={styles.cardWatermarkContainer}>
+                    <Ionicons name="heart-half-outline" size={80} color="rgba(255,255,255,0.012)" />
                   </View>
-                )}
 
-                {insightText ? (
-                  insightText.split('\n\n').map((para, pIdx) => (
-                    <Text key={pIdx} style={[styles.insightParagraph, { color: currentTheme.colors.text.primary }]}>
-                      {para.trim()}
-                    </Text>
-                  ))
-                ) : (
-                  <Text style={[styles.insightText, { color: currentTheme.colors.text.primary, fontStyle: 'italic', marginBottom: 12 }]}>
-                    Henüz bir uyum içgörüsü oluşturulmamış. Analiz etmek için aşağıdaki butona basın.
-                  </Text>
-                )}
-                
-                {insightDate && (
-                  <Text style={[styles.insightDate, { color: currentTheme.colors.text.muted }]}>
-                    Güncellendi: {new Date(insightDate).toLocaleDateString('tr-TR')} · {new Date(insightDate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                )}
+                  {insightLoading ? (
+                    <View style={styles.insightLoadingBox}>
+                      <ActivityIndicator size="small" color={currentTheme.colors.primary} />
+                      <Text style={[styles.insightLoadingText, { color: currentTheme.colors.text.secondary }]}>
+                        Duygusal ritimleriniz analiz ediliyor...
+                      </Text>
+                    </View>
+                  ) : (
+                    <Animated.View style={{ opacity: insightOpacity }}>
+                      <View style={styles.chipsRow}>
+                        {getAtmosphereChips(dailySync?.emotional_weather || 'Default').map((chip, i) => (
+                          <View key={i} style={[styles.chipItem, { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }]}>
+                            <Ionicons name="sparkles" size={10} color={currentTheme.colors.primary} style={{ marginRight: 4 }} />
+                            <Text style={[styles.chipText, { color: currentTheme.colors.text.secondary }]}>{chip}</Text>
+                          </View>
+                        ))}
+                      </View>
 
-                <TouchableOpacity 
-                  style={styles.premiumButtonOuter}
-                  onPress={handleRefreshInsight}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={[currentTheme.colors.primary, '#EC4899']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.premiumButtonInner}
-                  >
-                    <Ionicons name="sparkles" size={16} color="#FFF" style={styles.refreshIcon} />
-                    <Text style={styles.refreshBtnText}>Uyum Analizini Yenile</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-          </Animated.View>
+                      {activeInsightText.split('\n\n').map((para, pIdx) => (
+                        <Text key={pIdx} style={[styles.insightParagraph, { color: currentTheme.colors.text.primary }]}>
+                          {para.trim()}
+                        </Text>
+                      ))}
+                      
+                      {insightDate && (
+                        <Text style={[styles.insightDate, { color: currentTheme.colors.text.muted }]}>
+                          Güncellendi: {new Date(activeInsightDate).toLocaleDateString('tr-TR')} · {new Date(activeInsightDate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      )}
+
+                      <TouchableOpacity 
+                        style={styles.premiumButtonOuter}
+                        onPress={handleRefreshInsight}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={[currentTheme.colors.primary, '#EC4899']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.premiumButtonInner}
+                        >
+                          <Ionicons name="sparkles" size={16} color="#FFF" style={styles.refreshIcon} />
+                          <Text style={styles.refreshBtnText}>Uyum Analizini Yenile</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  )}
+                </Animated.View>
+              );
+            })()}
+          </PremiumGate>
 
           {/* Privacy settings */}
           <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Gizlilik ve Sınırlar 🛡️</Text>
@@ -793,6 +1269,16 @@ export default function ConnectionDetailScreen() {
           onClose={() => setUpgradeModalVisible(false)}
           currentPlan={planType}
           onPlanUpdated={(newPlan) => setPlanType(newPlan)}
+        />
+
+        <PremiumGateModal
+          visible={!!premiumGate}
+          feature={premiumGate}
+          onClose={() => setPremiumGate(null)}
+          onUpgrade={() => {
+            setPremiumGate(null);
+            setTimeout(() => setUpgradeModalVisible(true), 150);
+          }}
         />
 
         <Toast 
@@ -1265,5 +1751,216 @@ const styles = StyleSheet.create({
     bottom: 16,
     right: 16,
     opacity: 0.5,
+  },
+  ambientGlow: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    opacity: 0.5,
+  },
+  auraHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  auraLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  auraValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  auraGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  auraGridItem: {
+    flex: 1,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    gap: 4,
+  },
+  auraGridLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  auraGridValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  closenessRow: {
+    marginTop: 4,
+  },
+  closenessLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  closenessValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  closenessTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  closenessFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  synthesisCard: {
+    borderRadius: 28,
+    borderWidth: 1,
+    marginTop: 28,
+    marginBottom: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+  },
+  gardenCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    marginTop: 28,
+    marginBottom: 16,
+  },
+  gardenVisualContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    height: 200,
+    justifyContent: 'space-between',
+  },
+  gardenWeatherIconContainer: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floraRow: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  gardenSky: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 50,
+  },
+  gardenStarIcon: {
+    position: 'absolute',
+  },
+  gardenTreeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 15,
+  },
+  treeLabel: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  gardenGround: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+  },
+  gardenFlowerIcon: {
+    position: 'absolute',
+  },
+  gardenTextPanel: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 10,
+  },
+  gardenStateTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  gardenSubtext: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  gardenLevelBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  gardenLevelText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  crystalsContainer: {
+    marginTop: 28,
+    marginBottom: 16,
+    paddingVertical: 24,
+  },
+  crystalsScroll: {
+    gap: 12,
+  },
+  crystalCard: {
+    width: 140,
+    height: 130,
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  crystalGradient: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  crystalIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  crystalTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 15,
+  },
+  crystalDate: {
+    fontSize: 9,
+  },
+  crystalEmptyCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 28,
+    marginBottom: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  crystalEmptyText: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });

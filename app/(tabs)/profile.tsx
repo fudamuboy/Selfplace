@@ -191,9 +191,8 @@ export default function ProfileScreen() {
             Kendini yeniden keşfetmek ister misin? İç dünyanda bir değişim olmuş olabilir 🌿
           </Text>
           <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-            {renderMenuItem('color-palette-outline', 'Ruhunun Renkleri', 'Duygusal renk paletini keşfet', () => router.push('/personality-test/color'))}
-            {renderMenuItem('compass-outline', 'İçsel Pusulan', 'Dünyayı algılama şeklini anla', () => router.push('/personality-test/mbti'))}
-            {renderMenuItem('book-outline', 'Duygusal Evrim', 'Kişilik ve duygu geçmişin', () => router.push('/personality-results'))}
+            {renderMenuItem('compass-outline', 'İçsel Kimlik Yolculuğu ✨', 'Duygusal kimliğini keşfet', () => router.push('/personality-test/journey'))}
+            {renderMenuItem('book-outline', 'Duygusal Evrim', 'Zaman içinde değişen içsel ritmin', () => router.push('/personality-results'))}
           </View>
         </View>
 

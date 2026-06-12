@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const OpenAI = require('openai');
+const { buildCoupleMemoryDossier, getIndividualBehavioralDossier } = require('./coupleMemoryService');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -125,7 +126,7 @@ exports.buildEmotionalContext = async (userId) => {
     let cards = [];
     let generalMemories = [];
     let continuityMemories = [];
-    let colorTest = null;
+    let journeyTest = null;
 
     if (isFree) {
       // Free Tier: basic check-ins (only moods, no notes to keep context lightweight)
@@ -140,14 +141,14 @@ exports.buildEmotionalContext = async (userId) => {
         db.query('SELECT mood, note, created_at FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3', [userId]),
         db.query('SELECT text, created_at FROM daily_reflections WHERE user_id = $1 ORDER BY created_at DESC LIMIT 2', [userId]),
         db.query('SELECT response, category, created_at FROM card_responses WHERE user_id = $1 ORDER BY created_at DESC LIMIT 2', [userId]),
-        db.query("SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1", [userId]),
+        db.query("SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'journey' ORDER BY created_at DESC LIMIT 1", [userId]),
         db.query('SELECT memory_key, memory_value FROM emotional_memories WHERE user_id = $1', [userId])
       ]);
 
       checkIns = checkInsRes.rows;
       journals = journalRes.rows;
       cards = cardsRes.rows;
-      colorTest = colorRes.rows[0]?.result_data || null;
+      journeyTest = colorRes.rows[0]?.result_data || null;
 
       // Only allow basic continuity keys for Plus
       const allowedPlusKeys = ['recent_emotional_tone', 'recurring_concerns', 'comforting_subjects'];
@@ -160,14 +161,14 @@ exports.buildEmotionalContext = async (userId) => {
         db.query('SELECT mood, note, created_at FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5', [userId]),
         db.query('SELECT text, created_at FROM daily_reflections WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3', [userId]),
         db.query('SELECT response, category, created_at FROM card_responses WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3', [userId]),
-        db.query("SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1", [userId]),
+        db.query("SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'journey' ORDER BY created_at DESC LIMIT 1", [userId]),
         db.query('SELECT memory_key, memory_value FROM emotional_memories WHERE user_id = $1', [userId])
       ]);
 
       checkIns = checkInsRes.rows;
       journals = journalRes.rows;
       cards = cardsRes.rows;
-      colorTest = colorRes.rows[0]?.result_data || null;
+      journeyTest = colorRes.rows[0]?.result_data || null;
 
       const rawMemories = memoriesRes.rows;
       const continuityKeys = ['recent_emotional_tone', 'recurring_concerns', 'relationship_tension_patterns', 'comforting_subjects', 'emotional_habits'];
@@ -297,8 +298,22 @@ exports.buildEmotionalContext = async (userId) => {
     dossier += `Mevcut Abonelik Planı: ${plan.toUpperCase()}\n`;
     dossier += `Duygusal Olgunluk Seviyesi: ${emotionalDepthLevel} (${totalInteractions} toplam etkileşim)\n`;
 
-    if (colorTest) {
-      dossier += `DISC Kişilik Rengi: Dominant ${colorTest.dominantColor} (${colorTest.title}). Güçlü Yönler: ${colorTest.strengths?.join(', ')}. Stres Eğilimi: ${colorTest.stressBehavior}.\n`;
+    if (journeyTest) {
+      dossier += `\n[KİŞİLİK EĞİLİMLERİ]\n`;
+      dossier += `- Arketip: ${journeyTest.archetype_name} (${journeyTest.baseArchetype})\n`;
+      
+      const s = journeyTest.scores || {};
+      if (s.emotional_expression < 0) dossier += `- Duygularını önce kendi içinde işlemeye eğilimli\n`;
+      else if (s.emotional_expression > 0) dossier += `- Duygularını açıkça ve hemen dışa vurmaya yatkın\n`;
+      
+      if (s.conflict_style < 0) dossier += `- Gerilim ve çatışma anlarında geri çekilmeye/sessizleşmeye yatkın\n`;
+      else if (s.conflict_style > 0) dossier += `- Çatışmaları anında çözmeye ve yüzleşmeye yatkın\n`;
+
+      if (s.attachment > 0) dossier += `- İlişkilerde güvence ve duygusal netlik arayışı yüksek\n`;
+      else if (s.attachment < 0) dossier += `- Kendi alanına ve bağımsızlığına oldukça düşkün\n`;
+
+      if (s.energy_rhythm < 0) dossier += `- Sakin ve öngörülebilir bir hayat ritmini tercih ediyor\n`;
+      else if (s.energy_rhythm > 0) dossier += `- Yoğun, dinamik ve coşkulu bir ritme sahip\n`;
     }
 
     if (checkIns.length > 0) {
@@ -330,6 +345,12 @@ exports.buildEmotionalContext = async (userId) => {
       });
     }
 
+    // ── Individual Behavioral Memory (new layer) ──────────────────────────
+    const behavioralDossier = await getIndividualBehavioralDossier(userId);
+    if (behavioralDossier) {
+      dossier += `\n\n${behavioralDossier}`;
+    }
+
     // Extra dynamic summary for Signature plan
     if (isSignature) {
       dossier += `\n\n[SIGNATURE DEEP EMOTIONAL MEMORY]\n`;
@@ -345,13 +366,33 @@ exports.buildEmotionalContext = async (userId) => {
       dossier += `\n[YALNIZ KULLANICI MODU]\n- Bu kullanıcı şu an tek başına yol alıyor. İlişkisel tavsiyeler vermek yerine, kendisiyle kurduğu bağa odaklan, onu yalnız hissettirmeyen sıcak bir duygusal yoldaş ol.\n`;
     }
 
+    // ── Shared Couple Memory (new layer — only when partner exists) ───────
+    if (hasPartner && partnerId) {
+      const coupleDossier = await buildCoupleMemoryDossier(connRes.rows[0].id);
+      if (coupleDossier) {
+        dossier += `\n\n${coupleDossier}`;
+      }
+    }
+
+    // Resolve connectionId to pass to continuity engine
+    const connectionId = (hasPartner && connRes.rows.length > 0) ? connRes.rows[0].id : null;
+
+    // Resolve partner role (partner_a = requester, partner_b = recipient)
+    let userRole = 'both';
+    if (hasPartner && connRes.rows.length > 0) {
+      userRole = connRes.rows[0].requester_id === userId ? 'partner_a' : 'partner_b';
+    }
+
     const resultContext = {
       dossier,
       isDistressed,
       hasPartner,
       planType: plan,
       emotionalDepthLevel,
-      totalInteractions
+      totalInteractions,
+      connectionId,
+      userRole,
+      partnerId,
     };
     
     console.log('[DEBUG] buildEmotionalContext output:', {

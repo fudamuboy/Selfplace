@@ -81,6 +81,28 @@ export interface RelationshipDailySync {
   relationship_energy: string;
   created_at: string;
   expires_at: string | null;
+  emotional_aura?: string | null;
+  connection_state?: string | null;
+  relationship_rhythm?: string | null;
+  emotional_closeness?: number | null;
+}
+
+export interface MemoryCrystal {
+  id: number;
+  summary: string;
+  created_at: string;
+  symbol: string;
+}
+
+export interface RelationshipGarden {
+  connectionId: number;
+  gardenState: 'peaceful_garden' | 'rainy_reflection' | 'warm_sunset' | 'spring_bloom' | 'silent_winter' | 'healing_rain';
+  growthLevel: number;
+  flowersCount: number;
+  treeHeight: number;
+  starsUnlocked: number;
+  totalRituals: number;
+  totalCrystals: number;
 }
 
 export interface RelationshipRitual {
@@ -95,6 +117,9 @@ export interface RelationshipRitual {
     created_at: string;
   } | null;
   partnerResponded: boolean;
+  relationshipReflection?: string | null;
+  emotionalClimate?: string | null;
+  gentleSuggestion?: string | null;
 }
 
 export interface RelationshipTimelineEvent {
@@ -128,5 +153,15 @@ export const getTimeline = async (id: number): Promise<RelationshipTimelineEvent
 
 export const getInsightFeed = async (id: number): Promise<string[]> => {
   const res = await client.get(`/relationships/${id}/insight-feed`);
+  return res.data;
+};
+
+export const getCrystals = async (id: number): Promise<MemoryCrystal[]> => {
+  const res = await client.get(`/relationships/${id}/crystals`);
+  return res.data;
+};
+
+export const getGardenState = async (id: number): Promise<RelationshipGarden> => {
+  const res = await client.get(`/relationships/${id}/garden`);
   return res.data;
 };

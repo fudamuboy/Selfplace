@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getConnections, getDailySync, RelationshipConnection, RelationshipDailySync } from '../../api/relationshipApi';
 
 import client from '../../api/client';
-import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeOutDown, FadeInDown } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
@@ -342,32 +342,6 @@ export default function HomeScreen() {
         {/* Relationship Hub Spotlight */}
         {renderRelationshipHub()}
 
-        {/* Premium Astrology Widget */}
-        {astrologyData && (
-          <Animated.View entering={FadeInUp.delay(200)} style={styles.energySection}>
-            <TouchableOpacity 
-              activeOpacity={0.8}
-              onPress={() => router.push('/astrology-full')}
-              style={[styles.energyCard, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder }]}
-            >
-              <View style={styles.energyHeader}>
-                <View>
-                  <Text style={[styles.energySubtitle, { color: currentTheme.colors.text.muted }]}>HAFTALIK ENERJİN</Text>
-                  <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary }]}>✨ {astrologyData.zodiacSign || 'Gökyüzü'}</Text>
-                </View>
-              </View>
-              
-              <Text style={[styles.eventMessage, { color: currentTheme.colors.text.secondary, marginTop: 8 }]} numberOfLines={3}>
-                {astrologyData.preview_text}
-              </Text>
-
-              <Text style={[styles.energyActionText, { color: currentTheme.colors.primary, marginTop: 12, fontWeight: '600' }]}>
-                Detaylı Yorumu Gör →
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
         <View style={styles.actions}>
           <CustomButton 
             title="Günlük Check-in Yap" 
@@ -395,6 +369,59 @@ export default function HomeScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
+        {/* Dynamic Daily Astrology Preview */}
+        {astrologyData ? (
+          <Animated.View entering={FadeInDown.delay(300).springify().damping(18).stiffness(90)} style={styles.energySection}>
+            <TouchableOpacity 
+              activeOpacity={0.85}
+              onPress={() => router.push('/astrology-full')}
+              style={[styles.energyCard, { borderColor: 'rgba(167, 139, 250, 0.2)' }]}
+            >
+              <LinearGradient
+                colors={['rgba(109, 40, 217, 0.15)', 'rgba(30, 27, 75, 0.4)']}
+                style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
+              />
+              <View style={styles.energyHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary, fontSize: 16 }]}>✨ Bugünün Enerjisi</Text>
+                </View>
+              </View>
+              
+              <Text style={[styles.eventMessage, { color: currentTheme.colors.text.primary, marginTop: 4, lineHeight: 24, fontSize: 15, fontWeight: '400' }]} numberOfLines={3}>
+                {astrologyData.preview_text}
+              </Text>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                {astrologyData.generatedAt && (new Date().getTime() - new Date(astrologyData.generatedAt).getTime()) < 12 * 60 * 60 * 1000 ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#A78BFA', shadowColor: '#A78BFA', shadowOpacity: 0.8, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
+                    <Text style={{ fontSize: 12, color: '#A78BFA', fontWeight: '500', letterSpacing: 0.5 }}>Taze</Text>
+                  </View>
+                ) : <View />}
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Gökyüzüne Git →</Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : (
+          /* Fallback empty state protection */
+          <Animated.View entering={FadeInDown.delay(300)} style={styles.energySection}>
+            <TouchableOpacity 
+              activeOpacity={0.85}
+              onPress={() => router.push('/astrology-full')}
+              style={[styles.energyCard, { borderColor: 'rgba(167, 139, 250, 0.1)' }]}
+            >
+              <LinearGradient
+                colors={['rgba(109, 40, 217, 0.05)', 'rgba(30, 27, 75, 0.2)']}
+                style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
+              />
+              <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary, fontSize: 16, marginBottom: 8 }]}>✨ Bugünün Enerjisi</Text>
+              <Text style={{ color: currentTheme.colors.text.secondary, fontStyle: 'italic', fontSize: 14 }}>
+                Bugün zihninin içinde hafif bir hareket olabilir. Yıldızlara göz at...
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {showToast && (
           <Animated.View 

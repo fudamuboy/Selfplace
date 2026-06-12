@@ -9,4 +9,7 @@ router.get('/home', authMiddleware, astrologyController.getHomeWidget);
 // GET /api/astrology/weekly
 router.get('/weekly', authMiddleware, astrologyController.getWeeklyGuidance);
 
+// GET /api/astrology/daily
+router.get('/daily', authMiddleware, astrologyController.getDailyWhisper);
+
 module.exports = router;

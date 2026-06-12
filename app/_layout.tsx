@@ -226,6 +226,7 @@ export default function RootLayout() {
         <Stack.Screen name="connection-detail" />
         <Stack.Screen name="connection-rituals" />
         <Stack.Screen name="connection-timeline" />
+        <Stack.Screen name="personality-result-detail" options={{ presentation: 'modal' }} />
       </Stack>
 
       {/* Global soft session-expiry toast — rendered above all screens */}

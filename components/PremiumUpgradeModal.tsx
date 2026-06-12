@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { updateSubscription } from '../api/userApi';
 import { MODAL_MAX_WIDTH } from '../constants/Layout';
+
+const { width } = Dimensions.get('window');
 
 interface Props {
   visible: boolean;
@@ -96,11 +98,11 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
               activeOpacity={0.9}
             >
               <View style={styles.planHeader}>
-                <View>
+                <View style={{ flex: 1, paddingRight: 8 }}>
                   <Text style={[styles.planTitle, { color: currentTheme.colors.text.primary }]}>Ücretsiz Plan</Text>
                   <Text style={[styles.planDesc, { color: currentTheme.colors.text.muted }]}>Kendinle sakin ve güvenli bir alan.</Text>
                 </View>
-                <Text style={[styles.planPrice, { color: currentTheme.colors.text.primary }]}>0₺</Text>
+                <Text style={[styles.priceText, { color: currentTheme.colors.text.primary, fontSize: 32 }]}>0₺</Text>
               </View>
               {selectedPlan === 'free' && (
                 <View style={styles.featuresList}>
@@ -129,12 +131,12 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 style={styles.gradientCard}
               >
                 <View style={styles.planHeader}>
-                  <View>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
                     <Text style={[styles.planTitle, { color: currentTheme.colors.primary }]}>Selfplace Plus</Text>
                     <Text style={[styles.planDesc, { color: currentTheme.colors.text.muted }]}>Sizi giderek daha iyi anlayan duygusal bir yoldaş.</Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.planPrice, { color: currentTheme.colors.primary }]}>199₺</Text>
+                  <View style={styles.priceContainer}>
+                    <Text style={[styles.priceText, { color: currentTheme.colors.primary }]}>199₺</Text>
                     <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted }]}>/ ay</Text>
                   </View>
                 </View>
@@ -167,12 +169,12 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 style={styles.gradientCard}
               >
                 <View style={styles.planHeader}>
-                  <View>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
                     <Text style={[styles.planTitle, { color: currentTheme.colors.mascot.start }]}>Selfplace Signature</Text>
                     <Text style={[styles.planDesc, { color: currentTheme.colors.text.muted }]}>Daha gerçek hissettiren derin duygusal deneyim.</Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.planPrice, { color: currentTheme.colors.mascot.start }]}>399₺</Text>
+                  <View style={styles.priceContainer}>
+                    <Text style={[styles.priceText, { color: currentTheme.colors.mascot.start }]}>399₺</Text>
                     <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted }]}>/ ay</Text>
                   </View>
                 </View>
@@ -280,13 +282,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
-  planPrice: {
-    fontSize: 22,
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    flexWrap: 'nowrap',
+    minWidth: 120,
+  },
+  priceText: {
+    fontSize: width < 390 ? 42 : 48,
     fontWeight: '800',
+    lineHeight: 50,
   },
   pricePeriod: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 6,
+    marginBottom: 8,
   },
   featuresList: {
     paddingHorizontal: 20,

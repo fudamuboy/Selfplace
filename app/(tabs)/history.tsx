@@ -9,7 +9,7 @@ import useThemeStore from '../../store/useThemeStore';
 import { sanitizeText } from '../../utils/textSanitizer';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { EmotionalStoryModal, StorySlide } from '../../components/EmotionalStoryModal';
 
 interface CheckIn {
   id: number;
@@ -45,22 +45,20 @@ export default function HistoryScreen() {
     relationshipSynthesis?: string | null;
   }
 
-  const [weeklyData, setWeeklyData] = useState<WeeklyInsightData | null>(null);
-  const [storyVisible, setStoryVisible] = useState(false);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  interface JourneyData {
+    stats: {
+      checkinCount: number;
+      cardsCount: number;
+      journalCount: number;
+    };
+    progressionText: string;
+    archive: any[];
+    hasArchive: boolean;
+  }
 
-  useEffect(() => {
-    if (weeklyData) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      fadeAnim.setValue(0);
-    }
-  }, [weeklyData]);
+  const [weeklyData, setWeeklyData] = useState<WeeklyInsightData | null>(null);
+  const [journeyData, setJourneyData] = useState<JourneyData | null>(null);
+  const [storyVisible, setStoryVisible] = useState(false);
 
   const [patterns, setPatterns] = useState<string[]>([]);
   const [patternMessage, setPatternMessage] = useState<string | null>(null);
@@ -73,15 +71,20 @@ export default function HistoryScreen() {
   const { currentTheme } = useThemeStore();
   const router = useRouter();
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const [timelineRes, dailyRes, weeklyRes, patternsRes] = await Promise.allSettled([
+      const [timelineRes, dailyRes, weeklyRes, patternsRes, journeyRes] = await Promise.allSettled([
         client.get('/emotional/timeline'),
         client.get('/reflections/daily'),
         client.get('/insights/weekly'),
-        client.get('/insights/patterns')
+        client.get('/insights/patterns'),
+        client.get('/insights/journey')
       ]);
+
+      if (journeyRes.status === 'fulfilled') {
+        setJourneyData(journeyRes.value.data);
+      }
 
       if (timelineRes.status === 'fulfilled') {
         const mappedList = timelineRes.value.data.map((entry: any) => ({
@@ -138,7 +141,7 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
+      fetchData(true);
     }, [])
   );
 
@@ -160,24 +163,71 @@ export default function HistoryScreen() {
     return true;
   };
 
-  const storyCards = [
-    { title: 'Senin Haftan', desc: 'Genel bir bakış', icon: 'sparkles-outline' },
-    { title: 'Duygusal Ritim', desc: 'Ruh halindeki değişimler', icon: 'heart-outline' },
-    { title: 'Öne Çıkan Anlar', desc: 'Unutulmaz anların', icon: 'star-outline' },
-    { title: 'Farkındalıklar', desc: 'Bu hafta öğrendiklerin', icon: 'leaf-outline' },
-    { title: 'Sonraki Hafta İçin', desc: 'Niyetlerin & odakların', icon: 'sunny-outline' },
-  ];
+  const buildEmotionalStory = (): StorySlide[] => {
+    const slides: StorySlide[] = [];
+    const level = weeklyData?.depthLevel || 'NEW';
+    const hasWeekly = !!weeklyData;
 
-  const slideGradients = [
-    ['rgba(30, 27, 75, 0.98)', 'rgba(49, 46, 129, 0.98)', 'rgba(15, 17, 26, 1)'],
-    ['rgba(76, 29, 149, 0.98)', 'rgba(59, 7, 100, 0.98)', 'rgba(15, 17, 26, 1)'],
-    ['rgba(30, 27, 75, 0.98)', 'rgba(74, 4, 78, 0.98)', 'rgba(15, 17, 26, 1)'],
-    ['rgba(2, 44, 34, 0.98)', 'rgba(6, 78, 59, 0.98)', 'rgba(15, 17, 26, 1)'],
-    ['rgba(69, 26, 3, 0.98)', 'rgba(120, 53, 15, 0.98)', 'rgba(15, 17, 26, 1)'],
-  ];
+    // Slide 1: Senin Haftan (Overview / Progression)
+    slides.push({
+      id: 's1',
+      title: 'Senin Haftan',
+      label: 'Genel Bir Bakış 🌤️',
+      bodyText: journeyData?.progressionText || 'Kendini tanıma yolculuğunda yeni bir haftaya başlıyorsun.',
+      footerText: 'Kendini keşfetme yolculuğun devam ediyor 🤍',
+      icon: 'sparkles',
+      iconColor: '#FBBF24',
+      gradient: ['rgba(30, 27, 75, 0.98)', 'rgba(49, 46, 129, 0.98)', 'rgba(15, 17, 26, 1)']
+    });
+
+    // Slide 2: Duygusal Ritim
+    slides.push({
+      id: 's2',
+      title: 'Duygusal Ritmin',
+      label: 'Ruh Halindeki Değişimler 🌊',
+      bodyText: hasWeekly && weeklyData?.rhythm 
+        ? weeklyData.rhythm 
+        : 'Bu günlerde paylaştıklarınla duygusal ritmin şekilleniyor. Dalgalanmaları yargısızca fark et.',
+      footerText: 'Duygularının ritmini dinle 🌿',
+      icon: 'heart',
+      iconColor: '#EF4444',
+      gradient: ['rgba(76, 29, 149, 0.98)', 'rgba(59, 7, 100, 0.98)', 'rgba(15, 17, 26, 1)']
+    });
+
+    // Slide 3: Öne Çıkan Anlar / Yansımalar
+    slides.push({
+      id: 's3',
+      title: 'İçsel Yansımalar',
+      label: 'Unutulmaz Hisler ✨',
+      bodyText: hasWeekly && weeklyData?.thoughtFocus 
+        ? weeklyData.thoughtFocus 
+        : `Bu hafta ${journeyData?.stats?.journalCount || 0} yazı yazdın. Kendine mola vermenin, sessiz anların değerini fark ettiğin anlar öne çıktı.`,
+      footerText: 'Her küçük an iz bırakır 🤍',
+      icon: 'star',
+      iconColor: '#FBBF24',
+      gradient: ['rgba(30, 27, 75, 0.98)', 'rgba(74, 4, 78, 0.98)', 'rgba(15, 17, 26, 1)']
+    });
+
+    // Slide 4: Sonraki Hafta İçin
+    slides.push({
+      id: 's4',
+      title: 'Sonraki Hafta İçin',
+      label: 'Niyetlerin & Odakların 🌅',
+      bodyText: hasWeekly && weeklyData?.shifts 
+        ? weeklyData.shifts 
+        : 'Gelecek haftaya başlarken kendine daha şefkatli davranmayı niyet edebilirsin. Adımların aceleye gelmesin.',
+      footerText: 'Yeni bir güne, yeni bir haftaya hazır ol 🤍',
+      icon: 'sunny',
+      iconColor: '#F97316',
+      gradient: ['rgba(2, 44, 34, 0.98)', 'rgba(6, 78, 59, 0.98)', 'rgba(15, 17, 26, 1)']
+    });
+
+    return slides;
+  };
+
+  const dynamicStorySlides = buildEmotionalStory();
 
   const handleShowAllStories = () => {
-    setActiveSlide(0);
     setStoryVisible(true);
   };
 
@@ -190,129 +240,7 @@ export default function HistoryScreen() {
       });
       return;
     }
-    setActiveSlide(idx);
     setStoryVisible(true);
-  };
-
-  const nextStorySlide = () => {
-    const level = weeklyData?.depthLevel || 'NEW';
-    const nextIdx = activeSlide + 1;
-    if (nextIdx < 5 && isCardUnlocked(nextIdx, level)) {
-      setActiveSlide(nextIdx);
-    } else {
-      setStoryVisible(false);
-    }
-  };
-
-  const prevStorySlide = () => {
-    const prevIdx = activeSlide - 1;
-    if (prevIdx >= 0) {
-      setActiveSlide(prevIdx);
-    }
-  };
-
-  const renderStorySlideContent = () => {
-    const hasWeekly = !!weeklyData;
-
-    switch (activeSlide) {
-      case 0:
-        return (
-          <View style={styles.storySlideInner}>
-            <View style={styles.storySlideIconContainer}>
-              <Ionicons name="sparkles" size={80} color="#FBBF24" />
-            </View>
-            <Text style={styles.storySlideTitle}>Senin Haftan</Text>
-            <Text style={styles.storySlideLabel}>Genel Bir Bakış 🌤️</Text>
-            <Text style={styles.storySlideBodyText}>
-              {hasWeekly && weeklyData?.insight
-                ? sanitizeText(weeklyData.insight)
-                : 'Bu hafta kendini tanıma yolculuğunda yeni adımlar attın. Kendine zaman ayırmak zihnindeki karmaşayı hafifletmene yardımcı olabilir.'}
-            </Text>
-            <View style={styles.storySlideFooterContainer}>
-              <Text style={styles.storySlideFooterText}>Kendini keşfetme yolculuğun devam ediyor 🤍</Text>
-            </View>
-          </View>
-        );
-      case 1:
-        return (
-          <View style={styles.storySlideInner}>
-            <View style={styles.storySlideIconContainer}>
-              <Ionicons name="heart" size={80} color="#EF4444" />
-            </View>
-            <Text style={styles.storySlideTitle}>Duygusal Ritmin</Text>
-            <Text style={styles.storySlideLabel}>Ruh Halindeki Değişimler 🌊</Text>
-            <Text style={styles.storySlideBodyText}>
-              {hasWeekly && weeklyData?.rhythm
-                ? sanitizeText(weeklyData.rhythm)
-                : 'Bu günlerde paylaştıklarınla duygusal ritmin şekilleniyor. Dalgalanmaları yargısızca fark et.'}
-            </Text>
-            <View style={styles.storySlideFooterContainer}>
-              <Text style={styles.storySlideFooterText}>Duygularının ritmini dinle 🌿</Text>
-            </View>
-          </View>
-        );
-      case 2:
-        return (
-          <View style={styles.storySlideInner}>
-            <View style={styles.storySlideIconContainer}>
-              <Ionicons name="star" size={80} color="#FBBF24" />
-            </View>
-            <Text style={styles.storySlideTitle}>Öne Çıkan Anlar</Text>
-            <Text style={styles.storySlideLabel}>Unutulmaz Hisler ✨</Text>
-            <Text style={styles.storySlideBodyText}>
-              {hasWeekly && weeklyData?.comfortPattern
-                ? sanitizeText(weeklyData.comfortPattern)
-                : 'Kendine mola vermenin, sessiz anların değerini fark ettiğin anlar bu hafta öne çıktı.'}
-            </Text>
-            <View style={styles.storySlideFooterContainer}>
-              <Text style={styles.storySlideFooterText}>Her küçük an iz bırakır 🤍</Text>
-            </View>
-          </View>
-        );
-      case 3:
-        return (
-          <View style={styles.storySlideInner}>
-            <View style={styles.storySlideIconContainer}>
-              <Ionicons name="leaf" size={80} color="#10B981" />
-            </View>
-            <Text style={styles.storySlideTitle}>Farkındalıklar</Text>
-            <Text style={styles.storySlideLabel}>Öğrendiklerin 🌿</Text>
-            <Text style={styles.storySlideBodyText}>
-              {hasWeekly && weeklyData?.thoughtFocus
-                ? sanitizeText(weeklyData.thoughtFocus)
-                : 'Bu hafta zihnini meşgul eden düşüncelere ve tekrarlayan temalara yakından baktın.'}
-            </Text>
-            <View style={styles.storySlideFooterContainer}>
-              <Text style={styles.storySlideFooterText}>Farkındalık büyük değişim getirir ✨</Text>
-            </View>
-          </View>
-        );
-      case 4:
-        return (
-          <View style={styles.storySlideInner}>
-            <View style={styles.storySlideIconContainer}>
-              <Ionicons name="sunny" size={80} color="#F97316" />
-            </View>
-            <Text style={styles.storySlideTitle}>Sonraki Hafta İçin</Text>
-            <Text style={styles.storySlideLabel}>Niyetlerin & Odakların 🌅</Text>
-            <Text style={styles.storySlideBodyText}>
-              {hasWeekly && weeklyData?.shifts
-                ? sanitizeText(weeklyData.shifts)
-                : 'Gelecek haftaya başlarken kendine daha şefkatli davranmayı niyet edebilirsin. Adımların aceleye gelmesin.'}
-            </Text>
-            {hasWeekly && weeklyData?.relationshipSynthesis && (
-              <Text style={[styles.storySlideBodyText, { fontSize: 13, marginTop: 12, opacity: 0.8 }]}>
-                {sanitizeText(weeklyData.relationshipSynthesis)}
-              </Text>
-            )}
-            <View style={styles.storySlideFooterContainer}>
-              <Text style={styles.storySlideFooterText}>Yeni bir güne, yeni bir haftaya hazır ol 🤍</Text>
-            </View>
-          </View>
-        );
-      default:
-        return null;
-    }
   };
 
   const renderStoryCarousel = () => {
@@ -340,7 +268,7 @@ export default function HistoryScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyCarousel}>
-          {storyCards.map((card, idx) => {
+          {dynamicStorySlides.map((card, idx) => {
             const unlocked = isCardUnlocked(idx, level);
             return (
               <TouchableOpacity
@@ -370,7 +298,7 @@ export default function HistoryScreen() {
                 </View>
                 <View style={styles.storyCardFooter}>
                   <Text style={[styles.storyCardTitle, { color: currentTheme.colors.text.primary }]} numberOfLines={1}>{card.title}</Text>
-                  <Text style={[styles.storyCardDesc, { color: currentTheme.colors.text.secondary }]} numberOfLines={1}>{card.desc}</Text>
+                  <Text style={[styles.storyCardDesc, { color: currentTheme.colors.text.secondary }]} numberOfLines={1}>{card.label.replace(/ \S+$/, '')}</Text>
                 </View>
                 <View style={[styles.storyCardProgressBar, { backgroundColor: unlocked ? currentTheme.colors.primary : 'rgba(255,255,255,0.08)' }]} />
               </TouchableOpacity>
@@ -382,24 +310,13 @@ export default function HistoryScreen() {
   };
 
   const renderWeeklyJourneyStats = () => {
-    const checkinCount = advancedAnswers.filter(a => a.type === 'checkin').length;
-    const cardsCount = advancedAnswers.filter(a => a.type === 'card').length;
-    const journalCount = advancedAnswers.filter(a => a.type === 'reflection' || a.type === 'journal').length;
+    const checkinCount = journeyData?.stats?.checkinCount || 0;
+    const cardsCount = journeyData?.stats?.cardsCount || 0;
+    const journalCount = journeyData?.stats?.journalCount || 0;
     const level = weeklyData?.depthLevel || 'NEW';
     const isImmersive = level === 'IMMERSIVE';
 
-    let encouragementMessage = '';
-    if (level === 'NEW') {
-      encouragementMessage = 'Harika gidiyorsun! Kendini tanıma yolculuğun yeni başlıyor. Düzenli paylaşımlarla daha derin içgörüler oluşacak.';
-    } else if (level === 'LIGHT') {
-      encouragementMessage = 'Ruhunun ritimlerini yavaş yavaş fark etmeye başladım. Paylaştıkça buradaki desenler zenginleşecek.';
-    } else if (level === 'GROWING') {
-      encouragementMessage = 'Bu hafta kendine çok değerli zamanlar ayırdın. Keşfettiğin yeni duygusal alanlar seni güçlendiriyor.';
-    } else if (level === 'DEEP') {
-      encouragementMessage = 'Kendinle derinleştiğin bir haftayı geride bıraktın. Gösterdiğin şefkat ve dikkat takdire şayan.';
-    } else {
-      encouragementMessage = 'İçsel sessizliğinden süzülen bu sakin liman, seninle kurduğumuz derin bağın ve olgunluğun bir yansıması.';
-    }
+    const encouragementMessage = journeyData?.progressionText || 'Kendini tanıma yolculuğunda yeni bir haftaya başlıyorsun.';
 
     return (
       <View style={[
@@ -464,13 +381,6 @@ export default function HistoryScreen() {
       <View style={[styles.patternSection, { marginTop: 24 }]}>
         <View style={styles.storySectionHeader}>
           <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>Bu Haftanın İçgörüleri</Text>
-          <TouchableOpacity onPress={() => setModal({
-            visible: true,
-            title: 'Haftalık İçgörüler ✨',
-            message: 'Bu hafta paylaştığın duygulara ve ritme göre AI tarafından çıkarılan en önemli farkındalık kartların.'
-          })}>
-            <Text style={[styles.seeAllStoriesLink, { color: currentTheme.colors.primary }]}>Tümünü Gör &gt;</Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.insightsCarousel}>
@@ -482,7 +392,7 @@ export default function HistoryScreen() {
               <Ionicons name="moon" size={18} color="#A78BFA" />
             </View>
             <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>En Sakin Zamanın</Text>
-            <Text style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{sakinText}</Text>
+            <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{sakinText}</Text>
           </View>
 
           {level !== 'NEW' ? (
@@ -494,7 +404,7 @@ export default function HistoryScreen() {
                 <Ionicons name="leaf" size={18} color="#34D399" />
               </View>
               <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>Ruh Halin</Text>
-              <Text style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{ruhText}</Text>
+              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{ruhText}</Text>
             </View>
           ) : (
             <View style={[
@@ -504,7 +414,7 @@ export default function HistoryScreen() {
             ]}>
               <Ionicons name="moon-outline" size={18} color={currentTheme.colors.text.muted} style={{ marginBottom: 6, opacity: 0.6 }} />
               <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.muted }]}>Uykudaki Ritim 🌊</Text>
-              <Text style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 11 }]}>Duygularını paylaştıkça bu ritim kendiliğinden uyanacak...</Text>
+              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>Duygularını paylaştıkça bu ritim kendiliğinden uyanacak...</Text>
             </View>
           )}
 
@@ -517,7 +427,7 @@ export default function HistoryScreen() {
                 <Ionicons name="star" size={18} color="#FB923C" />
               </View>
               <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>Minik Hatırlatma</Text>
-              <Text style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{hatirlatmaText}</Text>
+              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{hatirlatmaText}</Text>
             </View>
           ) : (
             <View style={[
@@ -527,7 +437,7 @@ export default function HistoryScreen() {
             ]}>
               <Ionicons name="sparkles-outline" size={18} color={currentTheme.colors.text.muted} style={{ marginBottom: 6, opacity: 0.6 }} />
               <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.muted }]}>Sessiz Yansıma ✨</Text>
-              <Text style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 11 }]}>Kendinle kurduğun bağ derinleştikçe bu fısıltı belirecek...</Text>
+              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>Kendinle kurduğun bağ derinleştikçe bu fısıltı belirecek...</Text>
             </View>
           )}
 
@@ -571,13 +481,6 @@ export default function HistoryScreen() {
       <View style={{ marginTop: 24, paddingBottom: 12 }}>
         <View style={styles.storySectionHeader}>
           <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>Haftanın Soruları & Yansımaları</Text>
-          <TouchableOpacity onPress={() => setModal({
-            visible: true,
-            title: 'Haftanın Yansımaları 🌿',
-            message: 'Bu hafta senin için çıkarılan sorular ve paylaşımlarından süzülen cevapları burada bulabilirsin.'
-          })}>
-            <Text style={[styles.seeAllStoriesLink, { color: currentTheme.colors.primary }]}>Tümünü Gör &gt;</Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.questionsCarousel}>
@@ -616,11 +519,20 @@ export default function HistoryScreen() {
           </View>
           <TouchableOpacity 
             style={[styles.historyButton, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
-            onPress={() => setModal({
-              visible: true,
-              title: 'Geçmiş Haftalar 🗓️',
-              message: 'Geçmiş haftaların yansımaları ve hikayeleri yakında burada arşivlenecek. Kendini keşfetmeye devam et!'
-            })}
+            onPress={() => {
+              if (journeyData?.hasArchive) {
+                router.push({
+                  pathname: '/archive',
+                  params: { data: JSON.stringify(journeyData.archive) }
+                });
+              } else {
+                setModal({
+                  visible: true,
+                  title: 'Geçmiş Haftalar 🗓️',
+                  message: 'Henüz geçmiş haftaların oluşmaya başlamadı.\n\nBurada zamanla:\n- duyguların,\n- düşüncelerin,\n- gelişimin\nbirikmeye başlayacak.'
+                });
+              }
+            }}
           >
             <Ionicons name="calendar-outline" size={16} color={currentTheme.colors.primary} />
             <Text style={[styles.historyButtonText, { color: currentTheme.colors.text.primary }]}>Geçmiş Haftalar</Text>
@@ -709,79 +621,19 @@ export default function HistoryScreen() {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>Henüz bir yolculuk kaydın yok.</Text>
-                <Text style={[styles.emptySubtext, { color: currentTheme.colors.text.secondary }]}>Kendini tanıma yolculuğun küçük adımlarla başlar. Bugünün sorusuna cevap vererek yeni bir sayfa açabilirsin.</Text>
+                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>Henüz geçmiş haftaların oluşmaya başlamadı.</Text>
+                <Text style={[styles.emptySubtext, { color: currentTheme.colors.text.secondary }]}>Burada zamanla:{'\n'}- duyguların,{'\n'}- düşüncelerin,{'\n'}- gelişimin{'\n'}birikmeye başlayacak.</Text>
               </View>
             }
           />
         )}
       </View>
 
-      <Modal
+      <EmotionalStoryModal
         visible={storyVisible}
-        transparent={false}
-        animationType="fade"
-        onRequestClose={() => setStoryVisible(false)}
-      >
-        <LinearGradient
-          colors={slideGradients[activeSlide] as [string, string, ...string[]]}
-          style={styles.storyModalContainer}
-        >
-          {/* Progress Indicators */}
-          <View style={styles.storyProgressRow}>
-            {storyCards.map((_, idx) => {
-              const unlocked = isCardUnlocked(idx, weeklyData?.depthLevel || 'NEW');
-              const isActive = idx === activeSlide;
-              const isFilled = idx < activeSlide;
-              return (
-                <View 
-                  key={idx} 
-                  style={[
-                    styles.storyProgressBarSegment,
-                    { backgroundColor: 'rgba(255,255,255,0.2)' }
-                  ]}
-                >
-                  <View 
-                    style={[
-                      styles.storyProgressBarFill,
-                      (isFilled || isActive) && { backgroundColor: unlocked ? '#A78BFA' : 'rgba(255,255,255,0.3)', width: '100%' }
-                    ]}
-                  />
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Close & Header */}
-          <View style={styles.storyModalHeader}>
-            <TouchableOpacity 
-              style={styles.storyCloseButton}
-              onPress={() => setStoryVisible(false)}
-            >
-              <Ionicons name="close" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Slide Content */}
-          <View style={styles.storySlideContentWrapper}>
-            {renderStorySlideContent()}
-          </View>
-
-          {/* Touch Zones for tap navigation */}
-          <View style={styles.storyTouchRow}>
-            <TouchableOpacity 
-              style={styles.storyTouchZoneLeft} 
-              activeOpacity={1}
-              onPress={prevStorySlide}
-            />
-            <TouchableOpacity 
-              style={styles.storyTouchZoneRight} 
-              activeOpacity={1}
-              onPress={nextStorySlide}
-            />
-          </View>
-        </LinearGradient>
-      </Modal>
+        slides={dynamicStorySlides}
+        onClose={() => setStoryVisible(false)}
+      />
 
       <CustomModal
         visible={modal.visible}
@@ -1254,21 +1106,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   insightCardItem: {
-    width: 150,
-    height: 140,
+    width: 160,
+    minHeight: 220,
     borderRadius: 20,
     borderWidth: 1,
-    padding: 14,
-    justifyContent: 'flex-start',
+    padding: 20,
+    justifyContent: 'space-between',
   },
   immersiveInsightCardItem: {
-    width: 150,
-    height: 140,
+    width: 160,
+    minHeight: 220,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
-    padding: 14,
-    justifyContent: 'flex-start',
+    padding: 20,
+    justifyContent: 'space-between',
   },
   insightCardIconWrapper: {
     width: 32,
@@ -1279,13 +1131,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   insightCardTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   insightCardBody: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 16,
+    lineHeight: 24,
+    flexShrink: 1,
+    marginTop: 'auto',
     fontWeight: '500',
   },
   insightCardItemLocked: {
