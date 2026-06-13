@@ -175,8 +175,8 @@ const CardFront = ({
       <View style={styles.cardFrontInner}>
         {/* Category pill */}
         {data.category ? (
-          <View style={[styles.categoryPill, { borderColor: theme.colors.primary + '60', backgroundColor: theme.colors.primary + '22' }]}>
-            <Text style={[styles.categoryPillText, { color: theme.colors.primary }]}>
+          <View style={[styles.categoryPill, { borderColor: theme.colors.primary + '90', backgroundColor: theme.colors.primary + '50' }]}>
+            <Text style={[styles.categoryPillText, { color: '#FFFFFF' }]}>
               {data.category.toUpperCase()}
             </Text>
           </View>
@@ -854,35 +854,35 @@ const styles = StyleSheet.create({
   },
   // Dark frosted panel behind title + message for guaranteed contrast
   cardTextPanel: {
-    backgroundColor: 'rgba(0,0,0,0.38)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     borderRadius: 18,
     paddingHorizontal: 18,
     paddingVertical: 16,
     width: '100%',
     gap: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   cardFrontTitle: {
     fontSize: 17,
     fontWeight: '800',
     textAlign: 'center',
     letterSpacing: -0.1,
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.6)',
+    color: 'rgba(255,255,255,0.98)',
+    textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowRadius: 6,
   },
   cardFrontMessage: {
-    fontSize: 13.5,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 22,
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.93)',
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    color: 'rgba(255,255,255,0.98)',
+    textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    fontWeight: '400',
-    letterSpacing: 0.1,
+    textShadowRadius: 5,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   ctaButton: {
     marginTop: 16,
@@ -949,7 +949,8 @@ const styles = StyleSheet.create({
   },
   primaryActionText: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   resetBtn: {
     paddingVertical: 10,

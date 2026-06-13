@@ -69,7 +69,7 @@ const usePersonalitySessionStore = create<PersonalitySessionState>((set, get) =>
         const frozenOptions = Object.freeze(q.options.map(opt => Object.freeze({ ...opt })));
         return Object.freeze({
           ...q,
-          options: frozenOptions
+          options: frozenOptions as unknown as Option[]
         });
       })
     );
@@ -181,7 +181,7 @@ const usePersonalitySessionStore = create<PersonalitySessionState>((set, get) =>
           const frozenOptions = Object.freeze(q.options.map(opt => Object.freeze({ ...opt })));
           return Object.freeze({
             ...q,
-            options: frozenOptions
+            options: frozenOptions as unknown as Option[]
           });
         })
       );
@@ -189,7 +189,7 @@ const usePersonalitySessionStore = create<PersonalitySessionState>((set, get) =>
       // Recalculate queueHash
       const queueHash = frozenQuestions.map(q => q.id).join('-');
 
-      console.log('[DEBUG-REBUILD] Queue rebuilt in Critical Recovery Mode. Remaining count:', filtered.length, 'Total count:', frozenQuestions.length);
+
 
       return {
         questions: frozenQuestions,

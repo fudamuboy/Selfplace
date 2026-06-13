@@ -11,7 +11,8 @@ import Animated, {
   Easing,
   runOnJS,
   FadeIn,
-  FadeOut
+  FadeOut,
+  SharedValue
 } from 'react-native-reanimated';
 import { sanitizeText } from '../utils/textSanitizer';
 
@@ -175,7 +176,7 @@ export const EmotionalStoryModal: React.FC<EmotionalStoryModalProps> = ({
 interface ProgressBarProps {
   index: number;
   currentIndex: number;
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
 }
 
 const ProgressBar: React.FC<ProgressBarProps> = ({ index, currentIndex, progress }) => {

@@ -393,7 +393,7 @@ export default function HomeScreen() {
               </Text>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-                {astrologyData.generatedAt && (new Date().getTime() - new Date(astrologyData.generatedAt).getTime()) < 12 * 60 * 60 * 1000 ? (
+                {(astrologyData as any).generatedAt && (new Date().getTime() - new Date((astrologyData as any).generatedAt).getTime()) < 12 * 60 * 60 * 1000 ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#A78BFA', shadowColor: '#A78BFA', shadowOpacity: 0.8, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
                     <Text style={{ fontSize: 12, color: '#A78BFA', fontWeight: '500', letterSpacing: 0.5 }}>Taze</Text>

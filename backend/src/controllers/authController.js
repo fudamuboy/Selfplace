@@ -184,11 +184,7 @@ exports.forgotPassword = async (req, res) => {
       });
     } catch (mailError) {
       console.error('[Email] Delivery failure:', mailError.message);
-      console.log('----------------------------------------------------');
-      console.log('DEVELOPMENT MODE: PASSWORD RESET LINK');
-      console.log('Target Email:', user.email);
-      console.log('Reset Code:', resetCode);
-      console.log('----------------------------------------------------');
+
     }
 
     res.json({ message: 'Şifre sıfırlama bağlantısı e-posta adresine gönderildi.' });
@@ -200,11 +196,6 @@ exports.forgotPassword = async (req, res) => {
 
 exports.testEmail = async (req, res) => {
   const { email } = req.body;
-  console.log('--- SMTP DEBUG INFO ---');
-  console.log('SMTP_USER:', process.env.SMTP_USER);
-  console.log('SMTP_FROM:', process.env.SMTP_FROM);
-  console.log('SMTP_HOST:', process.env.SMTP_HOST);
-  console.log('-----------------------');
 
   try {
     const info = await sendEmail({

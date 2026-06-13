@@ -184,7 +184,7 @@ client.request = (config: any) => {
     const key = getRequestKey(config);
     if (inFlightRequests.has(key)) {
       if (__DEV__) {
-        console.log(`[API Cache] Reusing in-flight GET promise for: ${config.url}`);
+        // [API Cache] Reusing in-flight GET promise
       }
       return inFlightRequests.get(key)!;
     }
