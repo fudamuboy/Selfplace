@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import { getTimeline, RelationshipTimelineEvent } from '../api/relationshipApi';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
+import { logger } from '../utils/logger';
+import { NetworkErrorState } from '../components/NetworkErrorState';
 
 export default function ConnectionTimelineScreen() {
   const router = useRouter();
@@ -15,15 +17,20 @@ export default function ConnectionTimelineScreen() {
   const { currentTheme } = useThemeStore();
   const [timeline, setTimeline] = useState<RelationshipTimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchConnectionTimeline = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getTimeline(connectionId);
       setTimeline(data);
-    } catch (error) {
-      console.error('[ConnectionTimeline] Fetch error:', error);
+    } catch (err: any) {
+      if (err.message !== 'SESSION_EXPIRED' && !err.isSessionExpiry) {
+        setError(err.message || 'Zaman tüneli yüklenirken bir hata oluştu.');
+      }
+      logger.error('[ConnectionTimeline] Fetch error', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -90,7 +97,9 @@ export default function ConnectionTimelineScreen() {
             Duygusal uyumunuzun gelişimini ve kilometre taşlarını buradan sakin bir akışla izleyin.
           </Text>
 
-          {timeline.length === 0 ? (
+          {error && timeline.length === 0 ? (
+            <NetworkErrorState message={error} onRetry={fetchConnectionTimeline} />
+          ) : timeline.length === 0 ? (
             <View style={[styles.emptyBox, { borderColor: currentTheme.colors.cardBorder }]}>
               <Ionicons name="trail-sign-outline" size={40} color={currentTheme.colors.text.muted} />
               <Text style={[styles.emptyText, { color: currentTheme.colors.text.muted }]}>

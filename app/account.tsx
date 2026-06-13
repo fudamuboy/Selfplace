@@ -7,6 +7,7 @@ import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
 import { CustomModal } from '../components/CustomModal';
 import client from '../api/client';
+import { logger } from '../utils/logger';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -30,9 +31,7 @@ export default function AccountScreen() {
       // Redirect to login/welcome screen
       router.replace('/(auth)/login');
     } catch (err: any) {
-      if (__DEV__) {
-        console.error('[AccountScreen] Delete account failed:', err.response?.data || err.message);
-      }
+      logger.error('[AccountScreen] Delete account failed', err);
       
       const errMsg = err.response?.data?.message || 'Hesabınız silinirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
       setErrorModal({

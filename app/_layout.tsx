@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { View, ActivityIndicator, Animated, Text, StyleSheet , Platform } from 'react-native';
+import { View, ActivityIndicator, Animated, Text, StyleSheet, Platform, AppState } from 'react-native';
 import useThemeStore from "../store/useThemeStore";
 import useAuthStore from "../store/useAuthStore";
+import { useNetworkStore } from "../store/useNetworkStore";
 import * as Notifications from 'expo-notifications';
 
 // ─── Soft session-expiry toast ────────────────────────────────────────────────
@@ -149,6 +150,25 @@ export default function RootLayout() {
       setIsReady(true);
     }
     initialize();
+  }, []);
+
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        if (__DEV__) {
+          console.log('[AppState] App returned to active. Revalidating connectivity...');
+        }
+        const isOnlineNow = await useNetworkStore.getState().checkConnectivity();
+        if (isOnlineNow) {
+          useNetworkStore.getState().triggerGlobalRefresh();
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   // ── Session expiry: show soft toast then redirect to login ─────────────────

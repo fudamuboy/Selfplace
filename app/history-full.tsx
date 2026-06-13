@@ -6,6 +6,8 @@ import client from '../api/client';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import { sanitizeText } from '../utils/textSanitizer';
+import { logger } from '../utils/logger';
+import { NetworkErrorState } from '../components/NetworkErrorState';
 
 
 const MOOD_EMOJIS: { [key: string]: string } = {
@@ -23,6 +25,7 @@ export default function HistoryFull() {
   const [data, setData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const { currentTheme } = useThemeStore();
   const router = useRouter();
@@ -37,6 +40,8 @@ export default function HistoryFull() {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await client.get('/emotional/timeline');
       
       const mappedList = response.data.map((entry: any) => ({
@@ -47,11 +52,14 @@ export default function HistoryFull() {
         answer: entry.content,
         type: entry.source_type
       }));
-
+  
       setData(mappedList);
       setFilteredData(mappedList);
-    } catch (_err) {
-      console.error('History fetch error:', _err);
+    } catch (_err: any) {
+      if (_err.message !== 'SESSION_EXPIRED' && !_err.isSessionExpiry) {
+        setError(_err.message || 'Geçmiş yüklenirken bir hata oluştu.');
+      }
+      logger.error('History fetch error', _err);
     } finally {
       setLoading(false);
     }
@@ -121,6 +129,8 @@ export default function HistoryFull() {
 
         {loading ? (
           <ActivityIndicator size="large" color={currentTheme.colors.primary} style={{ marginTop: 40 }} />
+        ) : error && data.length === 0 ? (
+          <NetworkErrorState message={error} onRetry={fetchData} />
         ) : (
           <FlatList
             data={filteredData}

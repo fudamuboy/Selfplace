@@ -10,6 +10,9 @@ import { sanitizeText } from '../../utils/textSanitizer';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
 import { EmotionalStoryModal, StorySlide } from '../../components/EmotionalStoryModal';
+import { logger } from '../../utils/logger';
+import { useNetworkStore } from '../../store/useNetworkStore';
+import { NetworkErrorState } from '../../components/NetworkErrorState';
 
 interface CheckIn {
   id: number;
@@ -66,25 +69,28 @@ export default function HistoryScreen() {
   const [patternCheckInCount, setPatternCheckInCount] = useState<number>(0);
   const [dailyReflection, setDailyReflection] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const { currentTheme } = useThemeStore();
   const router = useRouter();
 
+  useEffect(() => {
+    const unsubscribe = useNetworkStore.getState().subscribeToRefresh(() => {
+      fetchData(true);
+    });
+    return unsubscribe;
+  }, []);
+
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
+    setError(null);
     try {
-      const [timelineRes, dailyRes, weeklyRes, patternsRes, journeyRes] = await Promise.allSettled([
+      // Phase 2 (Immediate): Load timeline / reflections
+      const [timelineRes, dailyRes] = await Promise.allSettled([
         client.get('/emotional/timeline'),
-        client.get('/reflections/daily'),
-        client.get('/insights/weekly'),
-        client.get('/insights/patterns'),
-        client.get('/insights/journey')
+        client.get('/reflections/daily')
       ]);
-
-      if (journeyRes.status === 'fulfilled') {
-        setJourneyData(journeyRes.value.data);
-      }
 
       if (timelineRes.status === 'fulfilled') {
         const mappedList = timelineRes.value.data.map((entry: any) => ({
@@ -96,47 +102,81 @@ export default function HistoryScreen() {
           type: entry.source_type
         }));
         setAdvancedAnswers(mappedList);
+      } else {
+        logger.error('[History] Fetch timeline failed', timelineRes.reason);
       }
 
       if (dailyRes.status === 'fulfilled') {
         setDailyReflection(dailyRes.value.data.reflection);
       } else {
         setDailyReflection(null);
+        logger.error('[History] Fetch daily reflection failed', dailyRes.reason);
       }
 
-      if (weeklyRes.status === 'fulfilled') {
-        const data = weeklyRes.value.data;
-        if (data) {
-          setWeeklyData({
-            insight: data.insight || (typeof data === 'string' ? data : ''),
-            depthLevel: data.depthLevel || 'NEW',
-            rhythm: data.rhythm || null,
-            comfortPattern: data.comfortPattern || null,
-            thoughtFocus: data.thoughtFocus || null,
-            questions: data.questions || [],
-            shifts: data.shifts || null,
-            relationshipSynthesis: data.relationshipSynthesis || null
-          });
-        } else {
-          setWeeklyData(null);
+      // If both Stage 2 calls fail, register the error message
+      if (timelineRes.status === 'rejected' && dailyRes.status === 'rejected') {
+        const errObj = timelineRes.reason || dailyRes.reason;
+        if (errObj?.message !== 'SESSION_EXPIRED' && !errObj?.isSessionExpiry) {
+          setError(errObj?.message || 'Veriler yüklenirken bir bağlantı hatası oluştu.');
         }
-      } else {
-        setWeeklyData(null);
       }
 
-      if (patternsRes.status === 'fulfilled') {
-        setPatterns(patternsRes.value.data.patterns);
-        setPatternMessage(patternsRes.value.data.message);
-        setPatternSubtitle(patternsRes.value.data.subtitle);
-        setPatternCheckInCount(patternsRes.value.data.checkInCount || 0);
-      } else {
-        setPatterns([]);
-      }
+      // Phase 3 (Delayed Background, 1000ms): Load insights, patterns, journey
+      setTimeout(async () => {
+        try {
+          const [weeklyRes, patternsRes, journeyRes] = await Promise.allSettled([
+            client.get('/insights/weekly'),
+            client.get('/insights/patterns'),
+            client.get('/insights/journey')
+          ]);
+
+          if (journeyRes.status === 'fulfilled') {
+            setJourneyData(journeyRes.value.data);
+          } else {
+            logger.error('[History] Fetch journey failed', journeyRes.reason);
+          }
+
+          if (weeklyRes.status === 'fulfilled') {
+            const data = weeklyRes.value.data;
+            if (data) {
+              setWeeklyData({
+                insight: data.insight || (typeof data === 'string' ? data : ''),
+                depthLevel: data.depthLevel || 'NEW',
+                rhythm: data.rhythm || null,
+                comfortPattern: data.comfortPattern || null,
+                thoughtFocus: data.thoughtFocus || null,
+                questions: data.questions || [],
+                shifts: data.shifts || null,
+                relationshipSynthesis: data.relationshipSynthesis || null
+              });
+            } else {
+              setWeeklyData(null);
+            }
+          } else {
+            setWeeklyData(null);
+            logger.error('[History] Fetch weekly insights failed', weeklyRes.reason);
+          }
+
+          if (patternsRes.status === 'fulfilled') {
+            setPatterns(patternsRes.value.data.patterns);
+            setPatternMessage(patternsRes.value.data.message);
+            setPatternSubtitle(patternsRes.value.data.subtitle);
+            setPatternCheckInCount(patternsRes.value.data.checkInCount || 0);
+          } else {
+            setPatterns([]);
+            logger.error('[History] Fetch patterns failed', patternsRes.reason);
+          }
+        } catch (innerErr) {
+          logger.error('[History] Background staged loading failed', innerErr);
+        }
+      }, 1000);
+
     } catch (_error: any) {
-      // Handle unexpected errors silently
+      logger.error('History fetch error', _error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useFocusEffect(
@@ -541,6 +581,8 @@ export default function HistoryScreen() {
         
         {loading && !refreshing ? (
           <ActivityIndicator size="large" color={currentTheme.colors.primary} style={{ marginTop: 40 }} />
+        ) : error && advancedAnswers.length === 0 && dailyReflection === null && weeklyData === null ? (
+          <NetworkErrorState message={error} onRetry={() => fetchData(false)} />
         ) : (
           <FlatList
             data={[]} // We use ListHeaderComponent for everything to keep it simple and unified

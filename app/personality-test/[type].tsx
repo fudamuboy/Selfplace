@@ -8,6 +8,7 @@ import { GradientBackground } from '../../components/GradientBackground';
 import client from '../../api/client';
 import usePersonalitySessionStore from '../../store/usePersonalitySessionStore';
 import useThemeStore from '../../store/useThemeStore';
+import { logger } from '../../utils/logger';
 
 interface Option {
   text: string;
@@ -66,7 +67,7 @@ export default function PersonalityTestScreen() {
         params: { id: res.data.id }
       });
     } catch (err: any) {
-      console.error(`[PersonalityTest] Error submitting test answers:`, err.message || err);
+      logger.error(`[PersonalityTest] Error submitting test answers`, err);
       setSubmitting(false);
       setShowInterstitial(false);
       setTimeout(() => router.back(), 1500);
@@ -81,7 +82,7 @@ export default function PersonalityTestScreen() {
     console.log(`[DEBUG-QUEUE-IDS]`, questions.map(q => q.id));
 
     if (queueHash && currentHash !== queueHash) {
-      console.error(`[QUEUE MUTATION DETECTED] EXPECTED HASH: ${queueHash} | CURRENT HASH: ${currentHash}`);
+      logger.error(`[QUEUE MUTATION DETECTED] EXPECTED HASH: ${queueHash} | CURRENT HASH: ${currentHash}`);
     }
   }, [isActive, questions, sessionFingerprint, queueHash, currentIndex]);
 
@@ -100,7 +101,7 @@ export default function PersonalityTestScreen() {
         throw new Error('Invalid test data');
       }
     } catch (err: any) {
-      console.error(`[PersonalityTest] Error fetching test:`, err.message || err);
+      logger.error(`[PersonalityTest] Error fetching test`, err);
       setTimeout(() => router.back(), 2000);
     } finally {
       setLoading(false);
@@ -182,7 +183,7 @@ export default function PersonalityTestScreen() {
 
     // Check if we are in infinite skip protection (consecutiveSkipCount >= 5)
     if (consecutiveSkipCount >= 5) {
-      console.error('[CRITICAL RECOVERY MODE] Infinite skip loop detected (skips >= 5). Freezing navigation, rebuilding clean queue...');
+      logger.error('[CRITICAL RECOVERY MODE] Infinite skip loop detected (skips >= 5). Freezing navigation, rebuilding clean queue...');
       setCriticalRecovery(true);
       
       // Perform recovery rebuild: purge duplicate/rendered IDs from remaining queue

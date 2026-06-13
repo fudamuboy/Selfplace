@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { updateSubscription } from '../api/userApi';
 import { MODAL_MAX_WIDTH } from '../constants/Layout';
+import { logger } from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -38,7 +39,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
       onPlanUpdated(res.subscription.plan_type);
       onClose();
     } catch (error) {
-      console.error('[PremiumUpgradeModal] Upgrade error:', error);
+      logger.error('[PremiumUpgradeModal] Upgrade error', error);
     } finally {
       setLoading(false);
     }

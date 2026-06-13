@@ -6,6 +6,10 @@ import useThemeStore from '../../store/useThemeStore';
 import client from '../../api/client';
 import { GradientBackground } from '../../components/GradientBackground';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H, isTablet } from '../../constants/Layout';
+import { logger } from '../../utils/logger';
+import { JournalSkeleton } from '../../components/SkeletonLoader';
+import { NetworkErrorState } from '../../components/NetworkErrorState';
+import { useNetworkStore } from '../../store/useNetworkStore';
 
 interface JournalEntry {
   id: number | null;
@@ -19,14 +23,45 @@ export default function JournalScreen() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<JournalEntry>({ id: null, title: '', content: '' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const richText = useRef(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    
+    const unsubscribe = useNetworkStore.getState().subscribeToRefresh(() => {
+      fetchEntries();
+    });
+
+    return () => {
+      isMounted.current = false;
+      unsubscribe();
+    };
+  }, []);
 
   const fetchEntries = async () => {
+    if (!isMounted.current) return;
+    setLoading(true);
+    setError(null);
     try {
-      const response = await client.get('/journal');
-      setEntries(response.data);
-    } catch (err) {
-      console.error(err);
+      const response = await client.get('/journal', { timeout: 15000 });
+      if (isMounted.current) {
+        setEntries(response.data);
+      }
+    } catch (err: any) {
+      if (isMounted.current) {
+        if (err.message === 'SESSION_EXPIRED' || err.isSessionExpiry) {
+          return;
+        }
+        setError(err.message || 'Bağlantı kısa süreliğine sessizleşti 🌙');
+      }
+      logger.error('[JournalScreen] fetchEntries failed', err);
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -158,34 +193,40 @@ export default function JournalScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={entries}
-        keyExtractor={item => item.id?.toString() || Math.random().toString()}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={[styles.entryCard, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]} onPress={() => editEntry(item)}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.entryTitle, { color: '#FFFFFF' }]}>
-                {item.title || 'Başlıksız Günlük'}
-              </Text>
-              <Text style={[styles.entryDate, { color: 'rgba(255,255,255,0.75)' }]}>
-                {item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}
+      {loading && entries.length === 0 ? (
+        <JournalSkeleton />
+      ) : error && entries.length === 0 ? (
+        <NetworkErrorState message={error} onRetry={fetchEntries} />
+      ) : (
+        <FlatList
+          data={entries}
+          keyExtractor={item => item.id?.toString() || Math.random().toString()}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={[styles.entryCard, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]} onPress={() => editEntry(item)}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.entryTitle, { color: '#FFFFFF' }]}>
+                  {item.title || 'Başlıksız Günlük'}
+                </Text>
+                <Text style={[styles.entryDate, { color: 'rgba(255,255,255,0.75)' }]}>
+                  {item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => deleteEntry(item.id as number)} style={{ padding: 10 }}>
+                <Ionicons name="trash-outline" size={20} color="#ff4444" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="journal-outline" size={64} color="rgba(255,255,255,0.35)" />
+              <Text style={[styles.emptyText, { color: 'rgba(255,255,255,0.75)' }]}>
+                Henüz bir günlük yazmadın. Kendine biraz zaman ayır ve ilk günlüğünü oluştur.
               </Text>
             </View>
-            <TouchableOpacity onPress={() => deleteEntry(item.id as number)} style={{ padding: 10 }}>
-              <Ionicons name="trash-outline" size={20} color="#ff4444" />
-            </TouchableOpacity>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="journal-outline" size={64} color="rgba(255,255,255,0.35)" />
-            <Text style={[styles.emptyText, { color: 'rgba(255,255,255,0.75)' }]}>
-              Henüz bir günlük yazmadın. Kendine biraz zaman ayır ve ilk günlüğünü oluştur.
-            </Text>
-          </View>
-        }
-      />
+          }
+        />
+      )}
     </GradientBackground>
   );
 }

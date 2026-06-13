@@ -7,6 +7,8 @@ import Animated, { FadeInDown, FadeIn, useAnimatedStyle, useSharedValue, withTim
 import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
+import { logger } from '../utils/logger';
+import { NetworkErrorState } from '../components/NetworkErrorState';
 
 const { width } = Dimensions.get('window');
 
@@ -65,6 +67,7 @@ export default function PersonalityResultDetailScreen() {
   
   const [result, setResult] = useState<TestResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchResult();
@@ -72,10 +75,15 @@ export default function PersonalityResultDetailScreen() {
 
   const fetchResult = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const res = await client.get(`/personality/history/${id}`);
       setResult(res.data.result);
-    } catch (err) {
-      console.error('[PersonalityResult] Error:', err);
+    } catch (err: any) {
+      if (err.message !== 'SESSION_EXPIRED' && !err.isSessionExpiry) {
+        setError(err.message || 'Sonuç yüklenirken bir hata oluştu.');
+      }
+      logger.error('[PersonalityResult] Error', err);
     } finally {
       setLoading(false);
     }
@@ -87,6 +95,14 @@ export default function PersonalityResultDetailScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={currentTheme.colors.primary} />
         </View>
+      </GradientBackground>
+    );
+  }
+
+  if (error && !result) {
+    return (
+      <GradientBackground>
+        <NetworkErrorState message={error} onRetry={fetchResult} />
       </GradientBackground>
     );
   }

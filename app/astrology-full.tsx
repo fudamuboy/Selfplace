@@ -8,6 +8,9 @@ import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
+import { logger } from '../utils/logger';
+import { useNetworkStore } from '../store/useNetworkStore';
+import { NetworkErrorState } from '../components/NetworkErrorState';
 
 const { width } = Dimensions.get('window');
 
@@ -18,10 +21,16 @@ export default function AstrologyFullScreen() {
   const [data, setData] = useState<any>(null);
   const [dailyData, setDailyData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchData();
+
+    const unsubscribe = useNetworkStore.getState().subscribeToRefresh(() => {
+      fetchData();
+    });
+    return unsubscribe;
   }, []);
 
   const parseStrengths = (strengths: any): string[] => {
@@ -41,14 +50,33 @@ export default function AstrologyFullScreen() {
 
   const fetchData = async () => {
     try {
-      const [weeklyRes, dailyRes] = await Promise.all([
+      setLoading(true);
+      setError(null);
+      const [weeklyRes, dailyRes] = await Promise.allSettled([
         client.get('/astrology/weekly'),
         client.get('/astrology/daily')
       ]);
-      setData(weeklyRes.data.data);
-      setDailyData(dailyRes.data.data);
-    } catch (err) {
-      console.warn('[AstrologyFull] Fetch error', err);
+
+      if (weeklyRes.status === 'fulfilled') {
+        setData(weeklyRes.value.data.data);
+      } else {
+        logger.error('[AstrologyFull] Weekly load error', weeklyRes.reason);
+      }
+
+      if (dailyRes.status === 'fulfilled') {
+        setDailyData(dailyRes.value.data.data);
+      } else {
+        logger.error('[AstrologyFull] Daily load error', dailyRes.reason);
+      }
+
+      if (weeklyRes.status === 'rejected' && dailyRes.status === 'rejected') {
+        const firstErr = weeklyRes.reason || dailyRes.reason;
+        if (firstErr?.message !== 'SESSION_EXPIRED' && !firstErr?.isSessionExpiry) {
+          setError(firstErr?.message || 'Gökyüzü verileri yüklenirken bir hata oluştu.');
+        }
+      }
+    } catch (err: any) {
+      logger.error('[AstrologyFull] Fetch error', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -66,6 +94,14 @@ export default function AstrologyFullScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={currentTheme.colors.primary} />
         </View>
+      </GradientBackground>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <GradientBackground>
+        <NetworkErrorState message={error} onRetry={fetchData} />
       </GradientBackground>
     );
   }

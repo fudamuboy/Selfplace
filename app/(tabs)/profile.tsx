@@ -14,6 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { CONTENT_MAX_WIDTH, MODAL_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 import { getSubscription } from '../../api/userApi';
 import { PremiumUpgradeModal } from '../../components/PremiumUpgradeModal';
+import { logger } from '../../utils/logger';
 
 const getZodiacSign = (day: number, month: number): string => {
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
@@ -110,7 +111,7 @@ export default function ProfileScreen() {
       });
 
     } catch (err) {
-      console.error('[Profile] Error updating profile:', err);
+      logger.error('[Profile] Error updating profile', err);
     } finally {
       setIsUpdatingProfile(false);
     }

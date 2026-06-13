@@ -31,6 +31,7 @@ import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
 import { CHAT_MAX_WIDTH, isTablet } from '../constants/Layout';
+import { logger } from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -125,7 +126,7 @@ export default function AIChatScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }, delay);
     } catch (error) {
-      console.error('Chat error:', error);
+      logger.error('Chat error', error);
       setIsTyping(false);
       addMessage('ai', 'Şu an seni tam anlayamadım, ama dinlemeye devam ediyorum.');
     }
