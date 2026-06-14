@@ -379,6 +379,19 @@ exports.runMigrations = async () => {
       )
     `);
 
+    // 16a. Add Apple IAP fields to subscription_status (safe to run on every boot)
+    await db.query(`
+      ALTER TABLE subscription_status
+        ADD COLUMN IF NOT EXISTS apple_original_transaction_id TEXT,
+        ADD COLUMN IF NOT EXISTS apple_product_id VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS apple_receipt_data TEXT,
+        ADD COLUMN IF NOT EXISTS apple_latest_receipt TEXT
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_sub_status_user ON subscription_status(user_id);
+      CREATE INDEX IF NOT EXISTS idx_sub_status_apple_txn ON subscription_status(apple_original_transaction_id);
+    `);
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS emotional_entries (
         id SERIAL PRIMARY KEY,

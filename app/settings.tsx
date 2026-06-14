@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Platform, Linking, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Platform, Linking, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GradientBackground } from '../components/GradientBackground';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,11 +12,20 @@ import client from '../api/client';
 import * as Clipboard from 'expo-clipboard';
 import { Toast } from '../components/Toast';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
+import useSubscriptionStore from '../store/useSubscriptionStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
   const { user } = useAuthStore();
+
+  const {
+    restoreLoading,
+    restoreMessage,
+    restorePurchases,
+    clearRestoreMessage,
+    initIAP,
+  } = useSubscriptionStore();
 
   const { 
     remindersEnabled, 
@@ -34,6 +43,9 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadConfig();
+    // Initialise IAP connection so restore works from settings
+    initIAP();
+    return () => useSubscriptionStore.getState().teardownIAP();
   }, [loadConfig]);
 
   const toggleReminders = async (value: boolean) => {
@@ -60,6 +72,16 @@ export default function SettingsScreen() {
       // Soft failure: Show custom branded modal instead of technical error
       setContactModalVisible(true);
     });
+  };
+
+  const handleRestorePurchases = async () => {
+    clearRestoreMessage();
+    await restorePurchases();
+    const msg = useSubscriptionStore.getState().restoreMessage;
+    if (msg) {
+      setToast({ visible: true, message: msg });
+      clearRestoreMessage();
+    }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -195,6 +217,15 @@ export default function SettingsScreen() {
           {renderSectionHeader('DESTEK')}
           {renderRow('mail-outline', 'Bize Ulaş', 'selfplace.support@gmail.com', handleContactSupport)}
           {renderRow('help-circle-outline', 'Yardım & SSS', 'Uygulama hakkında merak edilenler', () => router.push('/faq'))}
+          {renderRow(
+            'refresh-outline',
+            restoreLoading ? 'Geri Yükleniyor…' : 'Satın Alımları Geri Yükle',
+            'Aboneliğini cihaza yeniden tanımla',
+            restoreLoading ? undefined : handleRestorePurchases,
+            restoreLoading
+              ? <ActivityIndicator size="small" color={currentTheme.colors.primary} />
+              : undefined
+          )}
 
           <View style={{ height: 24 }} />
           {renderSectionHeader('YASAL')}

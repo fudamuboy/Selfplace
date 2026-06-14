@@ -31,6 +31,7 @@ const emotionalRoutes = require('./src/routes/emotionalRoutes');
 const astrologyRoutes = require('./src/routes/astrologyRoutes');
 const personalityRoutes = require('./src/routes/personalityRoutes');
 const relationshipRoutes = require('./src/routes/relationshipRoutes');
+const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -117,6 +118,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/emotional', emotionalRoutes); // Unified Emotional Architecture
 app.use('/api/personality', personalityRoutes);
 app.use('/api/relationships', relationshipRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 
 

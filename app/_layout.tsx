@@ -6,6 +6,7 @@ import useThemeStore from "../store/useThemeStore";
 import useAuthStore from "../store/useAuthStore";
 import { useNetworkStore } from "../store/useNetworkStore";
 import * as Notifications from 'expo-notifications';
+import { getSubscription } from '../api/userApi';
 
 // ─── Soft session-expiry toast ────────────────────────────────────────────────
 function SessionExpiredToast({ visible, onHide }: { visible: boolean; onHide: () => void }) {
@@ -161,6 +162,15 @@ export default function RootLayout() {
         const isOnlineNow = await useNetworkStore.getState().checkConnectivity();
         if (isOnlineNow) {
           useNetworkStore.getState().triggerGlobalRefresh();
+
+          // Silently refresh subscription state so expiry / renewal is reflected
+          // immediately without requiring the user to navigate to Profile.
+          try {
+            const sub = await getSubscription();
+            useAuthStore.getState().setPlanType(sub.plan_type);
+          } catch {
+            // Non-critical: ignore network errors on wake
+          }
         }
       }
     };

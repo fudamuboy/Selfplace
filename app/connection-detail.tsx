@@ -105,13 +105,38 @@ const getGardenStateIcon = (state: string): string => {
 };
 
 const FloatingParticles = () => {
-  const particles = Array.from({ length: 6 }).map((_, i) => ({
-    x: useRef(new Animated.Value(Math.random() * 200 - 100)).current,
-    y: useRef(new Animated.Value(Math.random() * 100 - 50)).current,
-    opacity: useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current,
-    size: Math.random() * 4 + 2,
-    id: i
-  }));
+  const refX0 = useRef(new Animated.Value(Math.random() * 200 - 100)).current;
+  const refY0 = useRef(new Animated.Value(Math.random() * 100 - 50)).current;
+  const refOpacity0 = useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current;
+
+  const refX1 = useRef(new Animated.Value(Math.random() * 200 - 100)).current;
+  const refY1 = useRef(new Animated.Value(Math.random() * 100 - 50)).current;
+  const refOpacity1 = useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current;
+
+  const refX2 = useRef(new Animated.Value(Math.random() * 200 - 100)).current;
+  const refY2 = useRef(new Animated.Value(Math.random() * 100 - 50)).current;
+  const refOpacity2 = useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current;
+
+  const refX3 = useRef(new Animated.Value(Math.random() * 200 - 100)).current;
+  const refY3 = useRef(new Animated.Value(Math.random() * 100 - 50)).current;
+  const refOpacity3 = useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current;
+
+  const refX4 = useRef(new Animated.Value(Math.random() * 200 - 100)).current;
+  const refY4 = useRef(new Animated.Value(Math.random() * 100 - 50)).current;
+  const refOpacity4 = useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current;
+
+  const refX5 = useRef(new Animated.Value(Math.random() * 200 - 100)).current;
+  const refY5 = useRef(new Animated.Value(Math.random() * 100 - 50)).current;
+  const refOpacity5 = useRef(new Animated.Value(Math.random() * 0.4 + 0.2)).current;
+
+  const particles = [
+    { x: refX0, y: refY0, opacity: refOpacity0, size: Math.random() * 4 + 2, id: 0 },
+    { x: refX1, y: refY1, opacity: refOpacity1, size: Math.random() * 4 + 2, id: 1 },
+    { x: refX2, y: refY2, opacity: refOpacity2, size: Math.random() * 4 + 2, id: 2 },
+    { x: refX3, y: refY3, opacity: refOpacity3, size: Math.random() * 4 + 2, id: 3 },
+    { x: refX4, y: refY4, opacity: refOpacity4, size: Math.random() * 4 + 2, id: 4 },
+    { x: refX5, y: refY5, opacity: refOpacity5, size: Math.random() * 4 + 2, id: 5 },
+  ];
 
   useEffect(() => {
     particles.forEach(p => {

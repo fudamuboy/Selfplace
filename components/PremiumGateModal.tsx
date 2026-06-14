@@ -102,7 +102,7 @@ export const PremiumGateModal: React.FC<PremiumGateModalProps> = ({
               onPress={onUpgrade}
               activeOpacity={0.8}
             >
-              <Text style={styles.upgradeBtnText}>Plus'a Geç</Text>
+              <Text style={styles.upgradeBtnText}>Plus Aboneliğine Geç</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 

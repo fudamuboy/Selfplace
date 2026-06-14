@@ -45,7 +45,7 @@ export default function ArchiveScreen() {
       </Text>
       
       <Text style={[styles.themeTitle, { color: currentTheme.colors.text.primary }]}>
-        "{item.themeTitle}"
+        &ldquo;{item.themeTitle}&rdquo;
       </Text>
       
       <View style={styles.statsRow}>
