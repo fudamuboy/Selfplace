@@ -207,13 +207,19 @@ export const MascotBlob: React.FC<Props> = ({
         styles.outerGlow, 
         styles.glowLarge, 
         glowStyle, 
-        { opacity: glowOpacity.value * 0.65, backgroundColor: config.colors.glow }
+        useAnimatedStyle(() => ({
+          opacity: glowOpacity.value * 0.65,
+        })),
+        { backgroundColor: config.colors.glow }
       ]} />
       <Animated.View style={[
         styles.outerGlow, 
         styles.glowMedium, 
         glowStyle,
-        { opacity: glowOpacity.value, backgroundColor: config.colors.glow }
+        useAnimatedStyle(() => ({
+          opacity: glowOpacity.value,
+        })),
+        { backgroundColor: config.colors.glow }
       ]} />
 
       <Animated.View style={[styles.blob, morphStyle]}>
