@@ -46,7 +46,8 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-notifications",
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-iap"
     ],
     "experiments": {
       "typedRoutes": true,

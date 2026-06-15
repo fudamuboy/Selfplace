@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "postinstall": "node utils/patch-iap.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -19,6 +20,7 @@
     "@react-navigation/native": "^7.1.8",
     "axios": "^1.15.2",
     "expo": "~54.0.34",
+    "expo-application": "^56.0.3",
     "expo-blur": "~15.0.8",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",

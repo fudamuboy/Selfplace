@@ -67,8 +67,8 @@ function callAppleVerify(receiptData, useSandbox = false) {
  * Maps an Apple product ID to our internal plan type.
  */
 function mapProductIdToPlan(productId) {
-  if (productId === 'selfplace_signature_monthly') return 'signature';
-  if (productId === 'selfplace_plus_monthly')      return 'plus';
+  if (productId === 'selfplace_signature_v2_monthly') return 'signature';
+  if (productId === 'selfplace_plus_v2_monthly')      return 'plus';
   return 'free';
 }
 

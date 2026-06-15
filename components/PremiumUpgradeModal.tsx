@@ -219,9 +219,9 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="information-circle-outline" size={16} color="#eab308" />
                 <Text style={[styles.errorText, { color: '#eab308' }]}>
-                  {storeUnavailable 
-                    ? "Abonelik ürünleri yüklenemedi. Apple purchases can only be tested on a real device."
-                    : "Apple Store bağlantısı şu an kurulamadı. Simulator veya Apple hesabı aktif olmayan bir cihazda olabilirsiniz."}
+                  {purchaseError || (storeUnavailable 
+                    ? "Abonelik ürünleri yüklenemedi. Check the console for StoreKit Debug logs."
+                    : "Apple Store bağlantısı şu an kurulamadı. Simulator veya Apple hesabı aktif olmayan bir cihazda olabilirsiniz.")}
                 </Text>
               </View>
               <TouchableOpacity 

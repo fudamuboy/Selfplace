@@ -15,11 +15,12 @@ import {
 import { Platform } from 'react-native';
 import useAuthStore from './useAuthStore';
 import { verifyAppleReceipt, restorePurchases as restoreFromBackend } from '../api/userApi';
+import * as Application from 'expo-application';
 
 // ─── Apple product IDs — must match App Store Connect exactly ────────────────
 export const IAP_PRODUCT_IDS = {
-  plus:      'selfplace_plus_monthly',
-  signature: 'selfplace_signature_monthly',
+  plus:      'selfplace_plus_v2_monthly',
+  signature: 'selfplace_signature_v2_monthly',
 };
 
 export const ALL_PRODUCT_IDS = [IAP_PRODUCT_IDS.plus, IAP_PRODUCT_IDS.signature];
@@ -76,44 +77,28 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         storeUnavailable: false
       });
 
+      let connected = false;
       try {
         console.log('[StoreKit Debug] Calling initConnection()...');
-        await initConnection();
-        console.log('[StoreKit Debug] initConnection() succeeded.');
-        set({ iapConnected: true, iapReady: true });
+        connected = await initConnection();
+        console.log('[StoreKit Debug] initConnection() result:', connected);
+        set({ iapConnected: connected, iapReady: connected });
       } catch (connErr: any) {
-        console.warn('[StoreKit Debug] initConnection() failed (expected on simulator):', connErr.message);
+        console.error('[StoreKit Debug] initConnection() failed:', connErr, connErr.stack);
         set({ 
           productsLoading: false, 
           iapConnected: false,
           iapReady: false,
-          storeUnavailable: true
+          storeUnavailable: true,
+          purchaseError: `initConnection error: ${connErr?.message || JSON.stringify(connErr)}`
         });
         return;
       }
 
-      console.log('[StoreKit Debug] Fetching subscriptions for SKUs:', ALL_PRODUCT_IDS);
-      // Fetch localised subscription product info from Apple
-      const raw = await getSubscriptions({ skus: ALL_PRODUCT_IDS });
-      console.log('[StoreKit Debug] getSubscriptions() raw response count:', raw ? raw.length : 0);
-
-      // Filter to iOS-only subscriptions to satisfy SubscriptionIOS type
-      const products = (raw as any[]).filter(
-        (p): p is SubscriptionIOS => !('subscriptionOfferDetails' in p) && 'localizedPrice' in p
-      );
-      console.log('[StoreKit Debug] Filtered iOS products count:', products.length);
-      products.forEach(p => {
-        console.log(`[StoreKit Debug] Product: ID=${p.productId}, Title=${p.title}, Price=${p.localizedPrice}`);
-      });
-
-      set({ 
-        availableProducts: products, 
-        productsLoading: false,
-        productsLoaded: true,
-        storeUnavailable: products.length === 0
-      });
-
-      // ── Purchase success listener ──────────────────────────────────────────
+      // ── Set up listeners BEFORE getSubscriptions to catch pending transactions
+      purchaseUpdateSub?.remove();
+      purchaseErrorSub?.remove();
+      
       purchaseUpdateSub = purchaseUpdatedListener(async (purchase: Purchase) => {
         console.log('[StoreKit Debug] purchaseUpdatedListener triggered for product:', purchase.productId);
         const receipt = purchase.transactionReceipt;
@@ -146,24 +131,102 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         }
       });
 
-      // ── Purchase error listener ────────────────────────────────────────────
       purchaseErrorSub = purchaseErrorListener((error: PurchaseError) => {
-        // E_USER_CANCELLED = user dismissed Apple sheet — NOT an error, completely silent.
         if ((error as any).code === 'E_USER_CANCELLED') {
           console.log('[StoreKit Debug] User cancelled the payment sheet.');
           set({ purchaseLoading: false, purchaseError: null });
           return;
         }
-        console.error('[StoreKit Debug] Purchase error listener caught error:', error.message, (error as any).code);
+        console.error('[StoreKit Debug] Purchase error listener caught error:', error.message, (error as any).code, error);
         set({
           purchaseLoading: false,
-          purchaseError: 'Satın alma işlemi başarısız oldu. Lütfen tekrar deneyin.',
+          purchaseError: `Satın alma işlemi başarısız oldu: ${error.message} (Code: ${(error as any).code})`,
         });
       });
 
+      const runtimeBundleId = Application.applicationId || 'Unknown';
+      console.log('[StoreKit Debug] Runtime Bundle ID detected:', runtimeBundleId);
+      console.log('[StoreKit Debug] Fetching subscriptions for SKUs:', ALL_PRODUCT_IDS);
+
+      // Fetch localised subscription product info from Apple
+      try {
+        const raw = await getSubscriptions({ skus: ALL_PRODUCT_IDS });
+        console.log('[StoreKit Debug] getSubscriptions() raw response count:', raw ? raw.length : 0);
+        console.log('[StoreKit Debug] getSubscriptions() raw response:', JSON.stringify(raw, null, 2));
+
+        if (!raw || raw.length === 0) {
+          console.warn('[StoreKit Debug] getSubscriptions returned empty array.');
+          
+          const debugMsg = [
+            `DIAGNOSTIC REPORT:`,
+            `Bundle ID: ${runtimeBundleId}`,
+            `SKUs: ${ALL_PRODUCT_IDS.join(', ')}`,
+            `initConnection: ${connected}`,
+            `raw length: 0`,
+            `Reasons this happens:`,
+            `1. Paid Apps Agreement is NOT ACTIVE in App Store Connect.`,
+            `2. Products have "Missing Metadata" status.`,
+            `3. Missing App Store Connect Localizations (Group or Product).`,
+            `4. No Review Screenshot uploaded for each product.`,
+            `5. StoreKit 2 Sandbox delay (wait 2 hours).`
+          ].join('\\n');
+
+          set({ 
+            productsLoading: false,
+            productsLoaded: true,
+            storeUnavailable: true,
+            purchaseError: debugMsg
+          });
+          return;
+        }
+
+        // Filter to iOS-only subscriptions to satisfy SubscriptionIOS type
+        const products = (raw as any[]).filter(
+          (p): p is SubscriptionIOS => !('subscriptionOfferDetails' in p) && 'localizedPrice' in p
+        );
+        console.log('[StoreKit Debug] Filtered iOS products count:', products.length);
+        products.forEach(p => {
+          console.log(`[StoreKit Debug] Product: ID=${p.productId}, Title=${p.title}, Price=${p.localizedPrice}`);
+        });
+
+        if (products.length === 0 && raw.length > 0) {
+          console.warn('[StoreKit Debug] All products filtered out (not matching iOS subscription shape).');
+          set({ 
+            productsLoading: false,
+            productsLoaded: true,
+            storeUnavailable: true,
+            purchaseError: `Filtered to 0 iOS products. Raw items: ${JSON.stringify(raw)}`
+          });
+          return;
+        }
+
+        set({ 
+          availableProducts: products, 
+          productsLoading: false,
+          productsLoaded: true,
+          storeUnavailable: false
+        });
+      } catch (subErr: any) {
+        console.error('[StoreKit Debug] getSubscriptions failed:', subErr, subErr.stack);
+        set({ 
+          productsLoading: false, 
+          storeUnavailable: true,
+          purchaseError: `getSubscriptions error: ${subErr?.message || JSON.stringify(subErr)}`
+        });
+        return;
+      }
+
+      // Listeners have been moved up before getSubscriptions
+
     } catch (err: any) {
-      console.warn('[StoreKit Debug] initIAP outer catch error:', err.message);
-      set({ productsLoading: false, iapConnected: false, iapReady: false, storeUnavailable: true });
+      console.error('[StoreKit Debug] initIAP outer catch error:', err, err.stack);
+      set({ 
+        productsLoading: false, 
+        iapConnected: false, 
+        iapReady: false, 
+        storeUnavailable: true,
+        purchaseError: `initIAP outer error: ${err?.message || JSON.stringify(err)}`
+      });
     }
   },
 
@@ -204,7 +267,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       console.warn('[StoreKit Debug] Available products array is empty. Rejecting purchase.');
       set({
         purchaseLoading: false,
-        purchaseError: 'Abonelik ürünleri yüklenemedi. Lütfen tekrar deneyin.',
+        purchaseError: 'Abonelik ürünleri yüklenemedi (availableProducts is empty). Check initIAP logs.',
       });
       return;
     }
@@ -224,10 +287,10 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         set({ purchaseLoading: false, purchaseError: null });
         return;
       }
-      console.error('[StoreKit Debug] requestSubscription caught error:', err.message, (err as any).code);
+      console.error('[StoreKit Debug] requestSubscription caught error:', err.message, (err as any).code, err);
       set({
         purchaseLoading: false,
-        purchaseError: 'Satın alma başlatılamadı. Lütfen tekrar deneyin.',
+        purchaseError: `Satın alma başlatılamadı: ${err?.message || JSON.stringify(err)} (Code: ${(err as any).code})`,
       });
     }
   },
