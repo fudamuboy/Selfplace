@@ -47,10 +47,85 @@ function getLocalFallbackWhisper(zodiacSign, timeOfDay) {
   return options[Math.floor(Math.random() * options.length)];
 }
 
+async function gatherPersonalContext(userId) {
+  try {
+    const context = {
+      recentMoods: [],
+      dominantThemes: [],
+      stressIndicators: [],
+      journalThemes: [],
+      weeklyInsight: null,
+      relationshipReflections: [],
+      growthThemes: [],
+      awarenessScore: 50 // Default
+    };
+
+    // 1 & 2: Recent moods & dominant themes (Last 7 days)
+    const moodRes = await db.query(
+      `SELECT emotion, COUNT(*) as count 
+       FROM emotional_entries 
+       WHERE user_id = $1 AND source_type IN ('checkin', 'reflection') AND created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
+       GROUP BY emotion ORDER BY count DESC`,
+      [userId]
+    );
+    
+    if (moodRes.rows.length > 0) {
+      context.recentMoods = moodRes.rows.map(r => `${r.emotion} (${r.count})`);
+      context.dominantThemes = moodRes.rows.slice(0, 3).map(r => r.emotion);
+      
+      const stressKeywords = ['Yorgun', 'Kaygılı', 'Kızgın', 'Stresli', 'Bunalmış', 'Üzgün', 'Öfkeli', 'Tükenmiş', 'Korkmuş'];
+      context.stressIndicators = context.dominantThemes.filter(e => stressKeywords.includes(e));
+    }
+
+    // 3: Weekly Insight Summary
+    const insightRes = await db.query(
+      `SELECT text FROM weekly_insights WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 1`,
+      [userId]
+    );
+    if (insightRes.rows.length > 0) {
+      context.weeklyInsight = insightRes.rows[0].text;
+      context.growthThemes.push('Genel kişisel analiz çıkarımları aktif');
+    }
+
+    // 4 & 8: Recent Journal Themes & Relationship Reflections
+    const journalRes = await db.query(
+      `SELECT prompt, content, emotion 
+       FROM emotional_entries 
+       WHERE user_id = $1 AND source_type = 'journal' AND created_at > CURRENT_TIMESTAMP - INTERVAL '14 days'
+       ORDER BY created_at DESC LIMIT 3`,
+      [userId]
+    );
+    
+    if (journalRes.rows.length > 0) {
+      context.journalThemes = journalRes.rows.map(r => r.prompt || r.emotion || 'Günlük Girdisi');
+      
+      const relationKeywords = ['partner', 'ilişki', 'sevgili', 'aşk', 'evlilik', 'kavga', 'iletişim'];
+      const textCorpus = journalRes.rows.map(r => (r.content || '').toLowerCase()).join(' ');
+      
+      const foundRelations = relationKeywords.filter(k => textCorpus.includes(k));
+      if (foundRelations.length > 0) {
+        context.relationshipReflections = foundRelations;
+      }
+    }
+
+    // 6: Emotional Awareness Score
+    const totalReflections = await db.query(
+      `SELECT COUNT(*) FROM emotional_entries WHERE user_id = $1`, [userId]
+    );
+    const count = parseInt(totalReflections.rows[0].count);
+    context.awarenessScore = Math.min(100, Math.max(10, count * 2)); // Simple scale
+
+    return context;
+  } catch (err) {
+    console.error('[Astrology Context Gather Error]', err);
+    return null;
+  }
+}
+
 /**
  * AI Synthesis Engine for Astrology (Weekly)
  */
-async function generateAstrologySynthesis(zodiacSign, element, activeEvents, recentMood, colorResult, recentHistory = []) {
+async function generateAstrologySynthesis(zodiacSign, element, activeEvents, recentMood, colorResult, recentHistory = [], personalContext = null) {
   try {
     const profile = ZODIAC_PROFILES[zodiacSign] || ZODIAC_PROFILES["Ateş"]; // Fallback if missing
     
@@ -67,11 +142,21 @@ async function generateAstrologySynthesis(zodiacSign, element, activeEvents, rec
       dossier += `DISC Personality: ${colorResult.dominantColor} (${colorResult.title})\n`;
     }
 
+    if (personalContext) {
+      dossier += `\n[PERSONAL DATA CONTEXT]\n`;
+      if (personalContext.recentMoods.length > 0) dossier += `Last 7 days moods: ${personalContext.recentMoods.join(', ')}\n`;
+      if (personalContext.stressIndicators.length > 0) dossier += `Current stress indicators: ${personalContext.stressIndicators.join(', ')}\n`;
+      if (personalContext.journalThemes.length > 0) dossier += `Recent journal themes: ${personalContext.journalThemes.join(', ')}\n`;
+      if (personalContext.weeklyInsight) dossier += `Weekly insight summary: ${personalContext.weeklyInsight}\n`;
+      if (personalContext.relationshipReflections.length > 0) dossier += `Recent relationship reflections: ${personalContext.relationshipReflections.join(', ')}\n`;
+      dossier += `Emotional awareness score: ${personalContext.awarenessScore}/100\n`;
+    }
+
     let historyConstraint = '';
     if (recentHistory && recentHistory.length > 0) {
       historyConstraint = `\n[STRICTLY FORBIDDEN THEMES & PHRASING]\nYou MUST NOT reuse the phrasing, emotional openings, or exact structure of the following recent guidances:\n`;
       recentHistory.forEach((text, i) => {
-        historyConstraint += `- "${text}"\n`;
+        historyConstraint += `- "${typeof text === 'object' ? JSON.stringify(text).substring(0,100) : text}"\n`;
       });
       historyConstraint += `Create something entirely fresh in structure, rhythm, and tone.\n`;
     }
@@ -93,14 +178,27 @@ CRITICAL RULES:
 1. NO GENERIC ASTROLOGY: You must write specifically in the style and psychological tone of ${zodiacSign}. Do not sound like a generic horoscope.
 2. NO BANNED CLICHES: Never use phrases like "kendine karşı nazik ol", "güvenlik ihtiyacın artabilir", "topraklanma zamanı", "iç sesini dinle", "yeni fırsatlar seni bekliyor", "enerjin yüksek olabilir".
 3. NO FORTUNE TELLING: Do not predict the future. Focus purely on emotional reflection and symbolic guidance based on the current sky and their mood.
-4. TONE: Premium, subtle, empathetic, intimate, atmospheric, and human-written. Keep it emotionally intelligent but NOT overwhelming or excessively poetic. Do NOT sound like an AI generating endless paragraphs.
-5. LENGTH: 2 to 3 concise, naturally flowing sentences. Give the user emotional breathing space.
-6. LANGUAGE: Turkish.`;
+4. PERSONAL DATA USAGE: The personal data context provided MUST subtly influence your interpretation. Do NOT explicitly state "Because you felt anxious..." or "Your data shows...". Instead, naturally adapt the interpretation. If they showed anxiety, emphasize grounding. If they showed motivation, emphasize expansion. The astrology must remain the primary framework.
+5. TONE: Premium, subtle, empathetic, intimate, atmospheric, and human-written. Keep it emotionally intelligent but NOT overwhelming or excessively poetic.
+6. LANGUAGE: Turkish.
+7. OUTPUT FORMAT: You MUST return ONLY a valid JSON object with the following exact keys (no extra text, no markdown blocks). Write 1-2 concise, flowing sentences per category:
+{
+  "GeneralTheme": "...",
+  "Love": "...",
+  "Career": "...",
+  "Money": "...",
+  "SocialLife": "...",
+  "HealthEnergy": "...",
+  "AttentionAreas": "...",
+  "LuckyAreas": "...",
+  "WeeklyAdvice": "..."
+}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'system', content: systemPrompt }],
       temperature: 0.8,
+      response_format: { type: "json_object" }
     });
 
     const text = completion.choices[0].message.content;
@@ -110,7 +208,9 @@ CRITICAL RULES:
   } catch (err) {
     console.error('[Astrology AI Error]', err);
     // Silent fallback if API fails
-    const text = `Sevgili ${zodiacSign}, gökyüzündeki mevcut enerjiler şu an iç dünyanda önemli dönüşümlere işaret ediyor. Kendi ritminde kalmaya özen göster.`;
+    const text = JSON.stringify({
+      GeneralTheme: `Sevgili ${zodiacSign || 'Dostum'}, gökyüzündeki mevcut enerjiler şu an iç dünyanda önemli dönüşümlere işaret ediyor. Kendi ritminde kalmaya özen göster.`
+    });
     return { text, content_hash: crypto.createHash('sha256').update(text).digest('hex') };
   }
 }
@@ -373,8 +473,19 @@ exports.getWeeklyGuidance = async (req, res) => {
       );
       const recentHistory = historyRes.rows.map(r => r.guidance_text);
 
-      // 8. Generate New Synthesis via OpenAI
-      const { text, content_hash } = await generateAstrologySynthesis(zodiacSign, profile?.element || 'Ateş', activeEvents, recentMood, colorResult, recentHistory);
+      // 8. Gather Deep Personal Context
+      const personalContext = await gatherPersonalContext(userId);
+
+      // 9. Generate New Synthesis via OpenAI
+      const { text, content_hash } = await generateAstrologySynthesis(
+        zodiacSign, 
+        profile?.element || 'Ateş', 
+        activeEvents, 
+        recentMood, 
+        colorResult, 
+        recentHistory,
+        personalContext
+      );
       finalGuidanceText = text;
       
       const eventSeed = activeEvents.length > 0 ? activeEvents[0].event_name : 'Gökyüzü';
@@ -388,17 +499,50 @@ exports.getWeeklyGuidance = async (req, res) => {
       );
     }
 
+    // Try to parse JSON. If it fails, return as plain string (legacy support)
+    let parsedGuidance = finalGuidanceText;
+    try {
+      if (finalGuidanceText.trim().startsWith('{')) {
+        parsedGuidance = JSON.parse(finalGuidanceText);
+      }
+    } catch (e) {
+      console.warn('[Astrology] Could not parse guidance text as JSON, sending as string.');
+    }
+
     res.json({
       success: true,
       data: {
         zodiacProfile: profile,
         activeEvents,
-        aiGuidance: finalGuidanceText
+        aiGuidance: parsedGuidance
       }
     });
 
   } catch (err) {
     console.error('[Astrology Weekly Error]', err);
     res.status(500).json({ success: false, message: 'Haftalık enerji analiz edilemedi.' });
+  }
+};
+
+/**
+ * POST /api/astrology/admin/refresh/:userId
+ * Admin endpoint to force delete and regenerate a user's weekly guidance cache
+ */
+exports.refreshWeeklyGuidance = async (req, res) => {
+  const targetUserId = req.params.userId;
+  
+  try {
+    // Delete existing cache
+    await db.query("DELETE FROM weekly_guidance WHERE user_id = $1", [targetUserId]);
+    
+    // Call getWeeklyGuidance logic (mocking req/res to reuse it or just return success)
+    // To keep it simple, just return success so the app will fetch a fresh one on next load.
+    res.json({
+      success: true,
+      message: `User ${targetUserId}'s weekly guidance cache has been cleared.`
+    });
+  } catch (err) {
+    console.error('[Astrology Admin Error]', err);
+    res.status(500).json({ success: false, message: 'Could not refresh cache.' });
   }
 };

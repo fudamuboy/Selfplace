@@ -176,9 +176,38 @@ export default function AstrologyFullScreen() {
             {/* AI Synthesis Guidance (Weekly) */}
             <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.guidanceContainer}>
               <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Haftalık Enerji</Text>
-              <Text style={[styles.guidanceText, { color: currentTheme.colors.text.secondary }]}>
-                {aiGuidance}
-              </Text>
+              
+              {typeof aiGuidance === 'string' ? (
+                <Text style={[styles.guidanceText, { color: currentTheme.colors.text.secondary }]}>
+                  {aiGuidance}
+                </Text>
+              ) : (
+                <View style={{ gap: 28 }}>
+                  {[
+                    { key: 'GeneralTheme', title: 'Genel Tema', icon: '🌌' },
+                    { key: 'Love', title: 'Aşk & İlişkiler', icon: '❤️' },
+                    { key: 'Career', title: 'Kariyer & Odak', icon: '🎯' },
+                    { key: 'Money', title: 'Maddi Konular', icon: '🪙' },
+                    { key: 'SocialLife', title: 'Sosyal Yaşam', icon: '🤝' },
+                    { key: 'HealthEnergy', title: 'Sağlık & Enerji', icon: '🌿' },
+                    { key: 'AttentionAreas', title: 'Dikkat Edilmesi Gerekenler', icon: '⚠️' },
+                    { key: 'LuckyAreas', title: 'Şanslı Alanlar', icon: '🍀' },
+                    { key: 'WeeklyAdvice', title: 'Haftanın Tavsiyesi', icon: '💡' },
+                  ].map((sec, idx) => {
+                    if (!aiGuidance || !aiGuidance[sec.key]) return null;
+                    return (
+                      <View key={idx}>
+                        <Text style={[styles.guidanceSectionTitle, { color: currentTheme.colors.text.primary }]}>
+                          {sec.icon} {sec.title}
+                        </Text>
+                        <Text style={[styles.guidanceText, { color: currentTheme.colors.text.secondary }]}>
+                          {aiGuidance[sec.key]}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </Animated.View>
 
             {/* Current Sky Events */}
@@ -307,6 +336,12 @@ const styles = StyleSheet.create({
   },
   guidanceContainer: {
     marginBottom: 40,
+  },
+  guidanceSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: 0.2,
   },
   guidanceText: {
     fontSize: 16,
