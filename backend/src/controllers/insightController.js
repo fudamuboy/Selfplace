@@ -78,7 +78,7 @@ async function fetchUserWeeklyData(userId) {
 
     return {
       entries: result.rows,
-      checkIns: result.rows.filter(r => r.source_type === 'checkin').map(r => ({ mood: r.emotion, note: r.content })),
+      checkIns: result.rows.filter(r => r.source_type === 'checkin' || r.source_type === 'reflection').map(r => ({ mood: r.emotion, note: r.content })),
       advancedCheckIns: result.rows.filter(r => r.source_type === 'reflection').map(r => ({ question_id: r.prompt, answer: r.content })),
       cardResponses: result.rows.filter(r => r.source_type === 'card').map(r => ({ response: r.content, category: 'General' }))
     };
@@ -378,9 +378,9 @@ exports.getJourneyStats = async (req, res) => {
       [userId]
     );
 
-    const checkinCount = currentWeekRes.rows.filter(r => r.source_type === 'checkin').length;
+    const checkinCount = currentWeekRes.rows.filter(r => r.source_type === 'checkin' || r.source_type === 'reflection').length;
     const cardsCount = currentWeekRes.rows.filter(r => r.source_type === 'card').length;
-    const journalCount = currentWeekRes.rows.filter(r => r.source_type === 'reflection' || r.source_type === 'journal').length;
+    const journalCount = currentWeekRes.rows.filter(r => r.source_type === 'journal').length;
 
     // 2. Previous Week Stats for Progression
     const prevWeekRes = await db.query(
@@ -392,8 +392,8 @@ exports.getJourneyStats = async (req, res) => {
       [userId]
     );
 
-    const prevCheckinCount = prevWeekRes.rows.filter(r => r.source_type === 'checkin').length;
-    const prevJournalCount = prevWeekRes.rows.filter(r => r.source_type === 'reflection' || r.source_type === 'journal').length;
+    const prevCheckinCount = prevWeekRes.rows.filter(r => r.source_type === 'checkin' || r.source_type === 'reflection').length;
+    const prevJournalCount = prevWeekRes.rows.filter(r => r.source_type === 'journal').length;
 
     const totalCurrent = checkinCount + journalCount;
     const totalPrev = prevCheckinCount + prevJournalCount;
@@ -432,8 +432,8 @@ exports.getJourneyStats = async (req, res) => {
       );
 
       const pastEntries = pastEntriesRes.rows;
-      const pastCheckins = pastEntries.filter(r => r.source_type === 'checkin').length;
-      const pastJournals = pastEntries.filter(r => r.source_type === 'reflection' || r.source_type === 'journal').length;
+      const pastCheckins = pastEntries.filter(r => r.source_type === 'checkin' || r.source_type === 'reflection').length;
+      const pastJournals = pastEntries.filter(r => r.source_type === 'journal').length;
 
       const moods = pastEntries.map(e => e.emotion).filter(Boolean);
       let dominantMood = 'Sakin';
