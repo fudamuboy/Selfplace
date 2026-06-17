@@ -18,6 +18,7 @@ import { MODAL_MAX_WIDTH } from '../constants/Layout';
 import useSubscriptionStore, { IAP_PRODUCT_IDS } from '../store/useSubscriptionStore';
 import useAuthStore from '../store/useAuthStore';
 import type { SubscriptionIOS } from 'react-native-iap';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +47,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
 }) => {
   const { currentTheme } = useThemeStore();
   const { planType }     = useAuthStore();
+  const router = useRouter();
 
   const {
     availableProducts,
@@ -459,6 +461,18 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
             <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted }]}>
               Abonelik Apple hesabınızdan otomatik yenilenir. İstediğiniz zaman App Store üzerinden iptal edebilirsiniz.
             </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 4, marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => { onClose(); router.push('/terms'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted, textDecorationLine: 'underline', marginBottom: 0 }]}>
+                  Kullanım Koşulları (EULA)
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { onClose(); router.push('/privacy-policy'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted, textDecorationLine: 'underline', marginBottom: 0 }]}>
+                  Gizlilik Politikası
+                </Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
 
           {/* ── Action Button ── */}

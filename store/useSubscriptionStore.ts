@@ -84,7 +84,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         console.log('[StoreKit Debug] initConnection() result:', connected);
         set({ iapConnected: connected, iapReady: connected });
       } catch (connErr: any) {
-        console.error('[StoreKit Debug] initConnection() failed:', connErr, connErr.stack);
+        console.warn('[StoreKit Debug] initConnection() failed:', connErr, connErr.stack);
         set({ 
           productsLoading: false, 
           iapConnected: false,

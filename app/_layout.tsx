@@ -98,57 +98,105 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [showSessionToast, setShowSessionToast] = useState(false);
 
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (e) {
+    console.error('[Startup] Notification handler setup failed:', e);
+  }
 
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     async function initialize() {
-      // Load theme
-      await loadTheme();
+      try {
+        console.log('[Startup] Starting initialization...');
 
-      // Check onboarding status
-      const onboardingValue = await AsyncStorage.getItem('onboardingCompleted');
-      await setOnboardingCompleted(onboardingValue === 'true');
-
-      // Check post-auth onboarding status
-      const postAuthValue = await AsyncStorage.getItem('postAuthOnboardingCompleted');
-      await setPostAuthOnboardingCompleted(postAuthValue === 'true');
-
-      // Restore session — token validity is enforced server-side on first API call
-      const storedToken = await AsyncStorage.getItem('token');
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedToken && storedUser) {
+        // Load theme
         try {
-          const parsedUser = JSON.parse(storedUser);
-          await setAuth(storedToken, parsedUser);
-        } catch {
-          // Corrupt storage — clear and send to login
-          await AsyncStorage.removeItem('token');
-          await AsyncStorage.removeItem('user');
+          console.log('[Startup] Loading theme...');
+          await loadTheme();
+        } catch (e) {
+          console.error('[Startup] Theme load failed:', e);
         }
-      }
 
-      // Configure Android notification channel
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'default',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
-        });
-      }
+        // Check onboarding status
+        try {
+          console.log('[Startup] Checking onboarding status...');
+          const onboardingValue = await AsyncStorage.getItem('onboardingCompleted');
+          await setOnboardingCompleted(onboardingValue === 'true');
+        } catch (e) {
+          console.error('[Startup] Onboarding status check failed:', e);
+          await setOnboardingCompleted(false);
+        }
 
-      setIsReady(true);
+        // Check post-auth onboarding status
+        try {
+          console.log('[Startup] Checking post-auth onboarding status...');
+          const postAuthValue = await AsyncStorage.getItem('postAuthOnboardingCompleted');
+          await setPostAuthOnboardingCompleted(postAuthValue === 'true');
+        } catch (e) {
+          console.error('[Startup] Post-auth onboarding status check failed:', e);
+          await setPostAuthOnboardingCompleted(false);
+        }
+
+        // Restore session — token validity is enforced server-side on first API call
+        try {
+          console.log('[Startup] Restoring session...');
+          const storedToken = await AsyncStorage.getItem('token');
+          const storedUser = await AsyncStorage.getItem('user');
+          if (storedToken && storedUser) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              await setAuth(storedToken, parsedUser);
+            } catch (e) {
+              console.error('[Startup] Session JSON parse failed:', e);
+              // Corrupt storage — clear and send to login
+              await AsyncStorage.removeItem('token');
+              await AsyncStorage.removeItem('user');
+            }
+          }
+        } catch (e) {
+          console.error('[Startup] Session restore failed:', e);
+        }
+
+        // Configure Android notification channel
+        if (Platform.OS === 'android') {
+          try {
+            console.log('[Startup] Configuring Android notification channel...');
+            await Notifications.setNotificationChannelAsync('default', {
+              name: 'default',
+              importance: Notifications.AndroidImportance.MAX,
+              vibrationPattern: [0, 250, 250, 250],
+              lightColor: '#FF231F7C',
+            });
+          } catch (e) {
+            console.error('[Startup] Android notification configuration failed:', e);
+          }
+        }
+
+        console.log('[Startup] Initialization complete.');
+      } catch (e) {
+        console.error('[Startup] Critical initialization error:', e);
+        // Fallback state so the app doesn't hang on splash
+        try {
+          if (useAuthStore.getState().onboardingCompleted === null) {
+            useAuthStore.setState({ onboardingCompleted: false });
+          }
+        } catch (fallbackError) {
+          console.error('[Startup] Fallback initialization error:', fallbackError);
+        }
+      } finally {
+        setIsReady(true);
+      }
     }
     initialize();
   }, []);

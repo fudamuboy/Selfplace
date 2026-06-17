@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const https = require('https');
+const { Buffer } = require('buffer');
 
 // ---------------------------------------------------------------------------
 // Apple verification URLs
