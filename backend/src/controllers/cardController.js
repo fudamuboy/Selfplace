@@ -67,6 +67,7 @@ exports.getInteractiveCards = async (req, res) => {
   try {
     const dateToCompare = localDate || new Date().toISOString().split('T')[0];
     
+    // 1. Check if a card was ALREADY SELECTED today
     const todaySelection = await db.query(
       `SELECT cr.card_id, ic.title, ic.content, ic.category as card_category 
        FROM card_responses cr
@@ -90,7 +91,26 @@ exports.getInteractiveCards = async (req, res) => {
       });
     }
 
-    const [cardsRes, prefRes] = await Promise.all([
+    // 2. Check if a DAILY SET already exists for today
+    const dailySetRes = await db.query(
+      `SELECT ds.card_id as id, ic.title, ic.content, ic.category 
+       FROM daily_card_sets ds
+       JOIN invitation_cards ic ON ds.card_id = ic.id
+       WHERE ds.user_id = $1 AND ds.daily_card_date = $2::date
+       ORDER BY ds.daily_card_slot ASC`,
+      [userId, dateToCompare]
+    );
+
+    if (dailySetRes.rows.length === 3) {
+      console.log(`[CARD-SYSTEM] User ${userId}: Returning persisted daily set for ${dateToCompare}`);
+      return res.json({
+        alreadySelected: false,
+        cards: dailySetRes.rows
+      });
+    }
+
+    // 3. GENERATE NEW SET
+    const [cardsRes, prefRes, historyRes] = await Promise.all([
       db.query('SELECT id, title, content, category FROM invitation_cards'),
       db.query(
         `SELECT category, 
@@ -99,7 +119,8 @@ exports.getInteractiveCards = async (req, res) => {
          WHERE user_id = $1
          GROUP BY category`,
         [userId]
-      )
+      ),
+      db.query('SELECT card_id, completed_at FROM invitation_card_history WHERE user_id = $1 ORDER BY completed_at DESC', [userId])
     ]);
 
     const allCards = cardsRes.rows;
@@ -112,30 +133,76 @@ exports.getInteractiveCards = async (req, res) => {
       return acc;
     }, {});
 
-    const weightedCards = allCards.map(card => {
+    const history = historyRes.rows;
+    const now = new Date();
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    // Apply 14-day cooldown
+    let availableCards = allCards.filter(card => {
+      const record = history.find(h => h.card_id === card.id);
+      if (record && new Date(record.completed_at) > fourteenDaysAgo) {
+        console.log(`[CARD-SYSTEM] User ${userId}: Card ID ${card.id} excluded: completed within last 14 days.`);
+        return false;
+      }
+      return true;
+    });
+
+    // Fallback logic: if less than 3 cards remain, reshuffle but exclude last 5
+    if (availableCards.length < 3) {
+      console.log(`[CARD-SYSTEM] User ${userId}: Pool exhausted (${availableCards.length} left). Triggering reshuffle excluding last 5.`);
+      const last5Ids = history.slice(0, 5).map(h => h.card_id);
+      availableCards = allCards.filter(card => {
+        if (last5Ids.includes(card.id)) {
+          console.log(`[CARD-SYSTEM] User ${userId}: Card ID ${card.id} excluded: recently completed (fallback rule).`);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // If STILL less than 3 cards (extremely small total pool), just use all cards
+    if (availableCards.length < 3) {
+      availableCards = [...allCards];
+    }
+
+    const weightedCards = availableCards.map(card => {
       const score = preferences[card.category] || 0;
       const weight = Math.max(1, 10 + score);
       return { ...card, weight };
     });
 
     const selectedCards = [];
-    const availableCards = [...weightedCards];
+    const pool = [...weightedCards];
 
     for (let i = 0; i < 3; i++) {
-      const totalWeight = availableCards.reduce((sum, card) => sum + card.weight, 0);
+      if (pool.length === 0) break;
+      const totalWeight = pool.reduce((sum, card) => sum + card.weight, 0);
       let random = Math.random() * totalWeight;
       
       let selectedIdx = 0;
-      for (let j = 0; j < availableCards.length; j++) {
-        if (random < availableCards[j].weight) {
+      for (let j = 0; j < pool.length; j++) {
+        if (random < pool[j].weight) {
           selectedIdx = j;
           break;
         }
-        random -= availableCards[j].weight;
+        random -= pool[j].weight;
       }
       
-      selectedCards.push(availableCards[selectedIdx]);
-      availableCards.splice(selectedIdx, 1);
+      selectedCards.push(pool[selectedIdx]);
+      pool.splice(selectedIdx, 1);
+    }
+
+    console.log(`[CARD-SYSTEM] User ${userId}: Generated new set ->`, selectedCards.map(c => c.id));
+
+    // Save to daily_card_sets
+    for (let i = 0; i < selectedCards.length; i++) {
+      await db.query(
+        `INSERT INTO daily_card_sets (user_id, card_id, daily_card_date, daily_card_slot)
+         VALUES ($1, $2, $3::date, $4)
+         ON CONFLICT (user_id, daily_card_date, daily_card_slot) 
+         DO UPDATE SET card_id = EXCLUDED.card_id, created_at = CURRENT_TIMESTAMP`,
+        [userId, selectedCards[i].id, dateToCompare, i + 1]
+      );
     }
 
     res.json({
@@ -143,6 +210,7 @@ exports.getInteractiveCards = async (req, res) => {
       cards: selectedCards
     });
   } catch (err) {
+    console.error('[CARD-SYSTEM] Error getting interactive cards:', err.message);
     res.status(500).json({ message: 'Kartlar getirilemedi.' });
   }
 };
@@ -170,6 +238,13 @@ exports.selectInteractiveCard = async (req, res) => {
       db.query('SELECT title FROM invitation_cards WHERE id = $1', [cardId])
     ]);
 
+    // Record completion in history for cooldowns
+    await db.query(
+      'INSERT INTO invitation_card_history (user_id, card_id) VALUES ($1, $2)',
+      [userId, cardId]
+    );
+    console.log(`[CARD-SYSTEM] User ${userId}: Card ID ${cardId} marked as completed.`);
+
     await emotionalController.syncEntry(
       userId,
       'card',
@@ -181,6 +256,7 @@ exports.selectInteractiveCard = async (req, res) => {
 
     res.status(201).json(insertRes.rows[0]);
   } catch (err) {
+    console.error('[CARD-SYSTEM] Error selecting card:', err.message);
     res.status(500).json({ message: 'Seçim kaydedilemedi.' });
   }
 };

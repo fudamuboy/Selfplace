@@ -280,6 +280,29 @@ exports.runMigrations = async () => {
       )
     `);
 
+    // Ensure invitation_card_history table exists for completed cards
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS invitation_card_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        card_id INTEGER REFERENCES invitation_cards(id) ON DELETE CASCADE,
+        completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Ensure daily_card_sets table exists for persisting unselected cards
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS daily_card_sets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        card_id INTEGER REFERENCES invitation_cards(id) ON DELETE CASCADE,
+        daily_card_date DATE NOT NULL,
+        daily_card_slot INTEGER,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, daily_card_date, daily_card_slot)
+      )
+    `);
+
 
 
     // Ensure zodiac_guidance table exists
