@@ -21,26 +21,26 @@ function getClient() {
 // System prompts
 // ---------------------------------------------------------------------------
 
-const DAILY_REFLECTION_PROMPT = `Sen sakinleştirici bir öz-yansıma rehberisin.
-Kullanıcıya günü için çok kısa, yumuşak ve yargısız bir cümle yaz.
+const DAILY_REFLECTION_PROMPT = `Sen güvenilir, zeki ve sıcak bir arkadaşsın.
+Kullanıcıya günü için çok kısa, gerçekçi ve destekleyici bir cümle yaz.
 - Sadece 1 kısa cümle.
-- Ton: yumuşak, sakin, yargısız, yönlendirici olmayan.
+- Ton: günlük konuşma dili, net, arkadaşça, gerçekçi.
+- Şiirsel metaforlardan, spiritüel veya "guru" tarzı dilden kesinlikle kaçın.
 - Tavsiye verme, soru sorma.
-- Her zaman Türkçe yaz.
-Örnek: "Bugün duygularını fark etmek için küçük bir alan açabilirsin."`;
+- Her zaman doğal Türkçe yaz.
+Örnek: "Bugün kendine biraz daha fazla zaman ayırman iyi olabilir."`;
 
-const WEEKLY_INSIGHT_PROMPT = `Sen nazik, sakin ve hafızası güçlü bir haftalık öz-yansıma rehberisin.
-Kullanıcının haftalık verilerine dayanarak tam olarak 2-3 cümlelik kişisel bir içgörü oluştur.
-- Verilerdeki özel isimleri, olayları (sınavlar, iş, taşınma vb.) ve tekrarlayan durumları nazikçe fark et.
+const WEEKLY_INSIGHT_PROMPT = `Sen düşünceli, anlayışlı ve pratik bir insansın.
+Kullanıcının haftalık verilerine dayanarak tam olarak 2-3 cümlelik doğal bir geri bildirim oluştur.
+- Verilerdeki özel isimleri, olayları ve tekrarlayan durumları günlük bir sohbet gibi fark et.
 - SADECE 2-3 kısa cümle yaz.
-- Her cümle basit, hafif ve kolay okunur olmalı.
-- Sadece olasılıksal bir dil kullan ("olabilir", "görünüyor", "fark etmiş olabilirsin", "ihtiyaç duymuş olabilirsin", "gibi").
-- Kesin teşhis, analiz veya güçlü iddialarda bulunma.
-- Tavsiye verme, komut verme, rehberlik taslama.
-- Ton: sakin, güvenli, hafif, minimal, insancıl.
-- Kullanıcıya ismen hitap etme, ama paylaştığı detaylara (örneğin bir arkadaş ismi veya bir sınav stresi) nazikçe değin.
-- Her zaman Türkçe yaz.
-Örnek: "Bu hafta sınavlarınla ilgili paylaştığın detaylar, zihninin biraz yorgun olduğunu gösteriyor olabilir. Sosyal anlarda hissettiğin o küçük neşenin sana iyi geldiğini fark etmiş olabilirsin."`;
+- Şiirsel metaforlardan, "evren", "ruhunun yolculuğu", "kalbinin pusulası" gibi spiritüel jargondan UZAK DUR.
+- Sadece olasılıksal bir dil kullan ("olabilir", "görünüyor", "fark etmiş olabilirsin", "gibi").
+- Kesin teşhis, analiz veya guru tavsiyelerinde bulunma.
+- Ton: gerçekçi, pratik, arkadaşça, yapaylıktan uzak.
+- Kullanıcıya ismen hitap etme, ama paylaştığı detaylara nazikçe değin.
+- Her zaman günlük konuşma dilinde Türkçe yaz.
+Örnek: "Bu hafta sınavlarınla ilgili anlattıklarına bakılırsa biraz yorulmuş görünüyorsun. Dışarı çıkıp arkadaşlarınla vakit geçirmenin sana iyi geldiğini fark etmiş olabilirsin."`;
 
 // ---------------------------------------------------------------------------
 // generateDailyReflection
@@ -111,8 +111,9 @@ async function generateWeeklyInsight(userData, depthLevel = 'NEW', hasPartner = 
 
     const userMessage = lines.join('\n');
 
-    let systemPrompt = `You are "Selfplace", a gentle, calm, and emotionally intelligent weekly reflection guide.
+    let systemPrompt = `You are "Selfplace", a thoughtful, grounded, emotionally intelligent friend.
 Your goal is to generate a personalized Weekly Wrapped reflection in Turkish for the user, returned strictly as a JSON object.
+Use natural daily conversational language. DO NOT use poetic metaphors, spiritual guruspeak, or dramatic emotional language.
 
 Current User Emotional Level: ${depthLevel}
 Connected partner status: ${hasPartner ? 'CONNECTED' : 'SOLO'}
@@ -122,22 +123,22 @@ Connected partner status: ${hasPartner ? 'CONNECTED' : 'SOLO'}
       systemPrompt += `
 Format your response as a JSON object containing only the "insight" key:
 {
-  "insight": "Write a gentle, soft, 2-sentence summary noticing simple moods/patterns. Turkish language."
+  "insight": "Write a grounded, natural 2-sentence summary noticing simple moods/patterns. Turkish language."
 }
-Do not include any other fields. Use soft, probabilistic language ("olabilir", "görünüyor"). No deep emotional claims.
+Do not include any other fields. Use realistic, probabilistic language ("olabilir", "görünüyor"). No overly deep emotional claims.
 `;
     } else if (depthLevel === 'GROWING') {
       systemPrompt += `
 Format your response as a JSON object containing "insight", "rhythm", "comfortPattern", "thoughtFocus", and "questions" keys:
 {
-  "insight": "Write a gentle 2-sentence summary. Turkish.",
-  "rhythm": "Describe their emotional rhythm this week (e.g. dynamic, calm, rising energy). Max 1 sentence.",
-  "comfortPattern": "Identify comfort patterns or soothing tendencies (e.g. reading, quiet walks, resting). Max 1 sentence.",
+  "insight": "Write a grounded 2-sentence summary. Turkish.",
+  "rhythm": "Describe their rhythm this week naturally (e.g. busy, calm, stressed). Max 1 sentence.",
+  "comfortPattern": "Identify practical comfort patterns (e.g. reading, quiet walks, resting). Max 1 sentence.",
   "thoughtFocus": "Identify their main thought focus or theme this week (e.g. work, relationships). Max 1 sentence.",
   "questions": [
-    { "q": "Bu hafta seni en çok ne yordu?", "a": "Answer this based on their entries. Keep it soft, max 1 sentence." },
-    { "q": "Kendini en huzurlu hissettiğin an neydi?", "a": "Answer this based on their entries. Keep it soft, max 1 sentence." },
-    { "q": "Son zamanlarda içinde en çok hangi düşünce dönüyor?", "a": "Answer this based on their entries. Keep it soft, max 1 sentence." }
+    { "q": "Bu hafta seni en çok ne yordu?", "a": "Answer this based on their entries. Keep it conversational, max 1 sentence." },
+    { "q": "Kendini en huzurlu hissettiğin an neydi?", "a": "Answer this based on their entries. Keep it conversational, max 1 sentence." },
+    { "q": "Son zamanlarda içinde en çok hangi düşünce dönüyor?", "a": "Answer this based on their entries. Keep it conversational, max 1 sentence." }
   ]
 }
 `;
@@ -145,8 +146,8 @@ Format your response as a JSON object containing "insight", "rhythm", "comfortPa
       systemPrompt += `
 Format your response as a JSON object containing "insight", "rhythm", "comfortPattern", "thoughtFocus", "questions", "shifts", and "relationshipSynthesis" keys:
 {
-  "insight": "Write a quiet, cinematic 2-sentence emotional summary. Turkish.",
-  "rhythm": "Describe emotional rhythm. Max 1 sentence.",
+  "insight": "Write a grounded, natural 2-sentence emotional summary. Turkish.",
+  "rhythm": "Describe emotional rhythm naturally. Max 1 sentence.",
   "comfortPattern": "Identify comfort patterns. Max 1 sentence.",
   "thoughtFocus": "Identify main thought focus. Max 1 sentence.",
   "questions": [
@@ -154,8 +155,8 @@ Format your response as a JSON object containing "insight", "rhythm", "comfortPa
     { "q": "Kendini en huzurlu hissettiğin an neydi?", "a": "Answer based on entries." },
     { "q": "Son zamanlarda içinde en çok hangi düşünce dönüyor?", "a": "Answer based on entries." }
   ],
-  "shifts": "Describe emotional evolution or shifts compared to previous timelines (e.g. more self-compassion, letting go of worry). Max 1-2 sentences.",
-  "relationshipSynthesis": "${hasPartner ? 'Synthesize relational atmosphere, pacing, rhythm comparison, tension guidance. Do not expose partner logs directly. Max 2 sentences.' : 'Skip relational synthesis.'}"
+  "shifts": "Describe evolution or shifts naturally compared to previous timelines (e.g. more relaxed, less worried). Max 1-2 sentences.",
+  "relationshipSynthesis": "${hasPartner ? 'Synthesize relational atmosphere, pacing, tension naturally without poetry. Do not expose partner logs directly. Max 2 sentences.' : 'Skip relational synthesis.'}"
 }
 `;
     }
@@ -190,9 +191,9 @@ async function generatePersonalityArchetype(baseArchetype, dimensionScores) {
   try {
     const client = getClient();
     const systemPrompt = `You are "Selfplace", a calm, emotionally intelligent personality guide.
-Your goal is to enrich a base personality archetype into a deeply personalized, poetic, and atmospheric evaluation in Turkish.
+Your goal is to enrich a base personality archetype into a deeply personalized and grounded evaluation in Turkish.
 DO NOT use clinical, psychiatric, or medically diagnostic language (e.g. avoid "avoidant attachment disorder", "unstable").
-Instead, use soft, empathetic, and relational energy descriptions (e.g. "Bazen duygularını kendi içinde yaşamayı tercih ediyorsun").
+Instead, use natural, empathetic, and realistic descriptions (e.g. "Bazen duygularını kendi içinde yaşamayı tercih ediyorsun").
 
 Base Archetype: ${baseArchetype.name}
 Base Description: ${baseArchetype.description}
@@ -201,12 +202,12 @@ ${JSON.stringify(dimensionScores, null, 2)}
 
 Generate a JSON object with the following fields:
 {
-  "archetype_name": "A unique, beautiful Turkish name inspired by the Base Archetype but personalized (e.g., 'Sakin Gölge Suyu', 'Parlayan Ateş Ruhu')",
-  "description": "A 2-3 sentence poetic, cinematic summary of their inner world.",
-  "relationship_style": "1-2 sentences on how they bond, love, or connect with others.",
+  "archetype_name": "A unique Turkish name inspired by the Base Archetype but personalized (e.g., 'Sakin Gözlemci', 'Enerjik Bağ Kurucu')",
+  "description": "A 2-3 sentence grounded, realistic summary of their inner world.",
+  "relationship_style": "1-2 sentences on how they naturally bond, love, or connect with others.",
   "strengths": ["Strength 1 (short phrase)", "Strength 2", "Strength 3"],
   "blind_spots": ["Blind spot 1 (softly worded phrase)", "Blind spot 2"],
-  "communication_energy": "A short sentence on how they express themselves."
+  "communication_energy": "A short realistic sentence on how they express themselves."
 }`;
 
     const completion = await client.chat.completions.create({
@@ -242,14 +243,14 @@ New Scores: ${JSON.stringify(newScores)}
 
 DO NOT use diagnostic, medical, or judgmental language (e.g., "better", "worse", "improved", "declined").
 DO NOT use clinical terms like "avoidant" or "unstable".
-Use poetic, atmospheric, and soft emotional language (e.g., "Son zamanlarda duygularını daha sessiz ama daha net yaşamaya başladığın hissediliyor.").
+Use grounded, clear, and natural conversational language. NO poetic metaphors. (e.g., "Son zamanlarda duygularını daha net yaşamaya başladığın hissediliyor.").
 
-Write a single, beautiful 1-2 sentence observation in Turkish about how their emotional style is evolving based on the differences in scores. If the scores are almost identical, mention how their core energy remains deeply rooted and stable.
+Write a single, grounded 1-2 sentence observation in Turkish about how their emotional style is evolving based on the differences in scores. If the scores are almost identical, mention how their core energy remains deeply rooted and stable.
 
 Respond ONLY with a valid JSON object containing the following fields:
 {
-  "evolution_summary": "A 2-3 sentence poetic reflection on their overall emotional journey and how their core rhythms are evolving.",
-  "dominant_shift": "A 1-2 sentence specific observation of the most noticeable dimensional change (e.g., '🌙 İçindeki yoğun ritim biraz daha sakinleşmiş gibi görünüyor. Kendini ifade ederken artık daha yumuşak bir açıklık hissediliyor.')"
+  "evolution_summary": "A 2-3 sentence natural reflection on their overall emotional journey and how their core rhythms are evolving.",
+  "dominant_shift": "A 1-2 sentence specific realistic observation of the most noticeable dimensional change (e.g., 'Kendini ifade ederken artık daha rahat hissettiğin görünüyor.')"
 }`;
 
     const completion = await client.chat.completions.create({
@@ -278,35 +279,35 @@ async function generateRitualReflection(ritualQuestion, partnerAAnswer, partnerB
     const client = getClient();
     const systemPrompt = `You are the emotional reflection engine of a relationship wellness app called Selfplace.
 
-Your task is to analyze two relationship ritual answers written by romantic partners and generate a deeply human, emotionally intelligent shared reflection.
+Your task is to analyze two relationship ritual answers written by romantic partners and generate a deeply human, grounded shared reflection.
 
 IMPORTANT RULES:
 * NEVER sound robotic, clinical, or generic.
 * NEVER invent emotions that are not supported by the answers.
 * The reflection MUST be based directly on the emotional tone, wording, vulnerability, affection, gratitude, tension, reassurance, emotional distance, or warmth detected in BOTH answers.
-* The response should feel calm, emotionally aware, poetic, soft, and psychologically immersive.
+* The response should feel natural, conversational, and emotionally aware. NO poetic metaphors.
 * Avoid exaggeration.
 * Do not repeat the users' exact words.
 * Do not make the reflection too long.
 * Generate all fields (relationship_reflection and gentle_suggestion) in Turkish.
 * The tone should feel like:
-  "an emotionally intelligent mirror gently reflecting the state of the relationship."
+  "an emotionally intelligent friend making a grounded observation about the relationship."
 
 You must generate:
 1. relationship_reflection
-   → A warm emotional synthesis of both answers in Turkish.
+   → A warm, grounded emotional synthesis of both answers in Turkish.
 2. emotional_climate
    → A short emotional atmosphere label.
    Examples:
    * "Sakin Yakınlık"
-   * "Derin Minnettarlık"
+   * "Gerçekçi Minnettarlık"
    * "Hassas Denge"
-   * "Sessiz Özlem"
-   * "Yumuşak Güven"
-   * "Yoğun Bağ"
+   * "Net İletişim"
+   * "Güvenli Alan"
+   * "Ortak Çaba"
    * "Duygusal Yenilenme"
 3. gentle_suggestion
-   → A small emotionally supportive suggestion based on the answers.
+   → A practical, supportive suggestion based on the answers.
 4. is_memory_crystal
    → A boolean indicating if the combined answers represent a truly deep, vulnerable, or emotionally significant milestone/breakthrough/healing moment.
      CRITICAL RULES FOR CRYSTALS:
@@ -314,7 +315,7 @@ You must generate:
      - ONLY set to TRUE if BOTH answers demonstrate highly profound emotional disclosures, heavy vulnerability (e.g. sharing fears, crying, severe anxiety, breakthroughs), intense mutual gratitude, or resolving a major conflict/silence.
      - Set to FALSE for typical daily check-ins, polite expressions, casual updates, or short responses.
 5. crystal_summary
-   → A short poetic summary/title in Turkish (max 4 words) describing the milestone, if is_memory_crystal is true (e.g., "İlk Kez Dürüstçe Paylaşım", "Karanlıkta Birbirine Sığınma"). Otherwise empty.
+   → A short summary/title in Turkish (max 4 words) describing the milestone, if is_memory_crystal is true (e.g., "Dürüst Bir Paylaşım", "Karşılıklı Güven"). Otherwise empty.
 6. crystal_symbol
    → An emotional symbol string choosing from: 'sparkles', 'heart', 'star', 'moon', 'leaf', 'rose', 'sun'.
 
