@@ -56,7 +56,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
-    set({ token: null, user: null, sessionExpired: false });
+    set({ token: null, user: null, sessionExpired: false, planType: 'free' });
   },
 
   /**
@@ -66,7 +66,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
   handleSessionExpiry: async () => {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
-    set({ token: null, user: null, sessionExpired: true });
+    set({ token: null, user: null, sessionExpired: true, planType: 'free' });
   },
 
   /** Call once the session-expiry message has been shown. */
@@ -86,7 +86,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   resetAll: async () => {
     await AsyncStorage.clear();
-    set({ token: null, user: null, onboardingCompleted: false, postAuthOnboardingCompleted: false, sessionExpired: false });
+    set({ token: null, user: null, onboardingCompleted: false, postAuthOnboardingCompleted: false, sessionExpired: false, planType: 'free' });
   },
 }));
 

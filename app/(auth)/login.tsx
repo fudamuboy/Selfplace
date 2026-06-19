@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import client from '../../api/client';
+import { getSubscription } from '../../api/userApi';
 import { CustomButton } from '../../components/CustomButton';
 import { CustomModal } from '../../components/CustomModal';
 import { GradientBackground } from '../../components/GradientBackground';
@@ -30,6 +31,15 @@ export default function LoginScreen() {
     try {
       const response = await client.post('/auth/login', { email, password });
       await setAuth(response.data.token, response.data.user);
+      
+      // Hydrate subscription state after successful login
+      try {
+        const sub = await getSubscription();
+        useAuthStore.getState().setPlanType(sub.plan_type);
+      } catch (subErr) {
+        console.error('Failed to fetch subscription on login:', subErr);
+      }
+
       router.replace('/(tabs)');
     } catch (err: any) {
       const errorData = err.response?.data;

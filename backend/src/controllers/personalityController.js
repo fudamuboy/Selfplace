@@ -224,6 +224,27 @@ exports.submitTest = async (req, res) => {
       [userId, 'journey', resultData, '{}']
     );
 
+    // Persistent Caching: Cache journey_identity_summary in emotional_memories
+    try {
+      const identitySummary = {
+        archetype_name: resultData.archetype_name,
+        description: resultData.description,
+        strengths: resultData.strengths,
+        blind_spots: resultData.blind_spots,
+        scores: resultData.scores
+      };
+      await db.query(
+        `INSERT INTO emotional_memories (user_id, memory_key, memory_value, category)
+         VALUES ($1, 'journey_identity_summary', $2, 'individual')
+         ON CONFLICT (user_id, memory_key) 
+         DO UPDATE SET memory_value = EXCLUDED.memory_value, updated_at = NOW()`,
+        [userId, JSON.stringify(identitySummary)]
+      );
+      console.log(`[personalityController] Cached journey_identity_summary for User ${userId}`);
+    } catch (cacheErr) {
+      console.error('[personalityController] Error caching journey_identity_summary:', cacheErr.message);
+    }
+
     res.json({
       success: true,
       result: resultData,

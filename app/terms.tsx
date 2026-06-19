@@ -81,7 +81,14 @@ export default function TermsScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>9. İletişim</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>9. Apple Standart Lisans Sözleşmesi (EULA)</Text>
+            <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
+              Bu uygulamayı kullanarak, Apple'ın Standart Son Kullanıcı Lisans Sözleşmesi'ne (EULA) tabi olduğunuzu kabul edersiniz. Daha fazla bilgi için lütfen Apple'ın resmi EULA sayfasını ziyaret edin: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+            </Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>10. İletişim</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
               Sorularınız ve geri bildirimleriniz için bize her zaman ulaşabilirsiniz:
               {"\n"}selfplace.support@gmail.com

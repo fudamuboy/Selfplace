@@ -1,0 +1,46 @@
+# AI-First Architecture Governance Rules (.cursorrules)
+
+You are working on the **Selfplace** codebase. All development on this repository must adhere to the permanent architectural principles defined in this file and in [AI_ARCHITECTURE_GUIDELINES.md](file:///Users/slim/Selfplace/AI_ARCHITECTURE_GUIDELINES.md).
+
+---
+
+## 🧠 AI-First Architecture Principle
+Every new feature, module, database table, workflow, or behavioral system added to Selfplace must be evaluated for AI integration before implementation.
+
+Whenever proposing or implementing a new feature, you **MUST** answer the following 8 questions in your planning/implementation documents:
+1. **AI Awareness:** Should the AI be aware of this feature?
+2. **Individual Dossier:** Should this feature contribute to the Individual Dossier?
+3. **Relationship Dossier:** Should this feature contribute to the Shared Relationship Dossier?
+4. **Memory Generation:** Should this feature generate memories?
+5. **Relationship Events:** Should this feature generate relationship events?
+6. **Conversation Modes:** Should this feature influence conversation modes?
+7. **Insights & Recommendations:** Should this feature affect insights or recommendations?
+8. **Privacy Controls:** Are privacy controls required for this feature?
+
+---
+
+## 🔒 Stability Requirement
+Do not silently bypass or disconnect the AI architecture. All bug fixes, refactors, optimizations, and feature additions must preserve the following layers:
+* **Privacy Layer:** Enforce `exclude_ai_chat`, `exclude_journals`, and similar user preferences.
+* **Memory Layer:** Retain and respect historical summaries, behavioral patterns, and memory decay.
+* **Event Layer:** Respect timeline events and active relationship event triggers.
+* **Individual Dossier (Layer 1):** Keep identity, mood history, zodiac energy, and recent activities.
+* **Relationship Dossier (Layer 2):** Keep relationship weather, rituals, garden level, and closeness drift.
+* **Conversation Intent Layer (Layer 3):** Respect Support, Reflection, and Companion mode directives (including Curiosity-First conversation style).
+
+---
+
+## 🔌 Extension Rule
+When introducing new functionality:
+* **Extend** the AI architecture.
+* Do **not** replace the AI architecture.
+* Do **not** create isolated systems that the AI cannot understand.
+
+Every major feature must:
+* **Option A:** Integrate directly into the existing AI ecosystem.
+* **Option B:** Explicitly document why it remains outside the AI ecosystem.
+
+---
+
+## 📈 Architectural Goal
+The AI should continuously evolve together with the application. It must never become disconnected from user activities, relationship systems, or personal growth features.

@@ -43,12 +43,15 @@ exports.buildContinuityFollowUp = async (userId, connectionId) => {
 
     // ── 1. Fetch candidate memories (not recently referenced) ──────────────
     const memResult = await db.query(
-      `SELECT id, memory_type, summary, emotional_weight, resolved, created_at, last_referenced_at
+      `SELECT id, memory_type, summary, emotional_weight, resolved, created_at, last_referenced_at, reference_count
        FROM couple_memories
        WHERE connection_id = $1
+         AND reference_count < 3
          AND (
            last_referenced_at IS NULL
-           OR last_referenced_at < NOW() - INTERVAL '12 hours'
+           OR (reference_count = 0 AND last_referenced_at < NOW() - INTERVAL '12 hours')
+           OR (reference_count = 1 AND last_referenced_at < NOW() - INTERVAL '1 day')
+           OR (reference_count = 2 AND last_referenced_at < NOW() - INTERVAL '3 days')
          )
        ORDER BY emotional_weight DESC, created_at DESC
        LIMIT 15`,
@@ -151,9 +154,9 @@ Yanıtında bunu hafifçe fark et ve pekiştir:
 
     if (!selectedMemory) return empty;
 
-    // ── 3. Mark memory as referenced (update cooldown) ────────────────────
+    // ── 3. Mark memory as referenced (update cooldown & count) ───────────────
     await db.query(
-      'UPDATE couple_memories SET last_referenced_at = NOW() WHERE id = $1',
+      'UPDATE couple_memories SET last_referenced_at = NOW(), reference_count = reference_count + 1 WHERE id = $1',
       [selectedMemory.id]
     );
 
@@ -195,12 +198,15 @@ exports.buildContinuityGreeting = async (userId, connectionId) => {
 
     // Fetch the highest-priority unacknowledged memory for greeting
     const result = await db.query(
-      `SELECT id, memory_type, summary, emotional_weight, resolved, created_at, last_referenced_at
+      `SELECT id, memory_type, summary, emotional_weight, resolved, created_at, last_referenced_at, reference_count
        FROM couple_memories
        WHERE connection_id = $1
+         AND reference_count < 3
          AND (
            last_referenced_at IS NULL
-           OR last_referenced_at < NOW() - INTERVAL '12 hours'
+           OR (reference_count = 0 AND last_referenced_at < NOW() - INTERVAL '12 hours')
+           OR (reference_count = 1 AND last_referenced_at < NOW() - INTERVAL '1 day')
+           OR (reference_count = 2 AND last_referenced_at < NOW() - INTERVAL '3 days')
          )
        ORDER BY
          CASE memory_type
@@ -221,9 +227,9 @@ exports.buildContinuityGreeting = async (userId, connectionId) => {
 
     const memory = result.rows[0];
 
-    // Mark as referenced
+    // Mark as referenced & increment count
     await db.query(
-      'UPDATE couple_memories SET last_referenced_at = NOW() WHERE id = $1',
+      'UPDATE couple_memories SET last_referenced_at = NOW(), reference_count = reference_count + 1 WHERE id = $1',
       [memory.id]
     );
 

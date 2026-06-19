@@ -1,9 +1,10 @@
 const db = require('../config/db');
 const emotionalController = require('./emotionalController');
+const { extractCheckInThemes } = require('../services/checkInIntelligenceService');
 
 exports.getRandomQuestion = async (req, res) => {
   try {
-    const result = await db.query('SELECT id, question_text FROM reflection_questions ORDER BY RANDOM() LIMIT 1');
+    const result = await db.query('SELECT id, text AS question_text FROM reflection_questions ORDER BY RANDOM() LIMIT 1');
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -86,6 +87,11 @@ exports.deleteCheckIn = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Kayıt bulunamadı veya yetkiniz yok.' });
     }
+    // Trigger check-in theme extraction asynchronously to clean up
+    extractCheckInThemes(userId).catch(err =>
+      console.error('[checkInController] Background check-in theme extraction error on delete:', err.message)
+    );
+
     res.json({ message: 'Kayıt başarıyla silindi.' });
   } catch (err) {
     console.error('[checkInController] deleteCheckIn error:', err.message);
@@ -142,6 +148,11 @@ exports.createAdvancedCheckIn = async (req, res) => {
       'Gelişmiş Paylaşım',
       summaryContent,
       { check_in_id: checkInId }
+    );
+
+    // Trigger check-in theme extraction asynchronously
+    extractCheckInThemes(userId).catch(err => 
+      console.error('[checkInController] Background check-in theme extraction error:', err.message)
     );
 
     res.status(201).json({ success: true, checkInId });

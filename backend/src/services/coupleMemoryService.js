@@ -75,6 +75,17 @@ const TRAIT_LABELS = {
  */
 exports.extractCoupleMemory = async (connectionId, userId, message, history, userRole = 'both') => {
   try {
+    // ── Privacy Enforcement ──────────────────────────────────────────
+    const privacyRes = await db.query(
+      'SELECT exclude_ai_chat FROM relationship_privacy_settings WHERE connection_id = $1 AND user_id = $2',
+      [connectionId, userId]
+    );
+    if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
+      console.log(`[coupleMemoryService] Privacy Guard: User ${userId} excluded AI chat. Skipping memory extraction.`);
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────
+
     const historyText = history
       .slice(-6)
       .map(h => `${h.sender === 'user' ? 'Kullanıcı' : 'Selfplace'}: ${h.message}`)
@@ -129,9 +140,16 @@ Olay yoksa: { "events": [] }`;
     const parsed = JSON.parse(result.choices[0].message.content);
     const events = parsed.events || [];
 
+    let hasResolution = false;
+
     for (const event of events) {
       if (!MEMORY_TYPES.includes(event.memory_type)) continue;
       if (!event.summary || event.summary.trim().length < 5) continue;
+
+      const isResolved = Boolean(event.resolved) || event.memory_type === 'reconciliation';
+      if (isResolved) {
+        hasResolution = true;
+      }
 
       await db.query(
         `INSERT INTO couple_memories 
@@ -146,6 +164,17 @@ Olay yoksa: { "events": [] }`;
           Boolean(event.resolved),
         ]
       );
+    }
+
+    if (hasResolution) {
+      // Auto-resolve any past conflicts that are still active
+      await db.query(
+         `UPDATE couple_memories 
+          SET resolved = true 
+          WHERE connection_id = $1 AND memory_type = 'conflict' AND resolved = false`,
+         [connectionId]
+      );
+      console.log(`[coupleMemoryService] Auto-resolved past conflicts for connection ${connectionId}`);
     }
 
     if (events.length > 0) {
@@ -178,6 +207,7 @@ exports.buildCoupleMemoryDossier = async (connectionId) => {
     if (result.rows.length === 0) return '';
 
     const unresolvedConflicts = result.rows.filter(r => r.memory_type === 'conflict' && !r.resolved);
+    const resolvedConflicts = result.rows.filter(r => r.memory_type === 'conflict' && r.resolved);
     const reconciliations = result.rows.filter(r => r.memory_type === 'reconciliation');
     const recurringIssues = result.rows.filter(r => r.memory_type === 'recurring_issue');
     const goals = result.rows.filter(r => r.memory_type === 'relationship_goal');
@@ -191,6 +221,13 @@ exports.buildCoupleMemoryDossier = async (connectionId) => {
       dossier += `- ⚠️ Çözülmemiş Gerilim(ler):\n`;
       unresolvedConflicts.forEach(m => {
         dossier += `  • "${m.summary}" (Yoğunluk: ${m.emotional_weight}/5)\n`;
+      });
+    }
+
+    if (resolvedConflicts.length > 0) {
+      dossier += `- ✅ Geçmiş / Çözülmüş Sorun(lar):\n`;
+      resolvedConflicts.slice(0, 2).forEach(m => {
+        dossier += `  • "${m.summary}" (Geçmişte yaşandı ama çözüldü)\n`;
       });
     }
 
@@ -259,6 +296,19 @@ exports.buildCoupleMemoryDossier = async (connectionId) => {
  */
 exports.updateIndividualBehavioralMemory = async (userId, message, history) => {
   try {
+    // Privacy Consistency: check exclude_ai_chat
+    const privacyRes = await db.query(
+      `SELECT rps.exclude_ai_chat 
+       FROM relationship_privacy_settings rps
+       JOIN relationship_connections rc ON rps.connection_id = rc.id
+       WHERE rps.user_id = $1 AND rc.status = 'active'`,
+      [userId]
+    );
+    if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
+      console.log(`[coupleMemoryService] Privacy Guard: User ${userId} excluded AI chat. Skipping individual behavioral memory update.`);
+      return;
+    }
+
     // Fetch current traits for context
     const existing = await db.query(
       'SELECT trait_key, trait_value, confidence FROM individual_behavioral_memory WHERE user_id = $1',

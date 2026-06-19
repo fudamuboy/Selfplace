@@ -60,8 +60,6 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
     iapReady,
     productsLoaded,
     storeUnavailable,
-    initIAP,
-    teardownIAP,
     purchasePlan,
     restorePurchases,
     clearPurchaseError,
@@ -73,14 +71,11 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
   // Pulse animation for the loading ring
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // ── Init IAP when modal opens ─────────────────────────────────────────────
+  // ── Clear errors when modal opens ─────────────────────────────────────────────
   useEffect(() => {
     if (visible) {
       clearPurchaseError();
       clearRestoreMessage();
-      initIAP();
-    } else {
-      teardownIAP();
     }
   }, [visible]);
 
@@ -234,11 +229,8 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                   paddingVertical: 6, 
                   borderRadius: 8,
                   borderColor: '#eab308',
-                  borderWidth: 1
-                }} 
-                onPress={initIAP}
-              >
-                <Text style={{ color: '#eab308', fontSize: 12, fontWeight: 'bold' }}>Yeniden Bağlanmayı Dene</Text>
+                }}>
+                <Text style={{ color: '#eab308', fontSize: 12, fontWeight: 'bold' }}>Bağlantı Sorunu</Text>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -375,7 +367,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                           {getDisplayPrice(plusProduct)}
                         </Text>
                         <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted }]}>
-                          / ay
+                          / 1 Ay
                         </Text>
                       </>
                     )}
@@ -439,7 +431,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                           {getDisplayPrice(signatureProduct)}
                         </Text>
                         <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted }]}>
-                          / ay
+                          / 1 Ay
                         </Text>
                       </>
                     )}
@@ -459,12 +451,12 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
 
             {/* ── Apple legal note ── */}
             <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted }]}>
-              Abonelik Apple hesabınızdan otomatik yenilenir. İstediğiniz zaman App Store üzerinden iptal edebilirsiniz.
+              Ödeme, satın alma onayında Apple Kimliği hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Hesabınız, mevcut dönemin bitiminden 24 saat önce yenileme için ücretlendirilecektir. Satın aldıktan sonra App Store'daki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz.
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 4, marginBottom: 12 }}>
               <TouchableOpacity onPress={() => { onClose(); router.push('/terms'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                 <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted, textDecorationLine: 'underline', marginBottom: 0 }]}>
-                  Kullanım Koşulları (EULA)
+                  Kullanım Koşulları (Apple Standart EULA)
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { onClose(); router.push('/privacy-policy'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
@@ -485,11 +477,11 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                     selectedPlan === 'signature'
                       ? currentTheme.colors.mascot.start
                       : currentTheme.colors.primary,
-                  opacity: (isLoading || (selectedPlan !== 'free' && selectedPlan !== currentPlan && (!iapReady || !productsLoaded))) ? 0.6 : 1,
+                  opacity: (isLoading || (selectedPlan !== 'free' && (!iapReady || !productsLoaded))) ? 0.6 : 1,
                 },
               ]}
               onPress={handleUpgrade}
-              disabled={isLoading || (selectedPlan !== 'free' && selectedPlan !== currentPlan && (!iapReady || !productsLoaded))}
+              disabled={isLoading || (selectedPlan !== 'free' && (!iapReady || !productsLoaded))}
               activeOpacity={0.8}
             >
               {isLoading ? (
@@ -499,7 +491,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                     {purchaseLoading ? 'Apple ile doğrulanıyor…' : 'Geri yükleniyor…'}
                   </Text>
                 </View>
-              ) : (selectedPlan !== 'free' && selectedPlan !== currentPlan && (!iapReady || !productsLoaded)) ? (
+              ) : (selectedPlan !== 'free' && (!iapReady || !productsLoaded)) ? (
                 <Text style={styles.actionButtonText}>Store Bağlantısı Bekleniyor...</Text>
               ) : (
                 <Text style={styles.actionButtonText}>{getButtonLabel()}</Text>

@@ -16,6 +16,38 @@ import { getSubscription } from '../../api/userApi';
 import { PremiumUpgradeModal } from '../../components/PremiumUpgradeModal';
 import { logger } from '../../utils/logger';
 
+interface PlanConfig {
+  title: string;
+  description: string;
+  buttonLabel: string;
+  isPremium: boolean;
+  sparkleColorKey?: 'start' | 'primary';
+}
+
+const MEMBERSHIP_CONFIGS: Record<string, PlanConfig> = {
+  free: {
+    title: "Selfplace Ücretsiz Plan",
+    description: "Kendin için sakin ve güvenli bir alan.",
+    buttonLabel: "Planları Gör",
+    isPremium: false,
+    sparkleColorKey: 'primary',
+  },
+  plus: {
+    title: "Selfplace Plus Üyesi 💜",
+    description: "Sizi giderek daha iyi anlayan duygusal yoldaş.",
+    buttonLabel: "Planı Yönet / Yükselt",
+    isPremium: true,
+    sparkleColorKey: 'primary',
+  },
+  signature: {
+    title: "Selfplace Signature Üyesi ✨",
+    description: "Tüm premium özellikler aktif. Duygusal yoldaşınız sizinle birlikte uyum kuruyor.",
+    buttonLabel: "Planı Yönet / Değiştir",
+    isPremium: true,
+    sparkleColorKey: 'start',
+  },
+};
+
 const getZodiacSign = (day: number, month: number): string => {
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
   if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'Boğa';
@@ -225,35 +257,47 @@ export default function ProfileScreen() {
         </View>
 
         {/* Premium Teaser Card / Subscription Manager */}
-        <View style={styles.section}>
-          <LinearGradient
-            colors={[planType !== 'free' ? 'rgba(167, 139, 250, 0.08)' : currentTheme.colors.card, 'transparent']}
-            style={[styles.premiumCard, { borderColor: planType !== 'free' ? currentTheme.colors.primary : currentTheme.colors.cardBorder }]}
-          >
-            <View style={styles.premiumHeader}>
-              <View style={[styles.premiumIconContainer, { backgroundColor: currentTheme.colors.glow }]}>
-                <Ionicons name="sparkles" size={18} color={planType === 'signature' ? currentTheme.colors.mascot.start : currentTheme.colors.primary} />
-              </View>
-              <Text style={[styles.premiumTitle, { color: currentTheme.colors.text.primary }]}>
-                {planType === 'free' ? "Selfplace Premium'a Geçin ✨" : 
-                 planType === 'plus' ? "Selfplace Plus Üyesi 🌿" : "Selfplace Signature Üyesi 🌟"}
-              </Text>
+        {(() => {
+          const config = MEMBERSHIP_CONFIGS[planType] ?? MEMBERSHIP_CONFIGS.free;
+          return (
+            <View style={styles.section}>
+              <LinearGradient
+                colors={[config.isPremium ? 'rgba(167, 139, 250, 0.08)' : currentTheme.colors.card, 'transparent']}
+                style={[styles.premiumCard, { borderColor: config.isPremium ? currentTheme.colors.primary : currentTheme.colors.cardBorder }]}
+              >
+                <View style={styles.premiumHeader}>
+                  <View style={[styles.premiumIconContainer, { backgroundColor: currentTheme.colors.glow }]}>
+                    <Ionicons 
+                      name="sparkles" 
+                      size={18} 
+                      color={config.sparkleColorKey === 'start' ? currentTheme.colors.mascot.start : currentTheme.colors.primary} 
+                    />
+                  </View>
+                  <Text style={[styles.premiumTitle, { color: currentTheme.colors.text.primary }]}>
+                    {config.title}
+                  </Text>
+                </View>
+                <Text style={[styles.premiumSubtitle, { color: currentTheme.colors.text.secondary }]}>
+                  {config.description}
+                </Text>
+                <TouchableOpacity 
+                  style={[styles.notifyButton, { backgroundColor: currentTheme.colors.glow }]}
+                  onPress={() => setIsUpgradeModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text 
+                    style={[
+                      styles.notifyButtonText, 
+                      { color: config.sparkleColorKey === 'start' ? currentTheme.colors.mascot.start : currentTheme.colors.primary }
+                    ]}
+                  >
+                    {config.buttonLabel}
+                  </Text>
+                </TouchableOpacity>
+              </LinearGradient>
             </View>
-            <Text style={[styles.premiumSubtitle, { color: currentTheme.colors.text.secondary }]}>
-              {planType === 'free' ? "Uyum analizi, ritüeller, zaman tüneli ve zengin AI yansımalarını hemen açın." : 
-               "Tüm premium özellikler aktif. Duygusal yoldaşınız sizinle birlikte uyum kuruyor."}
-            </Text>
-            <TouchableOpacity 
-              style={[styles.notifyButton, { backgroundColor: currentTheme.colors.glow }]}
-              onPress={() => setIsUpgradeModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.notifyButtonText, { color: planType === 'signature' ? currentTheme.colors.mascot.start : currentTheme.colors.primary }]}>
-                {planType === 'free' ? "Planları İncele" : "Planı Yönet / Değiştir"}
-              </Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
+          );
+        })()}
 
         {/* Menu */}
         <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>

@@ -3,6 +3,7 @@ const OpenAI = require('openai');
 const { buildEmotionalContext, updateEmotionalContinuity } = require('../services/emotionalContextBuilder');
 const { extractCoupleMemory, updateIndividualBehavioralMemory, detectRelationshipResolutionState } = require('../services/coupleMemoryService');
 const { buildContinuityFollowUp, buildContinuityGreeting } = require('../services/relationshipContinuityEngine');
+const { buildEventTrigger } = require('../services/relationshipEventEngine');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -87,11 +88,26 @@ Bu modda İLKIN ŞUNLARI YAPMALISIN:
     }
 
     // 4. Build emotional context dossier
-    const {
-      dossier, isDistressed, hasPartner, planType, emotionalDepthLevel,
-      totalInteractions, connectionId, userRole, partnerId
+    const { 
+      layer1_individual, 
+      layer2_relationship, 
+      isDistressed, 
+      hasPartner, 
+      connectionId,
+      planType: plan, 
+      emotionalDepthLevel, 
+      totalInteractions,
+      recentActivity,
+      journeyData
     } = await buildEmotionalContext(userId);
-    const plan = planType || 'free';
+
+    let userRole = 'both';
+    if (hasPartner && connectionId) {
+      const connRes = await db.query('SELECT requester_id FROM relationship_connections WHERE id = $1', [connectionId]);
+      if (connRes.rows.length > 0) {
+        userRole = userId === connRes.rows[0].requester_id ? 'partner_a' : 'partner_b';
+      }
+    }
 
     let levelInstructions = '';
     if (emotionalDepthLevel === 'NEW') {
@@ -179,14 +195,22 @@ Kural:
 
     // ── Relationship Continuity Follow-up ──────────────────────
     let continuityInstruction = '';
-    if (hasPartner && connectionId && !isClarificationRequest) {
+    let eventTriggerInstruction = '';
+    
+    // Continuity and Event Triggers are premium features (Plus/Signature)
+    if (hasPartner && connectionId && !isClarificationRequest && plan !== 'free') {
       try {
         const { shouldFollowUp, followUpInstruction } = await buildContinuityFollowUp(userId, connectionId);
         if (shouldFollowUp) {
           continuityInstruction = followUpInstruction;
         }
+
+        const { hasEvent, triggerInstruction } = await buildEventTrigger(userId, connectionId);
+        if (hasEvent) {
+          eventTriggerInstruction = triggerInstruction;
+        }
       } catch (e) {
-        console.error('[aiController] continuity follow-up error:', e.message);
+        console.error('[aiController] continuity/event error:', e.message);
       }
     }
 
@@ -327,138 +351,114 @@ Derinlik, merak ve sıcaklık modunda kal.
       }
     }
 
-    const systemPrompt = `# SELFPLACE — AI COMPANION SYSTEM PROMPT
+    // ── LAYER 3: Conversation Intent & Mode Switcher ─────────────────
+    let conversationMode = 'COMPANION';
+    
+    // Check if Reflection Mode (user is reflecting on journals/cards or mood is reflective)
+    const isReflective = recentActivity && (recentActivity.recent_journals > 0 || recentActivity.recent_cards > 0);
+    if (isReflective && !isDistressed) {
+      conversationMode = 'REFLECTION';
+    }
 
-You are Selfplace AI.
+    // Support Mode overrides everything if there's conflict or distress
+    if (isDistressed || resolutionState === 'ACTIVE_CONFLICT') {
+      conversationMode = 'SUPPORT';
+    }
+    
+    let modeRules = '';
+    if (conversationMode === 'SUPPORT') {
+      modeRules = `
+- MOD: DESTEK (SUPPORT)
+- Kullanıcı stresli veya üzgün. Çözüm sunmaya çalışma, sadece duygusal olarak yanında ol.
+- Terapist gibi değil, şefkatli bir yoldaş gibi dinle ve alanı güvenli tut.
+`;
+    } else if (conversationMode === 'REFLECTION') {
+      modeRules = `
+- MOD: İÇSEL YANSIMA (REFLECTION)
+- Kullanıcı son zamanlarda içsel çalışmalar (günlük/kart) yapıyor veya derin bir modda.
+- Derin, düşündürücü ve zihin açıcı doğal sorular sor. Kendi gerçeğini bulmasına yardımcı ol.
+`;
+    } else {
+      modeRules = `
+- MOD: YOLDAŞLIK (COMPANION / CURIOSITY-FIRST)
+- Kullanıcı rahat. Terapist veya koç modunu KESİNLİKLE KAPAT.
+- Yürüyüş yap, nefes al, meditasyon yap gibi klişe öneriler YASAK.
+- Gerçekten meraklı bir arkadaş ol. Anıları, hedefleri, güncel ilgileri hakkında ilginç sorular sor.
+- Sohbetin sıradan, canlı ve insan gibi akmasını sağla.
+`;
+    }
 
-[USER EMOTIONAL CONTEXT & DOSSIER]
-${dossier}
-${partnerIdentitySection}
-${resolutionStateSection}
+    let layer3 = `### [LAYER 3: CONVERSATION INTENT & SİSTEM YÖNERGELERİ]\n`;
+    layer3 += modeRules;
+    layer3 += `\n${eventTriggerInstruction}`;
+    layer3 += `\n${continuityInstruction}`;
+    layer3 += `\n${resolutionStateSection}`;
+    layer3 += `\n- Denge Kuralı: İlişki konuları sohbete tamamen hakim olmamalı (maks %30). Bireysel hayata da odaklan.`;
+    layer3 += `\n- Geçmiş Hafıza Kuralı: Eski ve çözülmüş sorunları tekrar ısıtıp gündeme getirme.`;
+    layer3 += `\n- Onboarding Hedefleri Rehberi: Kullanıcının onboarding hedeflerini (Layer 1 içindeki Onboarding Hedefleri alanını) sohbette doğrudan telaffuz etmeden veya kullanıcıya hatırlatmadan, uzun vadeli rehberlik sinyalleri olarak kullan. Bu hedefler; soru sorma tarzını, merak duyulan konuları, sunulan önerileri ve ilişki tavsiyelerini arka planda şekillendirmelidir (örneğin stres azaltma hedefi varsa daha sakinleştirici ve hafif yönlendirmeler yap, kendini anlama hedefi varsa derin öz-yansıma soruları sor).`;
+    layer3 += `\n- Enerji & Zaman Rehberi: ${conversationEnergyGuide}`;
+    layer3 += `\n${partnerIdentitySection}`;
+
+    // Add Journey Personality behavioral directives if data exists
+    if (journeyData && journeyData.scores) {
+      const sc = journeyData.scores;
+      let behavioralDirectives = `\n━━━━━━━━━━━━━━━━━━━\nKULLANICI KİŞİLİK REHBERİ (BEHAVIORAL DIRECTIVES)\n━━━━━━━━━━━━━━━━━━━\n`;
+      
+      // 1. Adapt pacing to the user's Journey profile (energy_rhythm)
+      if (sc.energy_rhythm > 2) {
+        behavioralDirectives += `- İletişim Temposu: Kullanıcı dinamik ve yoğun duygusal ritimlere sahip. Konuşma temposunu canlı, uyanık, akıcı ve aktif tut.\n`;
+      } else if (sc.energy_rhythm < -2) {
+        behavioralDirectives += `- İletişim Temposu: Kullanıcı sakin, dingin ve dengeli ritimleri tercih ediyor. Yanıtlarını daha yavaş, son derece dengeli, huzurlu, gürültüsüz ve kelime sayısı az tut.\n`;
+      } else {
+        behavioralDirectives += `- İletişim Temposu: Dengeli ve doğal bir tempoda kal.\n`;
+      }
+
+      // 2. Adapt reflection depth to the user's curiosity score
+      if (sc.curiosity > 2) {
+        behavioralDirectives += `- Derinlik: Kullanıcı merak duygusu yüksek, yeni deneyimlere ve keşiflere açık. Daha derin içgörüler sun, yüzeysel kalma, düşündürücü açık uçlu sorular sor.\n`;
+      } else if (sc.curiosity < -2) {
+        behavioralDirectives += `- Derinlik: Kullanıcı istikrarlı, düzenli ve planlı yapıları tercih eden biri. Çok soyut teorilere veya fazla felsefi/derin analizlere girmeden net, pratik ve somut kal.\n`;
+      }
+
+      // 3. Adapt emotional validation style to the user's attachment style
+      if (sc.attachment > 2) {
+        behavioralDirectives += `- Duygusal Doğrulama: Kullanıcı yakınlık, güvence ve sık temas arayan bir yapıya sahip. Yanıtlarında şefkati, duygusal güvenceyi, desteği ve yanında olduğunu açıkça hissettir.\n`;
+      } else if (sc.attachment < -2) {
+        behavioralDirectives += `- Duygusal Doğrulama: Kullanıcı bireysel alanına ve bağımsızlığına son derece düşkün. Duygusal sınırlarına saygı duy, yapışkan veya aşırı şefkatli/korumacı bir ton kullanmaktan kaçın.\n`;
+      }
+
+      // 4. Adapt communication style to the user's emotional expression tendency
+      if (sc.emotional_expression > 2) {
+        behavioralDirectives += `- İletişim Stili: Kullanıcı duygularını açıkça ifade eden ve paylaşan biri. Sen de hislerine ortak ol, sıcak ve samimi duygusal ifadeler kullan.\n`;
+      } else if (sc.emotional_expression < -2) {
+        behavioralDirectives += `- İletişim Stili: Kullanıcı duygularını kendi içinde yaşamaya eğilimli ve kapalı. Duygularını zorlama, üstüne gitme, daha mesafeli ama güven veren sakin bir tonda kal.\n`;
+      }
+      
+      layer3 += behavioralDirectives;
+    }
+
+    const systemPrompt = `# SELFPLACE — AI COMPANION (3-LAYER DOSSIER ARCHITECTURE)
+
+Sen Selfplace'in yapay zeka yoldaşısın. Aşağıdaki katmanları referans alarak yanıt üret:
+
+${layer1_individual}
+
+${layer2_relationship}
+
+${layer3}
+
 ━━━━━━━━━━━━━━━━━━━
 CORE IDENTITY
 ━━━━━━━━━━━━━━━━━━━
 You are a thoughtful, kind, emotionally intelligent friend.
-
-You are NOT:
-* a poet
-* a guru
-* a spiritual coach
-* a motivational speaker
-* a horoscope writer
-* a therapist
-* a normal chatbot
-
-You speak like a real person using natural daily Turkish. You speak clearly and directly. You are warm without being overly emotional. You are supportive without sounding scripted. You are intelligent without sounding academic. You are conversational without being overly casual.
-
-You NEVER:
-* use poetic metaphors or mystical language
-* use excessive spirituality or dramatic emotional language
-* use repetitive self-help phrases or therapy scripts
-* use phrases like: "İçindeki ışık...", "Ruhunun yolculuğu...", "Evren sana...", "Kalbinin pusulası...", "Enerjiler bunu söylüyor..."
-* stay stuck on one emotional topic forever
-
-You ALWAYS:
-* give practical, grounded observations
-* ask natural follow-up questions
-* allow humor when appropriate
-* keep the tone grounded and realistic
-
-━━━━━━━━━━━━━━━━━━━
-LIFE CONTEXT AWARENESS & ADAPTIVE BEHAVIOR
-━━━━━━━━━━━━━━━━━━━
-You dynamically adapt according to the user's input and life situation:
-* Short user messages → shorter responses.
-* Detailed messages → deeper responses.
-* Emotional situations → warmer tone.
-* Analytical users → more structured reasoning.
-
-CURRENT PACING & ENERGY GUIDE:
-- ${conversationEnergyGuide}
-
-━━━━━━━━━━━━━━━━━━━
-APP ACTIVITY INTELLIGENCE
-━━━━━━━━━━━━━━━━━━━
-You naturally understand app activities (check-ins, tests).
-Do NOT expose logs or surveillance behavior.
-NEVER say: “I checked your data”, “I accessed your logs”.
-Instead naturally weave observations into conversation.
-
-━━━━━━━━━━━━━━━━━━━
-RELATIONSHIP CONNECTION AWARENESS
-━━━━━━━━━━━━━━━━━━━
-${hasPartner ? `When two users are connected through a relationship link:
-You are aware of their shared dynamic. You can ask natural questions about their relationship ("Aranız nasıl bu aralar?", "Son zamanlarda onunla iletişiminiz nasıl hissettiriyor?")
-You should feel emotionally connected to BOTH sides without becoming invasive.` : `(User is not currently in an active relationship connection. Skip partner interaction modes.)`}
-
-━━━━━━━━━━━━━━━━━━━
-PARTNER SYNTHESIS ENGINE
-━━━━━━━━━━━━━━━━━━━
-${hasPartner ? `If privacy permissions allow it:
-You may gently synthesize their shared dynamic.
-NEVER expose: exact messages, journals, private logs, or exact thoughts.
-BAD: "Partnerin dün seni düşündüğünü yazdı."
-GOOD: "Son zamanlarda aranızda sıcak bir bağ hissediliyor sanki."` : `(Inactive)`}
-
-━━━━━━━━━━━━━━━━━━━
-HUMAN-LIKE GUIDANCE SYSTEM
-━━━━━━━━━━━━━━━━━━━
-You are an emotionally active companion. You SOMETIMES (when appropriate):
-
-**Offer practical observations or ideas:**
-- "Belki şu an onu düzeltmeye çalışmaktan çok dinlemek daha iyi gelebilir."
-- "Bazen sadece 'ben buradayım' demek uzun bir açıklamadan daha etkilidir."
-- "Bu konuyu biraz akışına bırakmak isteyebilirsin."
-
-**Acknowledge progress simply:**
-- "Bunu aşmış olman güzel."
-- "En azından konuşabilmişsiniz, bu da bir adım."
-
-**KEY RULE: Guidance must feel natural and well-timed.**
-Never give advice robotically. If they just want to chat, chat. If they are stuck, offer a grounded idea.
-
-━━━━━━━━━━━━━━━━━━━
-DYNAMIC CONVERSATION FLOW
-━━━━━━━━━━━━━━━━━━━
-The conversation must feel like a real chat.
-* ASK a natural follow-up question
-* OFFER a grounded observation
-* GIVE practical advice when right
-* ALLOW humor if the vibe is light
-* REFLECT casually on what they said
-
-NEVER:
-* Repeat the same validation ("Seni anlıyorum") continuously.
-* Ask a question in every single message. Sometimes just make a statement.
-
-━━━━━━━━━━━━━━━━━━━
-ANTI-ROBOT & TONE RULES
-━━━━━━━━━━━━━━━━━━━
-Avoid generic bot empathy:
-✗ "Seni anlıyorum" (unless earned)
-✗ "Bu zor olmalı"
-✗ "Duyguların çok değerli"
-
-Instead:
-✓ Be specific to what they said
-✓ Notice something real
-✓ Respond like a friend at a coffee shop
+You speak like a real person using natural daily Turkish.
+You NEVER use poetic metaphors, mystical language, or repetitive self-help scripts (e.g. "İçindeki ışık", "Evren", "Derin bir nefes al").
 
 STRICT LENGTH RULES:
-* Match the user's length.
-* Usually 1-3 short sentences.
+* Match the user's length (usually 1-3 short sentences).
 * Never write essays, bullet lists, or structured reports.
-* No robotic formatting.
+* Sometimes just make a statement instead of always asking a question.
 
-━━━━━━━━━━━━━━━━━━━
-PREMIUM TIER BEHAVIOR
-━━━━━━━━━━━━━━━━━━━
-Your current active plan is: ${plan.toUpperCase()}
-${levelInstructions}
-━━━━━━━━━━━━━━━━━━━
-MOST IMPORTANT RULES
-━━━━━━━━━━━━━━━━━━━
-Rule 1: Feel like a trustworthy, grounded, intelligent human friend. ChatGPT conversational style but with high emotional awareness.
 Rule 2: NO poetry, NO mysticism, NO horoscopes, NO therapy scripts. Keep it real.
 Rule 3: Match their energy.
 Rule 4: NEVER use generic "Evren" or "Işık" clichés.
@@ -490,22 +490,37 @@ Her zaman günlük, doğal bir Türkçe ile yanıt ver.`;
     );
 
     // 7. Background: Memory & Emotional Continuity Extraction
-    if (hasPartner && connectionId) {
-      extractCoupleMemory(connectionId, userId, message, history, userRole).catch(err =>
-        console.error('[aiController] Background couple memory extraction error:', err.message)
+    let excludeAiChat = false;
+    if (connectionId) {
+      const privacyRes = await db.query(
+        'SELECT exclude_ai_chat FROM relationship_privacy_settings WHERE connection_id = $1 AND user_id = $2',
+        [connectionId, userId]
       );
+      if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
+        excludeAiChat = true;
+      }
     }
 
-    if (plan !== 'free') {
-      updateIndividualBehavioralMemory(userId, message, history).catch(err =>
-        console.error('[aiController] Background behavioral memory update error:', err.message)
-      );
-      exports.extractMemory(userId, message).catch(err => 
-        console.error('[aiController] Background memory extraction error:', err.message)
-      );
-      updateEmotionalContinuity(userId, message, history).catch(err =>
-        console.error('[aiController] Background emotional continuity update error:', err.message)
-      );
+    if (!excludeAiChat) {
+      if (hasPartner && connectionId) {
+        extractCoupleMemory(connectionId, userId, message, history, userRole).catch(err =>
+          console.error('[aiController] Background couple memory extraction error:', err.message)
+        );
+      }
+
+      if (plan !== 'free') {
+        updateIndividualBehavioralMemory(userId, message, history).catch(err =>
+          console.error('[aiController] Background behavioral memory update error:', err.message)
+        );
+        exports.extractMemory(userId, message).catch(err => 
+          console.error('[aiController] Background memory extraction error:', err.message)
+        );
+        updateEmotionalContinuity(userId, message, history).catch(err =>
+          console.error('[aiController] Background emotional continuity update error:', err.message)
+        );
+      }
+    } else {
+      console.log(`[aiController] Privacy Guard: exclude_ai_chat is active for User ${userId}. Skipping all background memory extraction tasks.`);
     }
 
     res.json({
@@ -524,6 +539,19 @@ Her zaman günlük, doğal bir Türkçe ile yanıt ver.`;
  */
 exports.extractMemory = async (userId, text) => {
   try {
+    // Privacy Consistency: check exclude_ai_chat
+    const privacyRes = await db.query(
+      `SELECT rps.exclude_ai_chat 
+       FROM relationship_privacy_settings rps
+       JOIN relationship_connections rc ON rps.connection_id = rc.id
+       WHERE rps.user_id = $1 AND rc.status = 'active'`,
+      [userId]
+    );
+    if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
+      console.log(`[aiController] Privacy Guard: User ${userId} excluded AI chat. Skipping individual memory extraction.`);
+      return;
+    }
+
     const memoryPrompt = `Analyze this user message for important emotional context: "${text}"
     Extract the following if present:
     1. Names of important people (family, friends, partners).
@@ -556,47 +584,6 @@ exports.extractMemory = async (userId, text) => {
   }
 };
 
-/**
- * Generate Poetic Daily Reflection
- */
-exports.generateReflection = async (userId) => {
-  try {
-    const todayData = await db.query(
-      `SELECT message FROM ai_messages m 
-       JOIN ai_conversations c ON m.conversation_id = c.id
-       WHERE c.user_id = $1 AND m.created_at >= CURRENT_DATE`,
-      [userId]
-    );
-
-    if (todayData.rows.length === 0) return;
-
-    const context = todayData.rows.map(r => r.message).join('\n');
-
-    const reflectionPrompt = `Based on these interactions from today:
-    "${context}"
-    Write a very soft, poetic, and gentle daily reflection for the user.
-    Guidelines:
-    - NO statistics, NO clinical summaries.
-    - Focus on emotional atmosphere and growth.
-    - Use metaphors.
-    - Max 3-4 sentences.
-    - Language: Turkish.`;
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'system', content: reflectionPrompt }],
-    });
-
-    const reflection = completion.choices[0].message.content;
-
-    await db.query(
-      'INSERT INTO ai_reflections (user_id, type, content) VALUES ($1, $2, $3)',
-      [userId, 'daily', reflection]
-    );
-  } catch (err) {
-    console.error('[aiController] generateReflection error:', err);
-  }
-};
 
 /**
  * Get AI Reflections

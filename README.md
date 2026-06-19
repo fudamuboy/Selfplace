@@ -84,6 +84,15 @@ Available on the App Store.
 
 ---
 
+## ⚖️ Engineering Governance
+
+Selfplace is built around a system-wide engineering principle: the **AI-First Architecture Principle**. Every new feature, database table, or module must evaluate how it integrates into the AI ecosystem, preserving privacy, memory, events, dossiers, and intent layers.
+
+For guidelines, checklists, and compliance requirements, see:
+* **[AI Architecture Guidelines](file:///Users/slim/Selfplace/AI_ARCHITECTURE_GUIDELINES.md)**
+
+---
+
 ## 👨‍💻 Developer
 
 Developed with care by Salim Samake.

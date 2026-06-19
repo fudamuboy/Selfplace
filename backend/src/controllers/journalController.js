@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const emotionalController = require('./emotionalController');
+const { extractJournalThemes } = require('../services/journalIntelligenceService');
 
 exports.createEntry = async (req, res) => {
   const { title, content } = req.body;
@@ -26,6 +27,9 @@ exports.createEntry = async (req, res) => {
       finalContent,
       { journal_id: result.rows[0].id }
     );
+
+    // Asynchronously update thematic AI memory
+    extractJournalThemes(userId).catch(err => console.error('[journalController] extractJournalThemes error:', err));
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -91,6 +95,9 @@ exports.updateEntry = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Kayıt bulunamadı veya yetkiniz yok.' });
     }
+    // Asynchronously update thematic AI memory
+    extractJournalThemes(userId).catch(err => console.error('[journalController] extractJournalThemes error:', err));
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[journalController] updateEntry error:', err.message);
@@ -110,6 +117,9 @@ exports.deleteEntry = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Kayıt bulunamadı veya yetkiniz yok.' });
     }
+    // Asynchronously update thematic AI memory (in case deletion cleared all recent entries)
+    extractJournalThemes(userId).catch(err => console.error('[journalController] extractJournalThemes error:', err));
+
     res.json({ message: 'Kayıt başarıyla silindi.' });
   } catch (err) {
     console.error('[journalController] deleteEntry error:', err.message);

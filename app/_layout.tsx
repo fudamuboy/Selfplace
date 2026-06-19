@@ -8,6 +8,7 @@ import useAuthStore from "../store/useAuthStore";
 import { useNetworkStore } from "../store/useNetworkStore";
 import * as Notifications from 'expo-notifications';
 import { getSubscription } from '../api/userApi';
+import useSubscriptionStore from '../store/useSubscriptionStore';
 
 // ─── Soft session-expiry toast ────────────────────────────────────────────────
 function SessionExpiredToast({ visible, onHide }: { visible: boolean; onHide: () => void }) {
@@ -158,6 +159,14 @@ export default function RootLayout() {
             try {
               const parsedUser = JSON.parse(storedUser);
               await setAuth(storedToken, parsedUser);
+
+              // Hydrate subscription state
+              try {
+                const sub = await getSubscription();
+                useAuthStore.getState().setPlanType(sub.plan_type);
+              } catch (subErr) {
+                console.error('[Startup] Failed to fetch subscription:', subErr);
+              }
             } catch (e) {
               console.error('[Startup] Session JSON parse failed:', e);
               // Corrupt storage — clear and send to login
@@ -182,6 +191,14 @@ export default function RootLayout() {
           } catch (e) {
             console.error('[Startup] Android notification configuration failed:', e);
           }
+        }
+
+        // Initialize IAP globally (fire and forget so it doesn't block UI)
+        try {
+          console.log('[Startup] Initializing IAP globally...');
+          useSubscriptionStore.getState().initIAP();
+        } catch (e) {
+          console.error('[Startup] IAP init exception:', e);
         }
 
         console.log('[Startup] Initialization complete.');

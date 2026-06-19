@@ -3,7 +3,8 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { 
   FadeIn, 
   FadeOut, 
@@ -22,6 +23,14 @@ import { MascotBlob } from '../components/MascotBlob';
 import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
 import { CONTENT_MAX_WIDTH, isTablet } from '../constants/Layout';
+
+const ONBOARDING_GOALS = [
+  { id: 'Self-understanding', label: 'Kendini Anlama 🧠', subtitle: 'Kendini daha derin keşfet' },
+  { id: 'Relationship growth', label: 'İlişkilerde Büyüme 🌱', subtitle: 'Bağlarını ve empatiyi güçlendir' },
+  { id: 'Emotional balance', label: 'Duygusal Denge ⚖️', subtitle: 'Hislerini sakince yönet' },
+  { id: 'Stress reduction', label: 'Stresi Azaltma 🧘', subtitle: 'Zihnini ve bedenini dinlendir' },
+  { id: 'Personal development', label: 'Kişisel Gelişim 🚀', subtitle: 'Adım adım farkındalıkla büyü' }
+];
 
 const MOOD_DATA = [
   { id: 'Mutlu', label: 'Mutlu', image: require('../assets/images/stickers/mutlu.png'), response: 'Işığın her yeri aydınlatıyor.' },
@@ -83,6 +92,7 @@ export default function OnboardingScreen() {
   const [showText2, setShowText2] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   
   const router = useRouter();
   const { currentTheme } = useThemeStore();
@@ -103,6 +113,7 @@ export default function OnboardingScreen() {
 
   const handleFinish = async () => {
     try {
+      await AsyncStorage.setItem('onboardingGoals', JSON.stringify(selectedGoals));
       await setOnboardingCompleted(true);
       router.replace('/(auth)/register');
     } catch (error) {
@@ -194,6 +205,72 @@ export default function OnboardingScreen() {
         );
 
       case 3:
+        return (
+          <Animated.View entering={FadeIn.duration(1000)} style={styles.stepContainer}>
+            <Text style={[styles.title, { color: currentTheme.colors.text.primary, marginBottom: 12 }]}>
+              Seni Selfplace'e getiren nedir?
+            </Text>
+            <Text style={[styles.subtitleText, { color: currentTheme.colors.text.secondary, marginBottom: 24, textAlign: 'center' }]}>
+              Hedeflerini ve niyetlerini seçerek sana özel sakin bir akış oluşturabiliriz.
+            </Text>
+
+            <View style={styles.goalsContainer}>
+              {ONBOARDING_GOALS.map((goal) => {
+                const isSelected = selectedGoals.includes(goal.id);
+                return (
+                  <TouchableOpacity
+                    key={goal.id}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (isSelected) {
+                        setSelectedGoals(prev => prev.filter(id => id !== goal.id));
+                      } else {
+                        setSelectedGoals(prev => [...prev, goal.id]);
+                      }
+                    }}
+                    style={[
+                      styles.goalCard,
+                      {
+                        backgroundColor: isSelected ? currentTheme.colors.glow : currentTheme.colors.card,
+                        borderColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.cardBorder,
+                      }
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.goalTextWrapper}>
+                      <Text style={[styles.goalLabel, { color: currentTheme.colors.text.primary }]}>
+                        {goal.label}
+                      </Text>
+                      <Text style={[styles.goalSubtitle, { color: currentTheme.colors.text.secondary }]}>
+                        {goal.subtitle}
+                      </Text>
+                    </View>
+                    <View style={[
+                      styles.goalCheckbox,
+                      {
+                        borderColor: isSelected ? currentTheme.colors.primary : currentTheme.colors.text.muted,
+                        backgroundColor: isSelected ? currentTheme.colors.primary : 'transparent',
+                      }
+                    ]}>
+                      {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={[styles.buttonWrapper, { marginTop: 32 }]}>
+              <CustomButton
+                title="Devam Et"
+                onPress={() => setStep(4)}
+                style={styles.button}
+                disabled={selectedGoals.length === 0}
+              />
+            </View>
+          </Animated.View>
+        );
+
+      case 4:
         return (
           <Animated.View entering={FadeIn.duration(1000)} style={styles.stepContainer}>
             <View style={styles.finalMascot}>
@@ -334,6 +411,45 @@ const styles = StyleSheet.create({
   finalActions: {
     width: '100%',
     gap: 20,
+  },
+  goalsContainer: {
+    width: '100%',
+    gap: 12,
+  },
+  goalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    width: '100%',
+  },
+  goalTextWrapper: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  goalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'left',
+  },
+  goalSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    textAlign: 'left',
+  },
+  goalCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  subtitleText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 

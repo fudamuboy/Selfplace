@@ -24,7 +24,6 @@ export default function SettingsScreen() {
     restoreMessage,
     restorePurchases,
     clearRestoreMessage,
-    initIAP,
   } = useSubscriptionStore();
 
   const { 
@@ -43,9 +42,6 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadConfig();
-    // Initialise IAP connection so restore works from settings
-    initIAP();
-    return () => useSubscriptionStore.getState().teardownIAP();
   }, [loadConfig]);
 
   const toggleReminders = async (value: boolean) => {
@@ -157,6 +153,14 @@ export default function SettingsScreen() {
           
           {renderSectionHeader('HESAP')}
           {renderRow('person-outline', 'Hesap Ayarları', 'Hesap bilgileri ve silme', () => router.push('/account'))}
+          {renderRow('compass-outline', 'Yolculuk Hedeflerim', user?.onboarding_goals && user.onboarding_goals.length > 0 ? user.onboarding_goals.map(g => {
+            if (g === 'Self-understanding') return 'Kendini Anlama';
+            if (g === 'Relationship growth') return 'İlişkilerde Büyüme';
+            if (g === 'Emotional balance') return 'Duygusal Denge';
+            if (g === 'Stress reduction') return 'Stresi Azaltma';
+            if (g === 'Personal development') return 'Kişisel Gelişim';
+            return g;
+          }).join(', ') : 'Belirtilmemiş', () => router.push('/goals-selection'))}
 
           <View style={{ height: 24 }} />
 

@@ -450,10 +450,22 @@ exports.getWeeklyGuidance = async (req, res) => {
 
     // 5. Get Latest Personality Test Result (Color)
     const colorRes = await db.query(
-      "SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1",
+      "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
       [userId]
     );
-    const colorResult = colorRes.rows[0]?.result_data || null;
+    let colorResult = null;
+    if (colorRes.rows.length > 0) {
+      const row = colorRes.rows[0];
+      const p = row.result_data;
+      if (row.test_type === 'journey') {
+        colorResult = {
+          dominantColor: p.color_family?.hex || p.dominant_color || '#B3B3B3',
+          title: p.color_family?.name || 'Bilinmiyor'
+        };
+      } else {
+        colorResult = p;
+      }
+    }
 
     // 6. Check if we already generated guidance for this week
     const guidanceRes = await db.query(

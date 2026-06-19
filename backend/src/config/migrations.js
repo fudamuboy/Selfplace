@@ -101,6 +101,12 @@ exports.runMigrations = async () => {
       ADD COLUMN IF NOT EXISTS answer TEXT
     `);
 
+    // 5.5 Timeline Ack column
+    await db.query(`
+      ALTER TABLE relationship_timeline 
+      ADD COLUMN IF NOT EXISTS acknowledged_user_ids INTEGER[] DEFAULT '{}';
+    `);
+
     // 8. Ensure journal_entries table exists
     await db.query(`
       CREATE TABLE IF NOT EXISTS journal_entries (
@@ -520,6 +526,7 @@ exports.runMigrations = async () => {
         participants VARCHAR(20) DEFAULT 'both',
         emotional_weight INTEGER DEFAULT 3 CHECK (emotional_weight BETWEEN 1 AND 5),
         resolved BOOLEAN DEFAULT FALSE,
+        reference_count INTEGER DEFAULT 0,
         last_referenced_at TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -587,7 +594,8 @@ exports.runMigrations = async () => {
       ADD COLUMN IF NOT EXISTS emotional_closeness INTEGER DEFAULT 50;
 
       ALTER TABLE couple_memories 
-      ADD COLUMN IF NOT EXISTS symbol VARCHAR(50);
+      ADD COLUMN IF NOT EXISTS symbol VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS reference_count INTEGER DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS relationship_garden (
         id SERIAL PRIMARY KEY,
@@ -812,6 +820,22 @@ exports.runMigrations = async () => {
 
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_indiv_behav_mem_user ON individual_behavioral_memory(user_id);
+    `);
+
+    // Pre-launch Hardening Indexes
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_ai_messages_conv_created
+      ON ai_messages(conversation_id, created_at DESC);
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_journal_entries_user_created
+      ON journal_entries(user_id, created_at DESC);
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_ai_conversations_user
+      ON ai_conversations(user_id);
     `);
 
     // ──────────────────────────────────────────────────────────────────────────

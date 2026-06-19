@@ -6,20 +6,16 @@ const { getZodiacSign } = require('../utils/zodiac');
 const { sendEmail } = require('../services/emailService');
 
 exports.register = async (req, res) => {
-  const { username, email, password, birth_date, accepted_terms } = req.body;
+  const { username, email, password, birth_date, accepted_terms, onboarding_goals } = req.body;
 
   if (!accepted_terms) {
     return res.status(400).json({ message: 'Kullanım koşullarını ve gizlilik politikasını kabul etmelisiniz.' });
   }
 
-
-
   try {
     const userExist = await db.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
-
     
     if (userExist.rows.length > 0) {
-
       return res.status(400).json({ message: 'Bu e-posta veya kullanıcı adı zaten kullanımda.' });
     }
 
@@ -34,9 +30,19 @@ exports.register = async (req, res) => {
       [username, email, hashedPassword, birth_date, zodiacSign, accepted_terms, termsAcceptedAt]
     );
 
-
-
     const user = newUser.rows[0];
+
+    // Persist onboarding goals in emotional_memories if provided
+    if (onboarding_goals && Array.isArray(onboarding_goals) && onboarding_goals.length > 0) {
+      await db.query(
+        `INSERT INTO emotional_memories (user_id, memory_key, memory_value, category)
+         VALUES ($1, 'onboarding_goals', $2, 'individual')
+         ON CONFLICT (user_id, memory_key) 
+         DO UPDATE SET memory_value = EXCLUDED.memory_value, updated_at = NOW()`,
+        [user.id, onboarding_goals.join(', ')]
+      );
+    }
+
     res.status(201).json({
       message: 'Kayıt başarılı.',
       user: {
@@ -46,9 +52,9 @@ exports.register = async (req, res) => {
         birth_date: user.birth_date,
         zodiac_sign: user.zodiac_sign,
         accepted_terms: user.accepted_terms,
-        createdAt: user.created_at
+        createdAt: user.created_at,
+        onboarding_goals: onboarding_goals || []
       }
-
     });
   } catch (err) {
     console.error('[authController] register error:', err);
@@ -64,15 +70,12 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
-
   try {
     const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-
 
     if (userResult.rows.length === 0) {
       return res.status(400).json({ message: 'E-posta veya şifre hatalı.' });
     }
-
 
     const user = userResult.rows[0];
     
@@ -80,19 +83,15 @@ exports.login = async (req, res) => {
       throw new Error("Internal consistency error.");
     }
 
-
     const isMatch = await bcrypt.compare(password, user.password);
-
 
     if (!isMatch) {
       return res.status(400).json({ message: 'E-posta veya şifre hatalı.' });
     }
 
-
     if (!process.env.JWT_SECRET) {
       throw new Error("Internal configuration error.");
     }
-
 
     const token = jwt.sign(
       { id: user.id, username: user.username },
@@ -100,6 +99,9 @@ exports.login = async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Fetch onboarding goals
+    const goalsRes = await db.query("SELECT memory_value FROM emotional_memories WHERE user_id = $1 AND memory_key = 'onboarding_goals'", [user.id]);
+    const onboarding_goals = goalsRes.rows.length > 0 ? goalsRes.rows[0].memory_value.split(', ') : [];
 
     res.json({
       token,
@@ -109,7 +111,8 @@ exports.login = async (req, res) => {
         email: user.email,
         birth_date: user.birth_date,
         zodiac_sign: user.zodiac_sign,
-        createdAt: user.created_at
+        createdAt: user.created_at,
+        onboarding_goals
       }
     });
   } catch (err) {
@@ -119,8 +122,20 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const userResult = await db.query('SELECT id, username, email, created_at FROM users WHERE id = $1', [req.user.id]);
-    res.json(userResult.rows[0]);
+    const userResult = await db.query('SELECT id, username, email, birth_date, zodiac_sign, created_at FROM users WHERE id = $1', [req.user.id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    }
+    const user = userResult.rows[0];
+
+    // Fetch onboarding goals
+    const goalsRes = await db.query("SELECT memory_value FROM emotional_memories WHERE user_id = $1 AND memory_key = 'onboarding_goals'", [req.user.id]);
+    const onboarding_goals = goalsRes.rows.length > 0 ? goalsRes.rows[0].memory_value.split(', ') : [];
+
+    res.json({
+      ...user,
+      onboarding_goals
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Sunucu hatası.' });

@@ -46,3 +46,13 @@ app-example
 /ios
 /android
 backend/server.log
+
+# Development/audit scratch scripts — never commit
+scratch/
+test-*.js
+backend/migrations/
+
+# Agent artifacts — never commit
+verify.js
+scratch.js
+fix_eslint.js

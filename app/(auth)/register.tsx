@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import client from '../../api/client';
@@ -40,12 +40,16 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      const storedGoals = await AsyncStorage.getItem('onboardingGoals');
+      const onboardingGoals = storedGoals ? JSON.parse(storedGoals) : [];
+
       await client.post('/auth/register', { 
         username, 
         email, 
         password, 
         birth_date: birthDate.toISOString().split('T')[0],
-        accepted_terms: acceptedTerms
+        accepted_terms: acceptedTerms,
+        onboarding_goals: onboardingGoals
       });
 
       setModal({

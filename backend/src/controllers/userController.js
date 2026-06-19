@@ -38,7 +38,8 @@ exports.deletePersonalData = async (req, res) => {
       db.query('DELETE FROM check_ins WHERE user_id = $1', [userId]),
       db.query('DELETE FROM card_responses WHERE user_id = $1', [userId]),
       db.query('DELETE FROM daily_reflections WHERE user_id = $1', [userId]),
-      db.query('DELETE FROM weekly_insights WHERE user_id = $1', [userId])
+      db.query('DELETE FROM weekly_insights WHERE user_id = $1', [userId]),
+      db.query("DELETE FROM emotional_memories WHERE user_id = $1 AND memory_key IN ('recent_journal_themes', 'recent_card_themes')", [userId])
     ]);
     res.json({ message: 'Tüm kişisel verileriniz başarıyla silindi.' });
   } catch (err) {
@@ -98,7 +99,7 @@ exports.changePassword = async (req, res) => {
 // ---------------------------------------------------------------------------
 exports.updateProfile = async (req, res) => {
   const userId = req.user.id;
-  const { birth_date, zodiac_sign } = req.body;
+  const { birth_date, zodiac_sign, onboarding_goals } = req.body;
 
   try {
     const updateRes = await db.query(
@@ -110,9 +111,29 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
+    if (onboarding_goals && Array.isArray(onboarding_goals)) {
+      if (onboarding_goals.length > 0) {
+        await db.query(
+          `INSERT INTO emotional_memories (user_id, memory_key, memory_value, category)
+           VALUES ($1, 'onboarding_goals', $2, 'individual')
+           ON CONFLICT (user_id, memory_key) 
+           DO UPDATE SET memory_value = EXCLUDED.memory_value, updated_at = NOW()`,
+          [userId, onboarding_goals.join(', ')]
+        );
+      } else {
+        await db.query(
+          `DELETE FROM emotional_memories WHERE user_id = $1 AND memory_key = 'onboarding_goals'`,
+          [userId]
+        );
+      }
+    }
+
     const updatedUser = updateRes.rows[0];
-    // Exclude password
     delete updatedUser.password;
+
+    // Fetch updated onboarding goals
+    const goalsRes = await db.query("SELECT memory_value FROM emotional_memories WHERE user_id = $1 AND memory_key = 'onboarding_goals'", [userId]);
+    updatedUser.onboarding_goals = goalsRes.rows.length > 0 ? goalsRes.rows[0].memory_value.split(', ') : [];
 
     res.json({ message: 'Profil güncellendi.', user: updatedUser });
   } catch (err) {

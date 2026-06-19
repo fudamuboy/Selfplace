@@ -474,12 +474,19 @@ exports.getInsight = async (req, res) => {
 
     if (!myPrivacy.exclude_personality) {
       const myPersonality = await db.query(
-        "SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1",
+        "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
         [userId]
       );
       if (myPersonality.rows.length > 0) {
-        const p = myPersonality.rows[0].result_data;
-        myDossier += `DISC Kişilik Rengi: Dominant ${p.dominantColor} (${p.title}).\n`;
+        const row = myPersonality.rows[0];
+        const p = row.result_data;
+        if (row.test_type === 'journey') {
+          const colorName = p.color_family?.name || 'Bilinmiyor';
+          const colorHex = p.color_family?.hex || p.dominant_color || '#B3B3B3';
+          myDossier += `DISC Kişilik Rengi: Dominant ${colorHex} (${colorName}).\n`;
+        } else {
+          myDossier += `DISC Kişilik Rengi: Dominant ${p.dominantColor} (${p.title}).\n`;
+        }
       }
     }
 
@@ -509,12 +516,19 @@ exports.getInsight = async (req, res) => {
 
     if (!partnerPrivacy.exclude_personality) {
       const partnerPersonality = await db.query(
-        "SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1",
+        "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
         [partnerId]
       );
       if (partnerPersonality.rows.length > 0) {
-        const p = partnerPersonality.rows[0].result_data;
-        partnerDossier += `DISC Kişilik Rengi: Dominant ${p.dominantColor} (${p.title}).\n`;
+        const row = partnerPersonality.rows[0];
+        const p = row.result_data;
+        if (row.test_type === 'journey') {
+          const colorName = p.color_family?.name || 'Bilinmiyor';
+          const colorHex = p.color_family?.hex || p.dominant_color || '#B3B3B3';
+          partnerDossier += `DISC Kişilik Rengi: Dominant ${colorHex} (${colorName}).\n`;
+        } else {
+          partnerDossier += `DISC Kişilik Rengi: Dominant ${p.dominantColor} (${p.title}).\n`;
+        }
       }
     }
 
@@ -683,13 +697,27 @@ exports.getDailySync = async (req, res) => {
 
     let userAPersonality = 'Bilinmiyor';
     if (!myPrivacy.exclude_personality) {
-      const p = await db.query("SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1", [userId]);
-      if (p.rows.length > 0) userAPersonality = p.rows[0].result_data.title;
+      const p = await db.query(
+        "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
+        [userId]
+      );
+      if (p.rows.length > 0) {
+        const row = p.rows[0];
+        const data = row.result_data;
+        userAPersonality = row.test_type === 'journey' ? (data.color_family?.name || 'Bilinmiyor') : data.title;
+      }
     }
     let userBPersonality = 'Bilinmiyor';
     if (!partnerPrivacy.exclude_personality) {
-      const p = await db.query("SELECT result_data FROM personality_results WHERE user_id = $1 AND test_type = 'color' ORDER BY created_at DESC LIMIT 1", [partnerId]);
-      if (p.rows.length > 0) userBPersonality = p.rows[0].result_data.title;
+      const p = await db.query(
+        "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
+        [partnerId]
+      );
+      if (p.rows.length > 0) {
+        const row = p.rows[0];
+        const data = row.result_data;
+        userBPersonality = row.test_type === 'journey' ? (data.color_family?.name || 'Bilinmiyor') : data.title;
+      }
     }
 
     // Gather recent ritual answers for context if allowed
@@ -1316,6 +1344,22 @@ exports.getGardenState = async (req, res) => {
     // Growth level is calculated but cannot drop (monotonic)
     const calculatedGrowth = Math.max(1, Math.floor(totalRituals / 2) + totalCrystals * 3);
     const growthLevel = Math.max(prevGrowth, calculatedGrowth);
+
+    if (growthLevel > prevGrowth) {
+      // Check if this connection has already logged a level up for this level to prevent duplicate triggers
+      const dupCheck = await db.query(
+        `SELECT id FROM relationship_timeline 
+         WHERE connection_id = $1 AND event_type = 'garden_level_up' AND description_tr LIKE $2`,
+        [connectionId, `%Seviye ${growthLevel}%`]
+      );
+      if (dupCheck.rows.length === 0) {
+        await db.query(
+          `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr)
+           VALUES ($1, 'garden_level_up', 'Bahçe Seviyesi Yükseldi 🌱', $2)`,
+          [connectionId, `İlişki bahçeniz büyüme göstererek Seviye ${growthLevel} oldu! Ortak çabalarınız meyvelerini veriyor.`]
+        );
+      }
+    }
 
     const flowersCount = Math.min(20, Math.floor(totalRituals / 2));
     const treeHeight = Math.min(100, 10 + Math.floor(totalRituals / 3) * 15);

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const emotionalController = require('./emotionalController');
+const { extractCardThemes } = require('../services/cardIntelligenceService');
 
 exports.getAllCards = async (req, res) => {
   try {
@@ -289,6 +290,9 @@ exports.respondToCard = async (req, res) => {
       response,
       { card_id: cardId, action: 'respond' }
     );
+
+    // Asynchronously update thematic card memories
+    extractCardThemes(uId).catch(err => console.error('[cardController] extractCardThemes error:', err));
 
     res.status(201).json(result.rows[0]);
   } catch (err) {

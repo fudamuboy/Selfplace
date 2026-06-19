@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import useThemeStore from '../store/useThemeStore';
 import { CustomButton } from './CustomButton';
 
@@ -14,11 +14,11 @@ interface Props {
   onSecondaryPress?: () => void;
 }
 
-export const CustomModal: React.FC<Props> = ({ 
-  visible, 
-  title, 
-  message, 
-  onClose, 
+export const CustomModal: React.FC<Props> = ({
+  visible,
+  title,
+  message,
+  onClose,
   onConfirm,
   confirmText = "Tamam",
   secondaryText,
@@ -36,22 +36,22 @@ export const CustomModal: React.FC<Props> = ({
         <View style={[styles.modal, { backgroundColor: currentTheme.colors.background[1], borderColor: currentTheme.colors.glow }]}>
           <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{title}</Text>
           <Text style={[styles.message, { color: currentTheme.colors.text.secondary }]}>{message}</Text>
-          
+
           {secondaryText && onSecondaryPress && (
-            <CustomButton 
-              title={secondaryText} 
-              onPress={onSecondaryPress} 
+            <CustomButton
+              title={secondaryText}
+              onPress={onSecondaryPress}
               variant="secondary"
               style={{ marginBottom: 12 }}
             />
           )}
 
-          <CustomButton 
-            title={confirmText} 
-            onPress={onConfirm || onClose} 
+          <CustomButton
+            title={confirmText}
+            onPress={onConfirm || onClose}
             variant="primary"
           />
-          
+
           {(onConfirm && !secondaryText) && (
             <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
               <Text style={[styles.cancelText, { color: currentTheme.colors.text.secondary }]}>Vazgeç</Text>
