@@ -416,7 +416,6 @@ Do not write markdown formatting or backticks.`;
       );
     }
 
-    console.log('[DEBUG] getInsightFeed output:', formattedWhispers);
     return formattedWhispers;
 
   } catch (error) {

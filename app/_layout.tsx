@@ -164,8 +164,19 @@ export default function RootLayout() {
               try {
                 const sub = await getSubscription();
                 useAuthStore.getState().setPlanType(sub.plan_type);
-              } catch (subErr) {
-                console.error('[Startup] Failed to fetch subscription:', subErr);
+              } catch (subErr: any) {
+                if (subErr?.isSessionExpiry || subErr?.message === 'SESSION_EXPIRED') {
+                  // Normal condition: stored JWT has expired.
+                  // The API interceptor already called handleSessionExpiry() which
+                  // cleared token + user from AsyncStorage and set token=null in store.
+                  // Route guard will redirect to login — no red screen, no crash.
+                  console.warn('[Startup] Stored session expired — redirecting to login.');
+                  // Explicit cleanup (belt-and-suspenders in case interceptor skipped it)
+                  await AsyncStorage.removeItem('token');
+                  await AsyncStorage.removeItem('user');
+                } else {
+                  console.warn('[Startup] Failed to fetch subscription (non-auth):', subErr);
+                }
               }
             } catch (e) {
               console.error('[Startup] Session JSON parse failed:', e);

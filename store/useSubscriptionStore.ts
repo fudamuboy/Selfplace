@@ -68,7 +68,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     if (Platform.OS !== 'ios') return;
 
     try {
-      console.log('[StoreKit Debug] Starting initIAP...');
+      if (__DEV__) console.log('[StoreKit] Starting initIAP...');
       set({ 
         productsLoading: true, 
         purchaseError: null,
@@ -79,9 +79,9 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
       let connected = false;
       try {
-        console.log('[StoreKit Debug] Calling initConnection()...');
+        if (__DEV__) console.log('[StoreKit] Calling initConnection()...');
         connected = await initConnection();
-        console.log('[StoreKit Debug] initConnection() result:', connected);
+        if (__DEV__) console.log('[StoreKit] initConnection() result:', connected);
         set({ iapConnected: connected, iapReady: connected });
       } catch (connErr: any) {
         console.warn('[StoreKit Debug] initConnection() failed:', connErr, connErr.stack);
@@ -100,7 +100,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       purchaseErrorSub?.remove();
       
       purchaseUpdateSub = purchaseUpdatedListener(async (purchase: Purchase) => {
-        console.log('[StoreKit Debug] purchaseUpdatedListener triggered for product:', purchase.productId);
+        if (__DEV__) console.log('[StoreKit] purchaseUpdatedListener triggered for product:', purchase.productId);
         const receipt = purchase.transactionReceipt;
         if (!receipt) {
           console.warn('[StoreKit Debug] Purchase triggered but no transaction receipt found.');
@@ -110,17 +110,17 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         set({ purchaseLoading: true, purchaseError: null });
 
         try {
-          console.log('[StoreKit Debug] Verifying receipt with backend...');
+          if (__DEV__) console.log('[StoreKit] Verifying receipt with backend...');
           const result = await verifyAppleReceipt(receipt);
-          console.log('[StoreKit Debug] Backend validation success. plan_type updated to:', result.plan_type);
+          if (__DEV__) console.log('[StoreKit] Backend validation success. plan_type updated to:', result.plan_type);
 
           // Update global plan — ONLY set after backend confirms
           useAuthStore.getState().setPlanType(result.plan_type);
 
           // CRITICAL: acknowledge transaction so Apple doesn't refund / re-charge
-          console.log('[StoreKit Debug] Finishing transaction with Apple...');
+          if (__DEV__) console.log('[StoreKit] Finishing transaction with Apple...');
           await finishTransaction({ purchase, isConsumable: false });
-          console.log('[StoreKit Debug] Transaction finished successfully.');
+          if (__DEV__) console.log('[StoreKit] Transaction finished successfully.');
         } catch (err: any) {
           console.error('[StoreKit Debug] Backend verification failed:', err.message);
           // DO NOT finishTransaction on backend failure —
@@ -133,7 +133,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
       purchaseErrorSub = purchaseErrorListener((error: PurchaseError) => {
         if ((error as any).code === 'E_USER_CANCELLED') {
-          console.log('[StoreKit Debug] User cancelled the payment sheet.');
+          if (__DEV__) console.log('[StoreKit] User cancelled the payment sheet.');
           set({ purchaseLoading: false, purchaseError: null });
           return;
         }
@@ -145,14 +145,13 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       });
 
       const runtimeBundleId = Application.applicationId || 'Unknown';
-      console.log('[StoreKit Debug] Runtime Bundle ID detected:', runtimeBundleId);
-      console.log('[StoreKit Debug] Fetching subscriptions for SKUs:', ALL_PRODUCT_IDS);
+      if (__DEV__) console.log('[StoreKit] Bundle ID:', runtimeBundleId);
+      if (__DEV__) console.log('[StoreKit] Fetching subscriptions for SKUs:', ALL_PRODUCT_IDS);
 
       // Fetch localised subscription product info from Apple
       try {
         const raw = await getSubscriptions({ skus: ALL_PRODUCT_IDS });
-        console.log('[StoreKit Debug] getSubscriptions() raw response count:', raw ? raw.length : 0);
-        console.log('[StoreKit Debug] getSubscriptions() raw response:', JSON.stringify(raw, null, 2));
+        if (__DEV__) console.log('[StoreKit] getSubscriptions() response count:', raw ? raw.length : 0);
 
         if (!raw || raw.length === 0) {
           console.warn('[StoreKit Debug] getSubscriptions returned empty array.');
@@ -175,7 +174,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
             productsLoading: false,
             productsLoaded: true,
             storeUnavailable: true,
-            purchaseError: debugMsg
+            purchaseError: 'Şu an mağazaya erişilemiyor. Lütfen daha sonra tekrar deneyin.'
           });
           return;
         }
@@ -184,10 +183,10 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         const products = (raw as any[]).filter(
           (p): p is SubscriptionIOS => !('subscriptionOfferDetails' in p) && 'localizedPrice' in p
         );
-        console.log('[StoreKit Debug] Filtered iOS products count:', products.length);
-        products.forEach(p => {
-          console.log(`[StoreKit Debug] Product: ID=${p.productId}, Title=${p.title}, Price=${p.localizedPrice}`);
-        });
+        if (__DEV__) console.log('[StoreKit] Filtered iOS products count:', products.length);
+        if (__DEV__) products.forEach(p =>
+          console.log(`[StoreKit] Product: ID=${p.productId}, Title=${p.title}, Price=${p.localizedPrice}`)
+        );
 
         if (products.length === 0 && raw.length > 0) {
           console.warn('[StoreKit Debug] All products filtered out (not matching iOS subscription shape).');
@@ -195,7 +194,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
             productsLoading: false,
             productsLoaded: true,
             storeUnavailable: true,
-            purchaseError: `Filtered to 0 iOS products. Raw items: ${JSON.stringify(raw)}`
+            purchaseError: 'Şu an mağazaya erişilemiyor. Lütfen daha sonra tekrar deneyin.'
           });
           return;
         }
@@ -232,7 +231,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
   // ── teardownIAP ────────────────────────────────────────────────────────────
   teardownIAP: async () => {
-    console.log('[StoreKit Debug] Starting teardownIAP...');
+    if (__DEV__) console.log('[StoreKit] Starting teardownIAP...');
     purchaseUpdateSub?.remove();
     purchaseErrorSub?.remove();
     purchaseUpdateSub = null;
@@ -240,7 +239,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     if (get().iapConnected) {
       try {
         await endConnection();
-        console.log('[StoreKit Debug] endConnection() completed.');
+        if (__DEV__) console.log('[StoreKit] endConnection() completed.');
       } catch (err: any) {
         console.warn('[StoreKit Debug] endConnection failed:', err.message);
       }
@@ -252,7 +251,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   purchasePlan: async (productId: string) => {
     if (Platform.OS !== 'ios') return;
 
-    console.log('[StoreKit Debug] purchasePlan requested for:', productId);
+    if (__DEV__) console.log('[StoreKit] purchasePlan requested for:', productId);
 
     if (!get().iapConnected || !get().iapReady) {
       console.warn('[StoreKit Debug] Connection not ready. Rejecting purchase.');
@@ -275,15 +274,15 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     set({ purchaseLoading: true, purchaseError: null });
 
     try {
-      console.log('[StoreKit Debug] Initiating requestSubscription for:', productId);
+      if (__DEV__) console.log('[StoreKit] Initiating requestSubscription for:', productId);
       await requestSubscription({ sku: productId });
-      console.log('[StoreKit Debug] requestSubscription call returned.');
+      if (__DEV__) console.log('[StoreKit] requestSubscription call returned.');
       // Completion is handled by purchaseUpdatedListener above.
       // purchaseLoading stays true until the listener fires and resets it.
     } catch (err: any) {
       // E_USER_CANCELLED — user dismissed the Apple sheet, completely silent
       if ((err as any).code === 'E_USER_CANCELLED') {
-        console.log('[StoreKit Debug] requestSubscription caught user cancellation.');
+        if (__DEV__) console.log('[StoreKit] requestSubscription cancelled by user.');
         set({ purchaseLoading: false, purchaseError: null });
         return;
       }

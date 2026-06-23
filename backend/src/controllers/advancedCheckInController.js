@@ -17,9 +17,7 @@ exports.createAdvancedCheckIn = async (req, res) => {
   } catch (err) {
     console.error('[advancedCheckInController] createAdvancedCheckIn error:', err.message);
     res.status(500).json({ 
-      message: 'Gelişmiş check-in kaydedilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Gelişmiş check-in kaydedilemedi.'
     });
   }
 };
@@ -32,9 +30,7 @@ exports.getAdvancedCheckIns = async (req, res) => {
   } catch (err) {
     console.error('[advancedCheckInController] getAdvancedCheckIns error:', err.message);
     res.status(500).json({ 
-      message: 'Veriler getirilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Veriler getirilemedi.'
     });
   }
 };
@@ -51,9 +47,7 @@ exports.getAdvancedCheckInById = async (req, res) => {
   } catch (err) {
     console.error('[advancedCheckInController] getAdvancedCheckInById error:', err.message);
     res.status(500).json({ 
-      message: 'Veri getirilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Veri getirilemedi.'
     });
   }
 };

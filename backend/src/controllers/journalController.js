@@ -35,9 +35,7 @@ exports.createEntry = async (req, res) => {
   } catch (err) {
     console.error('[journalController] createEntry error:', err.message);
     res.status(500).json({ 
-      message: 'Günlük kaydedilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Günlük kaydedilemedi.'
     });
   }
 };
@@ -50,9 +48,7 @@ exports.getEntries = async (req, res) => {
   } catch (err) {
     console.error('[journalController] getEntries error:', err.message);
     res.status(500).json({ 
-      message: 'Veriler getirilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Veriler getirilemedi.'
     });
   }
 };
@@ -69,9 +65,7 @@ exports.getEntryById = async (req, res) => {
   } catch (err) {
     console.error('[journalController] getEntryById error:', err.message);
     res.status(500).json({ 
-      message: 'Veri getirilemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Veri getirilemedi.'
     });
   }
 };
@@ -102,9 +96,7 @@ exports.updateEntry = async (req, res) => {
   } catch (err) {
     console.error('[journalController] updateEntry error:', err.message);
     res.status(500).json({ 
-      message: 'Günlük güncellenemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Günlük güncellenemedi.'
     });
   }
 };
@@ -124,9 +116,7 @@ exports.deleteEntry = async (req, res) => {
   } catch (err) {
     console.error('[journalController] deleteEntry error:', err.message);
     res.status(500).json({ 
-      message: 'Kayıt silinemedi.',
-      debug_error: err.message,
-      debug_code: err.code
+      message: 'Kayıt silinemedi.'
     });
   }
 };
