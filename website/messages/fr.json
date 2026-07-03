@@ -1,0 +1,203 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "features": "Fonctionnalités",
+    "download": "Télécharger",
+    "privacy": "Politique de confidentialité",
+    "terms": "Conditions d'utilisation",
+    "contact": "Contact",
+    "deleteAccount": "Supprimer le compte",
+    "blog": "Blog",
+    "faq": "FAQ",
+    "changelog": "Journal des modifications",
+    "getApp": "Obtenir l'app"
+  },
+  "hero": {
+    "badge": "Disponible maintenant sur l'App Store",
+    "headline": "Votre monde intérieur,\nenfin compris.",
+    "subheadline": "Selfplace est un compagnon calme et émotionnellement intelligent qui vous aide à vous reconnecter avec vous-même grâce à des réflexions quotidiennes, des check-ins d'humeur et des conseils doux.",
+    "ctaDownload": "Télécharger pour iOS",
+    "ctaLearn": "En savoir plus",
+    "trustedBy": "Approuvé par des milliers d'utilisateurs",
+    "appStore": "App Store",
+    "googlePlay": "Google Play",
+    "comingSoon": "Bientôt disponible"
+  },
+  "features": {
+    "badge": "Ce qu'il y a dedans",
+    "headline": "Tout ce dont vous avez besoin\npour vous comprendre.",
+    "subheadline": "Selfplace combine des outils de bien-être émotionnel dans un espace paisible et privé — conçu pour une utilisation quotidienne.",
+    "items": {
+      "checkin": {
+        "title": "Check-ins quotidiens",
+        "description": "Suivez votre état émotionnel chaque jour avec des invites douces et des cartes d'humeur."
+      },
+      "mascot": {
+        "title": "Compagnon vivant",
+        "description": "Votre mascotte émotionnelle s'adapte à l'heure de la journée et à votre humeur."
+      },
+      "ai": {
+        "title": "Insights IA",
+        "description": "Recevez des résumés réfléchis et alimentés par l'IA de vos schémas émotionnels — privés et personnalisés."
+      },
+      "astrology": {
+        "title": "Astrologie & Énergie",
+        "description": "Explorez des lectures d'énergie quotidiennes liées à votre signe zodiacal et aux phases lunaires."
+      },
+      "cards": {
+        "title": "Cartes de guidance",
+        "description": "Tirez d'un deck de cartes de guidance émotionnelle interactive pour ancrer vos intentions."
+      },
+      "privacy": {
+        "title": "Privé par conception",
+        "description": "Vos réflexions vous appartiennent. Aucune publicité ni partage de données tierces."
+      }
+    }
+  },
+  "screenshots": {
+    "badge": "Voyez-le en action",
+    "headline": "Un espace calme conçu\npour vous.",
+    "subheadline": "Chaque écran est conçu pour le confort, la clarté et la résonance émotionnelle.",
+    "captions": {
+      "home": "Accueil — Votre compagnon quotidien",
+      "checkin": "Check-in — Comment vous sentez-vous?",
+      "journal": "Voyage — Votre chronologie émotionnelle",
+      "astrology": "Astrologie — Lectures d'énergie cosmique"
+    }
+  },
+  "download": {
+    "badge": "Disponible maintenant",
+    "headline": "Commencez votre\nvoyage intérieur.",
+    "subheadline": "Téléchargez Selfplace gratuitement. Votre premier pas vers la clarté émotionnelle commence ici.",
+    "appStore": "Télécharger sur l'App Store",
+    "googlePlay": "Disponible sur Google Play",
+    "googlePlaySoon": "Bientôt disponible sur Android",
+    "free": "Téléchargement gratuit",
+    "premium": "Fonctionnalités premium disponibles"
+  },
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "lastUpdated": "Dernière mise à jour : 30 avril 2026"
+  },
+  "terms": {
+    "title": "Conditions d'utilisation",
+    "lastUpdated": "Dernière mise à jour : 30 avril 2026"
+  },
+  "contact": {
+    "title": "Contactez-nous",
+    "headline": "Nous serions ravis\nde vous entendre.",
+    "subheadline": "Vous avez une question, des commentaires ou besoin d'aide ? Nous répondons généralement sous 48 heures.",
+    "emailLabel": "E-mail d'assistance",
+    "email": "selfplace.support@gmail.com",
+    "responseTime": "sous 48 heures",
+    "responseTimeLabel": "Délai de réponse",
+    "supportBadge": "Support",
+    "deleteAccount": "Besoin de supprimer votre compte ?",
+    "deleteAccountLink": "Visitez notre page de suppression de compte",
+    "privacyNote": "Pour les demandes liées à la confidentialité, veuillez vous référer à notre <privacyLink>Politique de confidentialité</privacyLink>."
+  },
+  "deleteAccount": {
+    "title": "Supprimer votre compte",
+    "headline": "Suppression de compte",
+    "subheadline": "Nous respectons votre droit de contrôler vos données.",
+    "badge": "Gestion du compte",
+    "recommended": "Recommandé",
+    "inApp": {
+      "title": "Supprimer depuis l'application",
+      "description": "La façon la plus simple de supprimer votre compte est directement depuis l'application Selfplace.",
+      "steps": [
+        "Ouvrez Selfplace sur votre appareil",
+        "Allez dans Profil → Paramètres",
+        "Appuyez sur Confidentialité & Données",
+        "Appuyez sur Supprimer mon compte",
+        "Confirmez la suppression"
+      ]
+    },
+    "byEmail": {
+      "title": "Demander la suppression par e-mail",
+      "description": "Vous pouvez également demander la suppression de votre compte en envoyant un e-mail à notre équipe d'assistance.",
+      "email": "selfplace.support@gmail.com",
+      "subject": "Demande de suppression de compte",
+      "note": "Veuillez inclure l'adresse e-mail associée à votre compte. Nous traiterons votre demande dans les 30 jours."
+    },
+    "deleted": {
+      "title": "Ce qui est supprimé",
+      "items": [
+        "Votre compte et vos informations de profil",
+        "Toutes les entrées de journal et réflexions",
+        "Tout l'historique des check-ins d'humeur",
+        "Paramètres et préférences personnalisés",
+        "Historique des conversations IA",
+        "Données astrologiques et énergétiques"
+      ]
+    },
+    "retained": {
+      "title": "Ce qui peut être conservé",
+      "description": "Nous pouvons conserver certaines données à des fins légales et de conformité jusqu'à 90 jours après la suppression :",
+      "items": [
+        "Enregistrements de transactions requis par la loi",
+        "Journaux de sécurité pour la prévention des fraudes",
+        "Données d'analyse anonymisées et agrégées"
+      ],
+      "note": "Ces données ne peuvent pas être reliées à vous personnellement après la suppression du compte."
+    },
+    "contact": {
+      "title": "Des questions ?",
+      "description": "Si vous avez des questions sur la suppression des données, contactez-nous à",
+      "email": "selfplace.support@gmail.com"
+    }
+  },
+  "footer": {
+    "tagline": "Votre monde intérieur, enfin compris.",
+    "legal": "© 2026 Selfplace. Tous droits réservés.",
+    "madeWith": "Fait avec",
+    "forYourInnerWorld": "pour votre monde intérieur",
+    "links": {
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "contact": "Contact",
+      "deleteAccount": "Supprimer le compte"
+    }
+  },
+  "common": {
+    "backToHome": "Retour à l'accueil",
+    "learnMore": "En savoir plus",
+    "getStarted": "Commencer"
+  },
+  "metadata": {
+    "siteName": "Selfplace",
+    "defaultTitle": "Selfplace — Votre monde intérieur, enfin compris",
+    "defaultDescription": "Selfplace est une application calme et émotionnellement intelligente pour les réflexions quotidiennes, les check-ins d'humeur et la croissance personnelle.",
+    "privacyTitle": "Politique de confidentialité — Selfplace",
+    "privacyDescription": "Découvrez comment Selfplace collecte, utilise et protège vos données personnelles.",
+    "termsTitle": "Conditions d'utilisation — Selfplace",
+    "termsDescription": "Lisez les conditions d'utilisation de l'application Selfplace.",
+    "contactTitle": "Contact — Selfplace",
+    "contactDescription": "Contactez l'équipe Selfplace pour du support ou des commentaires.",
+    "deleteAccountTitle": "Supprimer le compte — Selfplace",
+    "deleteAccountDescription": "Apprenez comment supprimer votre compte Selfplace et ce qui arrive à vos données.",
+    "blogTitle": "Blog — Selfplace",
+    "blogDescription": "Lisez les dernières mises à jour, guides et articles de l'équipe Selfplace.",
+    "faqTitle": "FAQ — Selfplace",
+    "faqDescription": "Questions fréquemment posées sur les réflexions quotidiennes et le compagnon Selfplace.",
+    "changelogTitle": "Journal des modifications — Selfplace",
+    "changelogDescription": "Suivez les mises à jour, améliorations et versions de l'application Selfplace."
+  },
+  "blog": {
+    "title": "Blog",
+    "subtitle": "Les dernières nouvelles, analyses et histoires de l'équipe Selfplace.",
+    "noPosts": "Aucun article de blog publié pour le moment.",
+    "backToBlog": "Retour au Blog"
+  },
+  "faq": {
+    "title": "Foire Aux Questions",
+    "subtitle": "Tout ce que vous devez savoir sur l'application de réflexion quotidienne Selfplace.",
+    "noQuestions": "Aucune question ajoutée pour le moment."
+  },
+  "changelog": {
+    "title": "Journal des modifications",
+    "subtitle": "Suivez les dernières mises à jour, corrections et améliorations de l'application Selfplace.",
+    "noLogs": "Aucune mise à jour enregistrée pour le moment.",
+    "releasedOn": "Publié le"
+  }
+}

@@ -443,7 +443,6 @@ exports.updateEmotionalContinuity = async (userId, currentMessage, history) => {
       [userId]
     );
     if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
-      console.log(`[emotionalContextBuilder] Privacy Guard: User ${userId} excluded AI chat. Skipping emotional continuity update.`);
       return;
     }
 

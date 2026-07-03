@@ -220,11 +220,16 @@ exports.getWeeklyInsight = async (req, res) => {
 
     try {
       insight = await generateWeeklyInsight(userData, depthLevel, hasPartner);
-      console.log('[DEBUG] generateWeeklyInsight generated:', insight);
       // Store in DB
       await db.query(
         'INSERT INTO weekly_insights (user_id, text) VALUES ($1, $2)',
         [userId, insight]
+      );
+
+      // Track Weekly Insight Generated Event
+      const { trackEvent } = require('../services/eventEngine');
+      trackEvent(userId, 'WEEKLY_INSIGHT_GENERATED', 'major', {}).catch(err =>
+        console.error('[insightController] trackEvent error:', err.message)
       );
     } catch (aiErr) {
       console.error('[insightController] Weekly AI failed, using fallback:', aiErr.message);

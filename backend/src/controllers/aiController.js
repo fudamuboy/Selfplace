@@ -2,8 +2,7 @@ const db = require('../config/db');
 const OpenAI = require('openai');
 const { buildEmotionalContext, updateEmotionalContinuity } = require('../services/emotionalContextBuilder');
 const { extractCoupleMemory, updateIndividualBehavioralMemory, detectRelationshipResolutionState } = require('../services/coupleMemoryService');
-const { buildContinuityFollowUp, buildContinuityGreeting } = require('../services/relationshipContinuityEngine');
-const { buildEventTrigger } = require('../services/relationshipEventEngine');
+// relationshipEventEngine (buildEventTrigger) removed — Conversation Director is the sole event pipeline.
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -193,259 +192,69 @@ Kural:
 `;
     }
 
-    // ── Relationship Continuity Follow-up ──────────────────────
-    let continuityInstruction = '';
-    let eventTriggerInstruction = '';
-    
-    // Continuity and Event Triggers are premium features (Plus/Signature)
-    if (hasPartner && connectionId && !isClarificationRequest && plan !== 'free') {
-      try {
-        const { shouldFollowUp, followUpInstruction } = await buildContinuityFollowUp(userId, connectionId);
-        if (shouldFollowUp) {
-          continuityInstruction = followUpInstruction;
-        }
-
-        const { hasEvent, triggerInstruction } = await buildEventTrigger(userId, connectionId);
-        if (hasEvent) {
-          eventTriggerInstruction = triggerInstruction;
-        }
-      } catch (e) {
-        console.error('[aiController] continuity/event error:', e.message);
-      }
-    }
-
-    // ── Relationship Resolution State Detection ──────────────────────────
-    // Detects: ACTIVE_CONFLICT | IMPROVING | RESOLVED | RECONNECTING | STABLE
-    // Runs synchronously (no API call — keyword-based, fast)
-    let resolutionStateSection = '';
-    let resolutionState = 'STABLE';
-
-    if (hasPartner) {
-      try {
-        const stateResult = await detectRelationshipResolutionState(history, message, connectionId);
-        resolutionState = stateResult.state;
-
-        const stateInstructions = {
-          ACTIVE_CONFLICT: `
-━━━━━━━━━━━━━━━━━━━
-İLİŞKİ DURUMU: AKTİF GERİLİM
-━━━━━━━━━━━━━━━━━━━
-Bu ilişkide şu an aktif bir gerilim veya çatışma yaşanıyor.
-Öncelikli mod: Sakinleştirici, destekleyici, güvenli alan yaratma.
-
-YAPMAN GEREKENLER:
-✓ Duyguları yargılamadan kabul et
-✓ Sakin bir alan yarat
-✓ İletişim için yumuşak öneriler sun
-✓ Gerilimi artıracak tavsiyelerden kaçın
-✓ Suçlamadan değil, "nasıl hissediyorsun" ekseninde kal
-
-Öneriler (doğal ve zamanında):
-- "Belki şu an onu düzeltmeye çalışmaktan çok anlamaya çalışmak daha iyi gelebilir."
-- "Savunmaya geçmeden sadece onu dinlemek ilişkinizi yumuşatabilir."
-- "Konuşmaya suçlamadan değil, nasıl hissettiğini anlatarak başlayabilirsin."
-- "Şu an çözümden çok sakin bir alan yaratmanız daha önemli olabilir."
-`,
-          IMPROVING: `
-━━━━━━━━━━━━━━━━━━━
-İLİŞKİ DURUMU: İYİLEŞİYOR
-━━━━━━━━━━━━━━━━━━━
-Durum iyiye gidiyor. İlerleme var. Bu ilerlemeyi nazikçe fark et ve destekle.
-
-YAPMAN GEREKENLER:
-✓ İlerlemeyi sessizce kutla
-✓ Duygusal ağırlığı azalt
-✓ Sağlıklı devamı teşvik et
-✓ Eskiye dönme — ilerlemeyi pekiştir
-✓ Işığı göster, ağırlığı taşıma
-
-Öneriler:
-- "En azından konuşabilmiş olmanız güzel bir adım 🤍"
-- "Bu tür anlarda birbirinize alan açmak çok önemli."
-- "Yavaş yavaş toparlanıyor gibi görünüyor. Bu iyi 🌿"
-`,
-          RESOLVED: `
-━━━━━━━━━━━━━━━━━━━
-İLİŞKİ DURUMU: ÇÖZÜLDÜ
-━━━━━━━━━━━━━━━━━━━
-Bu konu çözülmüş veya geçmiş. Artık geride bırakılması gerekiyor.
-
-MUTLAK KURALLAR:
-✗ Eski çatışmayı yeniden açma
-✗ "Tartışmanıza dönersek..." gibi geri dönüşler yapma
-✗ Geçmiş problemi sürekli hatırlatma
-✗ Duygusal yarayı defalarca kanatma
-
-YAPMAN GEREKENLER:
-✓ Toparlanmayı sevinerek fark et
-✓ Sıcaklık ve ilerlemeye yönel
-✓ Birbirinizi iyi hissettiren şeylere odaklan
-✓ Geleceğe ve bağlantıya bak
-✓ Hafifle — ilişki yeniden nefes alıyor
-
-Geçiş örnekleri:
-- "Bunun biraz toparlanmasına sevindim 🤍 Şimdi birbirinizi iyi hissettiren şeylere daha çok odaklanabilirsiniz."
-- "Bazen en iyi şey sadece bir sayfayı çevirip devam etmek 🌿"
-- "Geçti — şu an yanımdasın, bu güzel 🤍"
-`,
-          RECONNECTING: `
-━━━━━━━━━━━━━━━━━━━
-İLİŞKİ DURUMU: YENİDEN BAĞLANMA
-━━━━━━━━━━━━━━━━━━━
-Bir çatışma sonrası ilişki yeniden kurulmaya çalışılıyor.
-Bu kırılgan ve değerli bir an.
-
-YAPMAN GEREKENLER:
-✓ Bu çabayı nazikçe destekle
-✓ Küçük adımları büyük cesaret olarak gör
-✓ Pratik ve sıcak öneriler sun
-✓ Süreci zorlamadan yönlendir
-
-Öneriler:
-- "Bugün ona küçük bir mesaj bırakmak iyi gelebilir."
-- "Bazen küçük bir jest uzun açıklamalardan daha etkili olabiliyor."
-- "Adım atmak istemek bile başlı başına önemli bir şey 🤍"
-- "Yeniden yakınlaşmak için mükemmel bir an bekleme — küçük bir şey bile yeter."
-`,
-          STABLE: `
-━━━━━━━━━━━━━━━━━━━
-İLİŞKİ DURUMU: DENGELİ
-━━━━━━━━━━━━━━━━━━━
-İlişki şu an dengeli ve sakin görünüyor.
-Derinlik, merak ve sıcaklık modunda kal.
-`,
-        };
-
-        resolutionStateSection = stateInstructions[resolutionState] || stateInstructions.STABLE;
-      } catch (e) {
-        console.error('[aiController] resolution state detection error:', e.message);
-      }
-    }
-
-    // Calculate dynamic conversational energy & pacing guide based on context and plan
-    const hour = new Date().getHours();
-    let conversationEnergyGuide = '';
-    if (isDistressed) {
-      conversationEnergyGuide = 'SLOW, REASSURING, SAFE, GROUNDING. User is experiencing stress/anxiety. Be a quiet sanctuary. Focus on calming, gentle support without complex questions.';
-    } else {
-      if (hour >= 5 && hour < 11) {
-        if (plan === 'plus') {
-          conversationEnergyGuide = 'HOPEFUL, LIGHTER, GROUNDED. Help them step into their morning with an optimistic but grounded and light presence.';
-        } else if (plan === 'signature') {
-          conversationEnergyGuide = 'SOFT, LIGHT, HOPEFUL, GROUNDED. Calm morning flow, encouraging light presence and grounded breathing.';
-        } else {
-          conversationEnergyGuide = 'SOFT, LIGHT, HOPEFUL. A pleasant morning greeting, simple and encouraging.';
-        }
-      } else if (hour >= 11 && hour < 18) {
-        conversationEnergyGuide = 'GENTLE, CURIOUS, NATURAL. Midday flow; support self-reflection and emotional exploration.';
-      } else if (hour >= 18 && hour < 23) {
-        conversationEnergyGuide = 'CALM, REFLECTIVE, WARM. Evening energy; encourage wind-down and processing their thoughts.';
-      } else {
-        if (plan === 'signature') {
-          conversationEnergyGuide = 'QUIETER, SLOWER, CALMER, EMOTIONALLY SAFER. Late night energy; keep responses extremely quiet, slow-paced, simple, and peaceful. Stay present gently.';
-        } else if (plan === 'plus') {
-          conversationEnergyGuide = 'QUIET, REFLECTIVE, WARM, COMFORTING. Mid-night flow; encourage peaceful rest and wind-down.';
-        } else {
-          conversationEnergyGuide = 'QUIET, COMFORTING. Simple night greeting, soft and peaceful.';
-        }
-      }
-    }
-
-    // ── LAYER 3: Conversation Intent & Mode Switcher ─────────────────
-    let conversationMode = 'COMPANION';
-    
-    // Check if Reflection Mode (user is reflecting on journals/cards or mood is reflective)
-    const isReflective = recentActivity && (recentActivity.recent_journals > 0 || recentActivity.recent_cards > 0);
-    if (isReflective && !isDistressed) {
-      conversationMode = 'REFLECTION';
-    }
-
-    // Support Mode overrides everything if there's conflict or distress
-    if (isDistressed || resolutionState === 'ACTIVE_CONFLICT') {
-      conversationMode = 'SUPPORT';
-    }
-    
-    let modeRules = '';
-    if (conversationMode === 'SUPPORT') {
-      modeRules = `
-- MOD: DESTEK (SUPPORT)
-- Kullanıcı stresli veya üzgün. Çözüm sunmaya çalışma, sadece duygusal olarak yanında ol.
-- Terapist gibi değil, şefkatli bir yoldaş gibi dinle ve alanı güvenli tut.
-`;
-    } else if (conversationMode === 'REFLECTION') {
-      modeRules = `
-- MOD: İÇSEL YANSIMA (REFLECTION)
-- Kullanıcı son zamanlarda içsel çalışmalar (günlük/kart) yapıyor veya derin bir modda.
-- Derin, düşündürücü ve zihin açıcı doğal sorular sor. Kendi gerçeğini bulmasına yardımcı ol.
-`;
-    } else {
-      modeRules = `
-- MOD: YOLDAŞLIK (COMPANION / CURIOSITY-FIRST)
-- Kullanıcı rahat. Terapist veya koç modunu KESİNLİKLE KAPAT.
-- Yürüyüş yap, nefes al, meditasyon yap gibi klişe öneriler YASAK.
-- Gerçekten meraklı bir arkadaş ol. Anıları, hedefleri, güncel ilgileri hakkında ilginç sorular sor.
-- Sohbetin sıradan, canlı ve insan gibi akmasını sağla.
-`;
-    }
-
-    let layer3 = `### [LAYER 3: CONVERSATION INTENT & SİSTEM YÖNERGELERİ]\n`;
-    layer3 += modeRules;
-    layer3 += `\n${eventTriggerInstruction}`;
-    layer3 += `\n${continuityInstruction}`;
-    layer3 += `\n${resolutionStateSection}`;
-    layer3 += `\n- Denge Kuralı: İlişki konuları sohbete tamamen hakim olmamalı (maks %30). Bireysel hayata da odaklan.`;
-    layer3 += `\n- Geçmiş Hafıza Kuralı: Eski ve çözülmüş sorunları tekrar ısıtıp gündeme getirme.`;
-    layer3 += `\n- Onboarding Hedefleri Rehberi: Kullanıcının onboarding hedeflerini (Layer 1 içindeki Onboarding Hedefleri alanını) sohbette doğrudan telaffuz etmeden veya kullanıcıya hatırlatmadan, uzun vadeli rehberlik sinyalleri olarak kullan. Bu hedefler; soru sorma tarzını, merak duyulan konuları, sunulan önerileri ve ilişki tavsiyelerini arka planda şekillendirmelidir (örneğin stres azaltma hedefi varsa daha sakinleştirici ve hafif yönlendirmeler yap, kendini anlama hedefi varsa derin öz-yansıma soruları sor).`;
-    layer3 += `\n- Enerji & Zaman Rehberi: ${conversationEnergyGuide}`;
-    layer3 += `\n${partnerIdentitySection}`;
+    let userProfileDirectives = '';
+    userProfileDirectives += `\n- Denge Kuralı: İlişki konuları sohbete tamamen hakim olmamalı (maks %30). Bireysel hayata da odaklan.`;
+    userProfileDirectives += `\n- Geçmiş Hafıza Kuralı: Eski ve çözülmüş sorunları tekrar ısıtıp gündeme getirme.`;
+    userProfileDirectives += `\n- Onboarding Hedefleri Rehberi: Kullanıcının onboarding hedeflerini sohbette doğrudan telaffuz etmeden, uzun vadeli rehberlik sinyalleri olarak kullan.`;
+    userProfileDirectives += `\n${partnerIdentitySection}`;
 
     // Add Journey Personality behavioral directives if data exists
     if (journeyData && journeyData.scores) {
       const sc = journeyData.scores;
       let behavioralDirectives = `\n━━━━━━━━━━━━━━━━━━━\nKULLANICI KİŞİLİK REHBERİ (BEHAVIORAL DIRECTIVES)\n━━━━━━━━━━━━━━━━━━━\n`;
       
-      // 1. Adapt pacing to the user's Journey profile (energy_rhythm)
-      if (sc.energy_rhythm > 2) {
-        behavioralDirectives += `- İletişim Temposu: Kullanıcı dinamik ve yoğun duygusal ritimlere sahip. Konuşma temposunu canlı, uyanık, akıcı ve aktif tut.\n`;
-      } else if (sc.energy_rhythm < -2) {
-        behavioralDirectives += `- İletişim Temposu: Kullanıcı sakin, dingin ve dengeli ritimleri tercih ediyor. Yanıtlarını daha yavaş, son derece dengeli, huzurlu, gürültüsüz ve kelime sayısı az tut.\n`;
-      } else {
-        behavioralDirectives += `- İletişim Temposu: Dengeli ve doğal bir tempoda kal.\n`;
-      }
+      if (sc.energy_rhythm > 2) behavioralDirectives += `- İletişim Temposu: Kullanıcı dinamik ve yoğun duygusal ritimlere sahip. Konuşma temposunu canlı, uyanık, akıcı ve aktif tut.\n`;
+      else if (sc.energy_rhythm < -2) behavioralDirectives += `- İletişim Temposu: Kullanıcı sakin, dingin ve dengeli ritimleri tercih ediyor. Yanıtlarını daha yavaş, son derece dengeli, huzurlu, gürültüsüz ve kelime sayısı az tut.\n`;
+      else behavioralDirectives += `- İletişim Temposu: Dengeli ve doğal bir tempoda kal.\n`;
 
-      // 2. Adapt reflection depth to the user's curiosity score
-      if (sc.curiosity > 2) {
-        behavioralDirectives += `- Derinlik: Kullanıcı merak duygusu yüksek, yeni deneyimlere ve keşiflere açık. Daha derin içgörüler sun, yüzeysel kalma, düşündürücü açık uçlu sorular sor.\n`;
-      } else if (sc.curiosity < -2) {
-        behavioralDirectives += `- Derinlik: Kullanıcı istikrarlı, düzenli ve planlı yapıları tercih eden biri. Çok soyut teorilere veya fazla felsefi/derin analizlere girmeden net, pratik ve somut kal.\n`;
-      }
+      if (sc.curiosity > 2) behavioralDirectives += `- Derinlik: Merak duygusu yüksek. Daha derin içgörüler sun, yüzeysel kalma, açık uçlu sorular sor.\n`;
+      else if (sc.curiosity < -2) behavioralDirectives += `- Derinlik: İstikrarlı ve düzenli yapıları tercih ediyor. Felsefi analizlere girmeden net ve pratik kal.\n`;
 
-      // 3. Adapt emotional validation style to the user's attachment style
-      if (sc.attachment > 2) {
-        behavioralDirectives += `- Duygusal Doğrulama: Kullanıcı yakınlık, güvence ve sık temas arayan bir yapıya sahip. Yanıtlarında şefkati, duygusal güvenceyi, desteği ve yanında olduğunu açıkça hissettir.\n`;
-      } else if (sc.attachment < -2) {
-        behavioralDirectives += `- Duygusal Doğrulama: Kullanıcı bireysel alanına ve bağımsızlığına son derece düşkün. Duygusal sınırlarına saygı duy, yapışkan veya aşırı şefkatli/korumacı bir ton kullanmaktan kaçın.\n`;
-      }
+      if (sc.attachment > 2) behavioralDirectives += `- Duygusal Doğrulama: Yakınlık arayan bir yapı. Şefkati ve güvenceyi açıkça hissettir.\n`;
+      else if (sc.attachment < -2) behavioralDirectives += `- Duygusal Doğrulama: Bağımsızlığına düşkün. Duygusal sınırlarına saygı duy, yapışkan olma.\n`;
 
-      // 4. Adapt communication style to the user's emotional expression tendency
-      if (sc.emotional_expression > 2) {
-        behavioralDirectives += `- İletişim Stili: Kullanıcı duygularını açıkça ifade eden ve paylaşan biri. Sen de hislerine ortak ol, sıcak ve samimi duygusal ifadeler kullan.\n`;
-      } else if (sc.emotional_expression < -2) {
-        behavioralDirectives += `- İletişim Stili: Kullanıcı duygularını kendi içinde yaşamaya eğilimli ve kapalı. Duygularını zorlama, üstüne gitme, daha mesafeli ama güven veren sakin bir tonda kal.\n`;
-      }
+      if (sc.emotional_expression > 2) behavioralDirectives += `- İletişim Stili: Duygularını açıkça ifade eden biri. Sen de hislerine ortak ol, sıcak ifadeler kullan.\n`;
+      else if (sc.emotional_expression < -2) behavioralDirectives += `- İletişim Stili: Kendi içinde yaşamaya eğilimli. Üstüne gitme, daha mesafeli ama güven veren sakin bir tonda kal.\n`;
       
-      layer3 += behavioralDirectives;
+      userProfileDirectives += behavioralDirectives;
     }
 
-    const systemPrompt = `# SELFPLACE — AI COMPANION (3-LAYER DOSSIER ARCHITECTURE)
+    const { getLivingContext } = require('../services/livingContextEngine');
+    const { getBrainDirectives } = require('../services/conversationBrain');
+    
+    const [liveContext, brainRes] = await Promise.all([
+      getLivingContext(userId),
+      getBrainDirectives(userId, connectionId, message, history, plan, isDistressed)
+    ]);
+    const { directorDossier, eventIds, brainMetadata, brainState } = brainRes;
 
-Sen Selfplace'in yapay zeka yoldaşısın. Aşağıdaki katmanları referans alarak yanıt üret:
+    const systemPrompt = `# SELFPLACE — AI COMPANION WITH LIVING CONTEXT & EVENT INTELLIGENCE
 
-${layer1_individual}
+Aşağıdaki "SELFPLACE LIVE CONTEXT" verilerini kaynak alarak kullanıcıyla doğal, samimi bir Türkçe ile konuş:
 
-${layer2_relationship}
+${liveContext}
 
-${layer3}
+${directorDossier}
+
+${userProfileDirectives}
+
+━━━━━━━━━━━━━━━━━━━
+HALÜSİNASYON ENGELLEME VE GERÇEKLİK KURALLARI (STRICT REALITY DIRECTIVES)
+━━━━━━━━━━━━━━━━━━━
+1. Yalnızca yukarıdaki "SELFPLACE LIVE CONTEXT" içinde sağlanan gerçek verileri temel al. Bu verilerde yer almayan hiçbir ilişki durumunu, tartışmayı, gerilimi, duyguyu, günlük girdisini, anıyı veya kişiyi kendin UYDURMA (hallucination kesinlikle yasaktır).
+2. Eğer bir bilgi (örneğin partnerin ne hissettiği, aranızda gerginlik olup olmadığı) Live Context içinde bulunmuyorsa, tahmin etme, uydurma; gerekirse kullanıcıya doğrudan ama nazikçe sor.
+3. Partnerden bahsederken "arkadaşın", "eşin" veya "ortağın" gibi jenerik kelimeler kullanma. Live Context'te partnerin adı belirtilmişse (örn: "Android"), ona mutlaka ismiyle hitap et.
+4. Bilgi Öncelik Sıralaması:
+   1. Canlı uygulama durumu (Live Context)
+   2. İlişki hafızası
+   3. Kayıtlı duygusal bellek
+   4. Mevcut konuşma geçmişi
+   5. Kendi yapay zeka çıkarımların
+
+━━━━━━━━━━━━━━━━━━━
+PROAKTİF FARKINDALIK (EVENT-DRIVEN CONVERSATION)
+━━━━━━━━━━━━━━━━━━━
+- Eğer Kronolojik İlişki Zaman Çizelgesi'nde (Timeline) yeni bir olay (örn: yeni bağlantı kurulması, partnerin testi bitirmesi, check-in yapması, yeni haftalık rapor oluşması) varsa ve bu henüz konuşulmadıysa, söze doğal bir şekilde bu olayla gir (Örn: "Android ile bağlandığınızı fark ettim bugün, çok sevindim ❤️" veya "Bugün ikiniz de yansımayı tamamlamışsınız, harika görünüyorsunuz.").
 
 ━━━━━━━━━━━━━━━━━━━
 CORE IDENTITY
@@ -463,7 +272,7 @@ Rule 2: NO poetry, NO mysticism, NO horoscopes, NO therapy scripts. Keep it real
 Rule 3: Match their energy.
 Rule 4: NEVER use generic "Evren" or "Işık" clichés.
 
-${clarificationInstruction}${continuityInstruction}
+${clarificationInstruction}
 Her zaman günlük, doğal bir Türkçe ile yanıt ver.`;
 
     const messages = [
@@ -488,6 +297,14 @@ Her zaman günlük, doğal bir Türkçe ile yanıt ver.`;
       'INSERT INTO ai_messages (conversation_id, sender, message) VALUES ($1, $2, $3)',
       [convId, 'ai', aiResponse]
     );
+
+    // 6b. Acknowledge timeline events and update Brain State
+    const { updateBrainState } = require('../services/conversationBrain');
+    try {
+      await updateBrainState(userId, connectionId, eventIds, brainMetadata, brainState);
+    } catch (brainErr) {
+      console.error('[aiController] Failsafe: brain state update failed:', brainErr.message);
+    }
 
     // 7. Background: Memory & Emotional Continuity Extraction
     let excludeAiChat = false;
@@ -519,8 +336,13 @@ Her zaman günlük, doğal bir Türkçe ile yanıt ver.`;
           console.error('[aiController] Background emotional continuity update error:', err.message)
         );
       }
+
+      // Update follow-ups and promises in the background
+      const { updateFollowUpsAndPromises } = require('../services/livingContextEngine');
+      updateFollowUpsAndPromises(userId, message, aiResponse).catch(err =>
+        console.error('[aiController] Background follow ups update error:', err.message)
+      );
     } else {
-      console.log(`[aiController] Privacy Guard: exclude_ai_chat is active for User ${userId}. Skipping all background memory extraction tasks.`);
     }
 
     res.json({
@@ -548,7 +370,6 @@ exports.extractMemory = async (userId, text) => {
       [userId]
     );
     if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
-      console.log(`[aiController] Privacy Guard: User ${userId} excluded AI chat. Skipping individual memory extraction.`);
       return;
     }
 
@@ -607,110 +428,35 @@ exports.getReflections = async (req, res) => {
  */
 exports.getGreeting = async (req, res) => {
   const userId = req.user.id;
-  const now = new Date();
-  const hour = now.getHours();
-
   try {
-    const { isDistressed, hasPartner, connectionId } = await buildEmotionalContext(userId);
+    const { isDistressed, hasPartner, connectionId, planType: plan } = await buildEmotionalContext(userId);
 
-    const lastEntryRes = await db.query(
-      "SELECT mood, created_at FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
-      [userId]
-    );
-    const lastEntry = lastEntryRes.rows[0];
+    const { getBrainDirectives, updateBrainState } = require('../services/conversationBrain');
+    
+    // Pass empty history, treat "selam" as the generic trigger
+    const { directorDossier, eventIds, brainMetadata, brainState } = await getBrainDirectives(userId, connectionId, "selam", [], plan, isDistressed);
 
-    let timeCategory = 'general';
-    if (hour >= 5 && hour < 11) timeCategory = 'morning';
-    else if (hour >= 11 && hour < 18) timeCategory = 'afternoon';
-    else if (hour >= 18 && hour < 23) timeCategory = 'evening';
-    else timeCategory = 'night';
-
-    const pool = {
-      morning: [
-        "Yeni güne nasıl başladın? 🌿",
-        "Bugün içinde nasıl bir his var?",
-        "Güneş yavaşça yükselirken zihnin nasıl? 🌤️",
-        "Bu sabah seni gülümseten küçük bir şey oldu mu?"
-      ],
-      afternoon: [
-        "Günün nasıl geçiyor? Seni dinlemek için buradayım. 🌿",
-        "Şu an zihninde neler var?",
-        "Günün ortasında kendine küçük bir nefes alanı açmak ister misin?",
-        "Nasıl hissediyorsun? Paylaşmak istediğin bir şey var mı?"
-      ],
-      evening: [
-        "Günün yavaşça kapanırken nasılsın? 🌿",
-        "Akşamın bu sakinliğinde neler hissediyorsun? ✨",
-        "Bugünün tortusu zihninde nasıl bir yer bıraktı?",
-        "Bugün kendine nasıl davrandın?"
-      ],
-      night: [
-        "Bu gece zihnin biraz dolu mu? 🌙",
-        "Sadece konuşmak istersen buradayım.",
-        "Gecenin bu sessizliğinde paylaşmak istediğin bir şey var mı?",
-        "Yıldızlar dışarıdayken kalbinde neler var? ✨"
-      ],
-      general: [
-        "Buradayım, seni dinliyorum. 🌿",
-        "Şu an aklından neler geçiyor?",
-        "Bir şeyler paylaşmak ister misin?",
-        "Kendini nasıl hissediyorsun?"
-      ]
-    };
-
-    let selectedGreeting = "";
-
-    // Priority 0: Relationship continuity follow-up (if connected + unresolved events)
-    if (hasPartner && connectionId) {
-      try {
-        const continuityGreeting = await buildContinuityGreeting(userId, connectionId);
-        if (continuityGreeting) {
-          selectedGreeting = continuityGreeting;
-        }
-      } catch (e) {
-        console.error('[aiController] continuity greeting error:', e.message);
-      }
+    // Save the Brain's state so it accurately registers it picked a greeting mode
+    if (brainMetadata) {
+      await updateBrainState(userId, connectionId, eventIds, brainMetadata, brainState);
     }
 
-    // Priority 1: High distress greeting
-    const wasRecent = lastEntry && (now - new Date(lastEntry.created_at)) < 6 * 60 * 60 * 1000;
-    if (!selectedGreeting && wasRecent && isDistressed) {
-      selectedGreeting = `Biraz yorucu hissettiğini fark ettim... Şu an nasılsın? Seni dinlemek için buradayim. 🌿`;
-    }
-    // Priority 2: Low frequency (35% probability) micro-initiated relationship prompts if connected
-    else if (!selectedGreeting && hasPartner && Math.random() < 0.35) {
-      const partnerPrompts = {
-        morning: [
-          "Bugün partnerine/yakınına günaydın derken sesindeki o yumuşak tonu hissettirmek ister misin? 🌿",
-          "Yeni bir gün başlarken, bugün ilişkinizde sakin ve dinlendirici bir akış olmasını dilerim."
-        ],
-        afternoon: [
-          "Bugün partnerinle/yakınınla aranızdaki o tatlı akış nasıldı? Paylaşmak ister misin? 🤍",
-          "Günün ortasında, sevdiğin birinin varlığını hissetmek zihnini biraz hafifletiyor mu?"
-        ],
-        evening: [
-          "Akşamın bu sakinliğinde partnerinle/yakınınla geçirdiğin güzel bir anı hatırlamak sana nasıl hissettirir? ✨",
-          "Bugün partnerinle/yakınınla iletişiminiz nasıl geçti? Her şey yolunda mı? 🌿"
-        ],
-        night: [
-          "Günün yorgunluğu çökerken, bazen sessizce yan yana kalabilmek en güzel konuşmadır. Zihnin nasıl bu gece? 🌙",
-          "Bugün birbirinizin duygusal alanına alan açabildiğinizi hissediyor musun?"
-        ],
-        general: [
-          "Bugün partnerinle/yakınınla iletişimin nasıl geçti? Her şey yolunda mı? 🌿",
-          "İlişkinizde bugün kendinizi güvende ve duyulmuş hissettiniz mi? 🤍"
-        ]
-      };
-      const currentPartnerPool = partnerPrompts[timeCategory] || partnerPrompts['general'];
-      selectedGreeting = currentPartnerPool[Math.floor(Math.random() * currentPartnerPool.length)];
-    }
-    // Priority 3: Fallback standard time-of-day greeting
-    if (!selectedGreeting) {
-      const currentPool = pool[timeCategory] || pool['general'];
-      selectedGreeting = currentPool[Math.floor(Math.random() * currentPool.length)];
-    }
+    const systemPrompt = `# SELFPLACE GREETING GENERATOR
+Aşağıdaki "CONVERSATION BRAIN DIRECTIVE" yönergelerine uyarak kullanıcıyı kısa, doğal ve samimi bir Türkçe ile karşıla.
+Terapist veya koç gibi değil, gerçek ve şefkatli bir arkadaş gibi konuş.
+Sadece 1-2 cümlelik kısa bir karşılama yaz.
 
-    res.json({ greeting: selectedGreeting });
+${directorDossier}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'system', content: systemPrompt }],
+      temperature: 0.7,
+      max_tokens: 150
+    });
+
+    const aiResponse = completion.choices[0].message.content;
+    res.json({ greeting: aiResponse });
 
   } catch (err) {
     console.error('[aiController] getGreeting error:', err);

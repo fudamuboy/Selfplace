@@ -224,11 +224,23 @@ exports.respondInvite = async (req, res) => {
         [alias || null, connectionId]
       );
 
-      // Create timeline event
+      // Create shared timeline entry for the connection
       await db.query(
         `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr)
          VALUES ($1, 'created', 'İlk Bağlantı Kuruldu 🌿', 'Selfplace üzerinde duygusal uyum yolculuğunuz başladı.')`,
         [connectionId]
+      );
+
+      // Track a personalized CONNECTION_CREATED event for each user so the
+      // Conversation Director can mention it proactively in their next chat session.
+      // The connection status is already 'active' above, so trackEvent will find it.
+      const { trackEvent } = require('../services/eventEngine');
+      const requesterId = checkRes.rows[0].requester_id;
+      trackEvent(requesterId, 'CONNECTION_CREATED', 'major').catch(err =>
+        console.error('[relationshipController] trackEvent (requester) error:', err.message)
+      );
+      trackEvent(userId, 'CONNECTION_CREATED', 'major').catch(err =>
+        console.error('[relationshipController] trackEvent (recipient) error:', err.message)
       );
 
       return res.json({ message: 'Bağlantı başarıyla kabul edildi.' });

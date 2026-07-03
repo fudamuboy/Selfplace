@@ -3,11 +3,7 @@ const { FULL_POOL, DIMENSIONS, BASE_ARCHETYPES } = require('../data/personalityQ
 const { generatePersonalityArchetype, generatePersonalityDrift } = require('../services/aiService');
 const { resolveColorFamily } = require('../services/personalityColorEngine');
 
-console.log(
-  '[PERSONALITY ENGINE]',
-  FULL_POOL.length,
-  FULL_POOL.slice(0, 5).map(q => q.id)
-);
+
 
 exports.getTest = async (req, res) => {
   const { type } = req.params;
@@ -127,10 +123,7 @@ exports.getTest = async (req, res) => {
 
     testResponse.questions = selectedQuestions;
 
-    console.log(
-      '[ACTIVE TEST PAYLOAD]',
-      selectedQuestions.map(q => q.id)
-    );
+    
 
     res.json({ success: true, test: testResponse });
   } catch (err) {
@@ -224,6 +217,12 @@ exports.submitTest = async (req, res) => {
       [userId, 'journey', resultData, '{}']
     );
 
+    // Track Personality Completed Event
+    const { trackEvent } = require('../services/eventEngine');
+    trackEvent(userId, 'PERSONALITY_COMPLETED', 'major', { test_type: 'journey' }).catch(err =>
+      console.error('[personalityController] trackEvent error:', err.message)
+    );
+
     // Persistent Caching: Cache journey_identity_summary in emotional_memories
     try {
       const identitySummary = {
@@ -240,7 +239,6 @@ exports.submitTest = async (req, res) => {
          DO UPDATE SET memory_value = EXCLUDED.memory_value, updated_at = NOW()`,
         [userId, JSON.stringify(identitySummary)]
       );
-      console.log(`[personalityController] Cached journey_identity_summary for User ${userId}`);
     } catch (cacheErr) {
       console.error('[personalityController] Error caching journey_identity_summary:', cacheErr.message);
     }

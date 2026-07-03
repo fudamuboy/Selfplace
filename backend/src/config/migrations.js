@@ -414,7 +414,10 @@ exports.runMigrations = async () => {
         ADD COLUMN IF NOT EXISTS apple_original_transaction_id TEXT,
         ADD COLUMN IF NOT EXISTS apple_product_id VARCHAR(100),
         ADD COLUMN IF NOT EXISTS apple_receipt_data TEXT,
-        ADD COLUMN IF NOT EXISTS apple_latest_receipt TEXT
+        ADD COLUMN IF NOT EXISTS apple_latest_receipt TEXT,
+        ADD COLUMN IF NOT EXISTS platform VARCHAR(50) DEFAULT 'ios',
+        ADD COLUMN IF NOT EXISTS google_purchase_token TEXT,
+        ADD COLUMN IF NOT EXISTS google_order_id TEXT
     `);
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_sub_status_user ON subscription_status(user_id);

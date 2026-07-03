@@ -1,0 +1,203 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "download": "Download",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contact": "Contact",
+    "deleteAccount": "Delete Account",
+    "blog": "Blog",
+    "faq": "FAQ",
+    "changelog": "Changelog",
+    "getApp": "Get the App"
+  },
+  "hero": {
+    "badge": "Now available on the App Store",
+    "headline": "Your inner world,\nfinally understood.",
+    "subheadline": "Selfplace is a calm, emotionally intelligent companion that helps you reconnect with yourself through daily reflections, mood check-ins, and gentle guidance.",
+    "ctaDownload": "Download for iOS",
+    "ctaLearn": "Learn More",
+    "trustedBy": "Trusted by thousands of users",
+    "appStore": "App Store",
+    "googlePlay": "Google Play",
+    "comingSoon": "Coming Soon"
+  },
+  "features": {
+    "badge": "What's inside",
+    "headline": "Everything you need to\nunderstand yourself.",
+    "subheadline": "Selfplace combines emotional wellness tools into one peaceful, private space — designed for daily use.",
+    "items": {
+      "checkin": {
+        "title": "Daily Check-ins",
+        "description": "Track your emotional state each day with gentle prompts and mood cards. Build self-awareness one moment at a time."
+      },
+      "mascot": {
+        "title": "Living Companion",
+        "description": "Your emotional mascot adapts to the time of day and your mood, making every interaction feel warm and alive."
+      },
+      "ai": {
+        "title": "AI Insights",
+        "description": "Receive thoughtful, AI-powered summaries of your emotional patterns — private, personalized, and never judgmental."
+      },
+      "astrology": {
+        "title": "Astrology & Energy",
+        "description": "Explore daily energy readings tied to your zodiac sign, moon phases, and cosmic rhythms."
+      },
+      "cards": {
+        "title": "Guidance Cards",
+        "description": "Draw from a curated deck of interactive emotional guidance cards to anchor your intentions."
+      },
+      "privacy": {
+        "title": "Private by Design",
+        "description": "Your reflections are yours. End-to-end security with no advertising or third-party data sharing."
+      }
+    }
+  },
+  "screenshots": {
+    "badge": "See it in action",
+    "headline": "A calm space designed\nfor you.",
+    "subheadline": "Every screen is crafted for comfort, clarity, and emotional resonance.",
+    "captions": {
+      "home": "Home — Your daily companion",
+      "checkin": "Check-in — How are you feeling?",
+      "journal": "Journey — Your emotional timeline",
+      "astrology": "Astrology — Cosmic energy readings"
+    }
+  },
+  "download": {
+    "badge": "Available now",
+    "headline": "Begin your\ninner journey.",
+    "subheadline": "Download Selfplace for free. Your first step toward emotional clarity starts here.",
+    "appStore": "Download on the App Store",
+    "googlePlay": "Get it on Google Play",
+    "googlePlaySoon": "Coming soon to Android",
+    "free": "Free to download",
+    "premium": "Premium features available"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: April 30, 2026"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: April 30, 2026"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "headline": "We'd love to\nhear from you.",
+    "subheadline": "Have a question, feedback, or need support? We typically respond within 48 hours.",
+    "emailLabel": "Support Email",
+    "email": "selfplace.support@gmail.com",
+    "responseTime": "within 48 hours",
+    "responseTimeLabel": "Response Time",
+    "supportBadge": "Support",
+    "deleteAccount": "Need to delete your account?",
+    "deleteAccountLink": "Visit our account deletion page",
+    "privacyNote": "For privacy-related requests, please refer to our <privacyLink>Privacy Policy</privacyLink>."
+  },
+  "deleteAccount": {
+    "title": "Delete Your Account",
+    "headline": "Account Deletion",
+    "subheadline": "We respect your right to control your data. Account deletion is simple and permanent.",
+    "badge": "Account Management",
+    "recommended": "Recommended",
+    "inApp": {
+      "title": "Delete from the app",
+      "description": "The easiest way to delete your account is directly from the Selfplace app.",
+      "steps": [
+        "Open Selfplace on your device",
+        "Go to Profile → Settings",
+        "Tap Privacy & Data",
+        "Tap Delete My Account",
+        "Confirm deletion"
+      ]
+    },
+    "byEmail": {
+      "title": "Request deletion by email",
+      "description": "You can also request account deletion by sending an email to our support team.",
+      "email": "selfplace.support@gmail.com",
+      "subject": "Account Deletion Request",
+      "note": "Please include the email address associated with your account. We will process your request within 30 days."
+    },
+    "deleted": {
+      "title": "What gets deleted",
+      "items": [
+        "Your account and profile information",
+        "All journal entries and reflections",
+        "All mood check-in history",
+        "Personalized settings and preferences",
+        "AI conversation history",
+        "Astrological and energy data"
+      ]
+    },
+    "retained": {
+      "title": "What may be retained",
+      "description": "We may retain certain data for legal and compliance purposes for up to 90 days after deletion:",
+      "items": [
+        "Transaction records required by law (in-app purchase history)",
+        "Security logs for fraud prevention",
+        "Anonymized, aggregated analytics data"
+      ],
+      "note": "This data cannot be linked back to you personally after account deletion."
+    },
+    "contact": {
+      "title": "Questions?",
+      "description": "If you have any questions about data deletion, contact us at",
+      "email": "selfplace.support@gmail.com"
+    }
+  },
+  "footer": {
+    "tagline": "Your inner world, finally understood.",
+    "legal": "© 2026 Selfplace. All rights reserved.",
+    "madeWith": "Made with",
+    "forYourInnerWorld": "for your inner world",
+    "links": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "contact": "Contact",
+      "deleteAccount": "Delete Account"
+    }
+  },
+  "common": {
+    "backToHome": "Back to Home",
+    "learnMore": "Learn More",
+    "getStarted": "Get Started"
+  },
+  "metadata": {
+    "siteName": "Selfplace",
+    "defaultTitle": "Selfplace — Your Inner World, Finally Understood",
+    "defaultDescription": "Selfplace is a calm, emotionally intelligent app for daily reflections, mood check-ins, and personal growth. Available on the App Store.",
+    "privacyTitle": "Privacy Policy — Selfplace",
+    "privacyDescription": "Learn how Selfplace collects, uses, and protects your personal data.",
+    "termsTitle": "Terms of Service — Selfplace",
+    "termsDescription": "Read the Terms of Service for using the Selfplace app.",
+    "contactTitle": "Contact — Selfplace",
+    "contactDescription": "Get in touch with the Selfplace team for support or feedback.",
+    "deleteAccountTitle": "Delete Account — Selfplace",
+    "deleteAccountDescription": "Learn how to delete your Selfplace account and what happens to your data.",
+    "blogTitle": "Blog — Selfplace",
+    "blogDescription": "Read the latest updates, guides, and articles from the Selfplace team.",
+    "faqTitle": "FAQ — Selfplace",
+    "faqDescription": "Frequently asked questions about Selfplace daily reflections and companion app.",
+    "changelogTitle": "Changelog — Selfplace",
+    "changelogDescription": "Follow the updates, improvements, and releases for the Selfplace app."
+  },
+  "blog": {
+    "title": "Our Blog",
+    "subtitle": "Latest news, insights, and stories from the Selfplace team.",
+    "noPosts": "No blog posts published yet.",
+    "backToBlog": "Back to Blog"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Everything you need to know about Selfplace daily reflections and companion app.",
+    "noQuestions": "No questions added yet."
+  },
+  "changelog": {
+    "title": "Product Changelog",
+    "subtitle": "Follow the latest updates, fixes, and improvements to the Selfplace companion app.",
+    "noLogs": "No release updates recorded yet.",
+    "releasedOn": "Released on"
+  }
+}

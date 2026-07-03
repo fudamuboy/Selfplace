@@ -36,6 +36,12 @@ exports.createCheckIn = async (req, res) => {
       { check_in_id: result.rows[0].id }
     );
 
+    // Track Check-in Completed Event
+    const { trackEvent } = require('../services/eventEngine');
+    trackEvent(userId, 'CHECKIN_COMPLETED', 'minor', { mood }).catch(err =>
+      console.error('[checkInController] trackEvent error:', err.message)
+    );
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('[checkInController] createCheckIn error:', err.message);
@@ -153,6 +159,12 @@ exports.createAdvancedCheckIn = async (req, res) => {
     // Trigger check-in theme extraction asynchronously
     extractCheckInThemes(userId).catch(err => 
       console.error('[checkInController] Background check-in theme extraction error:', err.message)
+    );
+
+    // Track Advanced Check-in Completed Event
+    const { trackEvent } = require('../services/eventEngine');
+    trackEvent(userId, 'CHECKIN_COMPLETED', 'minor', { mood: selectedMoodLabel, advanced: true }).catch(err =>
+      console.error('[checkInController] trackEvent error:', err.message)
     );
 
     res.status(201).json({ success: true, checkInId });

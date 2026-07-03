@@ -27,7 +27,6 @@ exports.syncEntry = async (userId, sourceType, emotion, prompt, content, metadat
       'INSERT INTO emotional_entries (user_id, source_type, emotion, prompt, content, metadata) VALUES ($1, $2, $3, $4, $5, $6)',
       [userId, sourceType, emotion, prompt, content, JSON.stringify(metadata)]
     );
-    console.log(`[EMOTIONAL-SYNC] Synced ${sourceType} for user ${userId}`);
   } catch (err) {
     console.error(`[EMOTIONAL-SYNC] Error syncing ${sourceType}:`, err.message);
   }

@@ -31,6 +31,12 @@ exports.createEntry = async (req, res) => {
     // Asynchronously update thematic AI memory
     extractJournalThemes(userId).catch(err => console.error('[journalController] extractJournalThemes error:', err));
 
+    // Track Journal Shared Event
+    const { trackEvent } = require('../services/eventEngine');
+    trackEvent(userId, 'JOURNAL_SHARED', 'minor', { title }).catch(err =>
+      console.error('[journalController] trackEvent error:', err.message)
+    );
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('[journalController] createEntry error:', err.message);

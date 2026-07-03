@@ -103,7 +103,6 @@ exports.getInteractiveCards = async (req, res) => {
     );
 
     if (dailySetRes.rows.length === 3) {
-      console.log(`[CARD-SYSTEM] User ${userId}: Returning persisted daily set for ${dateToCompare}`);
       return res.json({
         alreadySelected: false,
         cards: dailySetRes.rows
@@ -142,7 +141,6 @@ exports.getInteractiveCards = async (req, res) => {
     let availableCards = allCards.filter(card => {
       const record = history.find(h => h.card_id === card.id);
       if (record && new Date(record.completed_at) > fourteenDaysAgo) {
-        console.log(`[CARD-SYSTEM] User ${userId}: Card ID ${card.id} excluded: completed within last 14 days.`);
         return false;
       }
       return true;
@@ -150,11 +148,9 @@ exports.getInteractiveCards = async (req, res) => {
 
     // Fallback logic: if less than 3 cards remain, reshuffle but exclude last 5
     if (availableCards.length < 3) {
-      console.log(`[CARD-SYSTEM] User ${userId}: Pool exhausted (${availableCards.length} left). Triggering reshuffle excluding last 5.`);
       const last5Ids = history.slice(0, 5).map(h => h.card_id);
       availableCards = allCards.filter(card => {
         if (last5Ids.includes(card.id)) {
-          console.log(`[CARD-SYSTEM] User ${userId}: Card ID ${card.id} excluded: recently completed (fallback rule).`);
           return false;
         }
         return true;
@@ -192,8 +188,6 @@ exports.getInteractiveCards = async (req, res) => {
       selectedCards.push(pool[selectedIdx]);
       pool.splice(selectedIdx, 1);
     }
-
-    console.log(`[CARD-SYSTEM] User ${userId}: Generated new set ->`, selectedCards.map(c => c.id));
 
     // Save to daily_card_sets
     for (let i = 0; i < selectedCards.length; i++) {
@@ -244,7 +238,12 @@ exports.selectInteractiveCard = async (req, res) => {
       'INSERT INTO invitation_card_history (user_id, card_id) VALUES ($1, $2)',
       [userId, cardId]
     );
-    console.log(`[CARD-SYSTEM] User ${userId}: Card ID ${cardId} marked as completed.`);
+
+    // Track Invitation Accepted Event
+    const { trackEvent } = require('../services/eventEngine');
+    trackEvent(userId, 'INVITATION_ACCEPTED', 'minor', { cardId, title: cardInfo.rows[0]?.title }).catch(err =>
+      console.error('[cardController] trackEvent error:', err.message)
+    );
 
     await emotionalController.syncEntry(
       userId,

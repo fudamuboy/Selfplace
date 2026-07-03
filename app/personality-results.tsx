@@ -35,7 +35,6 @@ export default function PersonalityResultsScreen() {
         setHistory([]);
       }
     } catch (_err) {
-      console.log('[Personality Results] Soft failure on history fetch');
       setHistory([]);
     } finally {
       setLoading(false);

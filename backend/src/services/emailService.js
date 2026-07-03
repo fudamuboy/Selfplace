@@ -16,7 +16,6 @@ async function sendEmail({ to, subject, html, text }) {
   // 1. Resend HTTP API (Port 443 - Never Blocked)
   if (process.env.RESEND_API_KEY) {
     try {
-      console.log(`[EmailService] Sending email to ${to} via Resend HTTP API...`);
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -36,8 +35,6 @@ async function sendEmail({ to, subject, html, text }) {
       if (!response.ok) {
         throw new Error(data.message || JSON.stringify(data));
       }
-
-      console.log(`[EmailService] Resend Success! Message ID: ${data.id}`);
       return { success: true, messageId: data.id };
     } catch (err) {
       console.error('[EmailService] Resend HTTP Error:', err.message);
@@ -48,7 +45,6 @@ async function sendEmail({ to, subject, html, text }) {
   // 2. SendGrid HTTP API (Port 443 - Never Blocked)
   if (process.env.SENDGRID_API_KEY) {
     try {
-      console.log(`[EmailService] Sending email to ${to} via SendGrid HTTP API...`);
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
         headers: {
@@ -70,8 +66,6 @@ async function sendEmail({ to, subject, html, text }) {
         const errText = await response.text();
         throw new Error(errText);
       }
-
-      console.log(`[EmailService] SendGrid Success!`);
       return { success: true };
     } catch (err) {
       console.error('[EmailService] SendGrid HTTP Error:', err.message);
@@ -80,7 +74,6 @@ async function sendEmail({ to, subject, html, text }) {
   }
 
   // 3. SMTP Fallback (Perfect for local development)
-  console.log(`[EmailService] Sending email to ${to} via SMTP transporter...`);
   const info = await smtpTransporter.sendMail({
     from,
     to,
@@ -88,7 +81,6 @@ async function sendEmail({ to, subject, html, text }) {
     text,
     html,
   });
-  console.log(`[EmailService] SMTP Success! Message ID: ${info.messageId}`);
   return { success: true, messageId: info.messageId };
 }
 

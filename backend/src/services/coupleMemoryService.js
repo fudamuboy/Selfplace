@@ -81,7 +81,6 @@ exports.extractCoupleMemory = async (connectionId, userId, message, history, use
       [connectionId, userId]
     );
     if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
-      console.log(`[coupleMemoryService] Privacy Guard: User ${userId} excluded AI chat. Skipping memory extraction.`);
       return;
     }
     // ─────────────────────────────────────────────────────────────────
@@ -174,11 +173,9 @@ Olay yoksa: { "events": [] }`;
           WHERE connection_id = $1 AND memory_type = 'conflict' AND resolved = false`,
          [connectionId]
       );
-      console.log(`[coupleMemoryService] Auto-resolved past conflicts for connection ${connectionId}`);
     }
 
     if (events.length > 0) {
-      console.log(`[coupleMemoryService] Saved ${events.length} couple memory event(s) for connection ${connectionId}`);
     }
   } catch (err) {
     console.error('[coupleMemoryService] extractCoupleMemory error:', err.message);
@@ -305,7 +302,6 @@ exports.updateIndividualBehavioralMemory = async (userId, message, history) => {
       [userId]
     );
     if (privacyRes.rows.length > 0 && privacyRes.rows[0].exclude_ai_chat) {
-      console.log(`[coupleMemoryService] Privacy Guard: User ${userId} excluded AI chat. Skipping individual behavioral memory update.`);
       return;
     }
 
@@ -386,7 +382,6 @@ Değişiklik yoksa: { "updates": [] }`;
     }
 
     if (updates.length > 0) {
-      console.log(`[coupleMemoryService] Updated ${updates.length} behavioral trait(s) for user ${userId}`);
     }
   } catch (err) {
     console.error('[coupleMemoryService] updateIndividualBehavioralMemory error:', err.message);
@@ -533,8 +528,6 @@ exports.detectRelationshipResolutionState = async (history, latestMsg, connectio
     };
 
     const confidence = Math.min(95, 40 + winnerScore * 15);
-
-    console.log(`[coupleMemoryService] Resolution state: ${winnerState} (score=${winnerScore}, confidence=${confidence}%)`);
 
     return {
       state: winnerState,

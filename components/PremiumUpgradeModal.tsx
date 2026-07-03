@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
@@ -17,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import { MODAL_MAX_WIDTH } from '../constants/Layout';
 import useSubscriptionStore, { IAP_PRODUCT_IDS } from '../store/useSubscriptionStore';
 import useAuthStore from '../store/useAuthStore';
-import type { SubscriptionIOS } from 'react-native-iap';
+import type { Subscription, SubscriptionAndroid } from 'react-native-iap';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -30,13 +31,19 @@ interface Props {
 }
 
 // ─── Helper: find a product by its ID from the available products list ────────
-function findProduct(products: SubscriptionIOS[], id: string): SubscriptionIOS | undefined {
+function findProduct(products: Subscription[], id: string): Subscription | undefined {
   return products.find((p) => p.productId === id);
 }
 
 // ─── Helper: localised price string, falls back to dash while loading ─────────
-function getDisplayPrice(product?: SubscriptionIOS): string {
-  return product?.localizedPrice ?? '—';
+function getDisplayPrice(product?: Subscription): string {
+  if (!product) return '—';
+  if (product.platform === 'ios') return product.localizedPrice;
+  if (product.platform === 'android') {
+    const androidProduct = product as SubscriptionAndroid;
+    return androidProduct.subscriptionOfferDetails?.[0]?.pricingPhases?.pricingPhaseList?.[0]?.formattedPrice ?? '—';
+  }
+  return '—';
 }
 
 export const PremiumUpgradeModal: React.FC<Props> = ({
@@ -128,7 +135,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
   const getButtonLabel = () => {
     if (selectedPlan === currentPlan) return 'Kapat';
     if (selectedPlan === 'free')      return 'Ücretsiz Plana Dön';
-    return 'Apple ile Abone Ol';
+    return Platform.OS === 'android' ? 'Google Play ile Abone Ol' : 'Apple ile Abone Ol';
   };
 
   // ── Feature row helper ────────────────────────────────────────────────────
@@ -218,7 +225,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 <Text style={[styles.errorText, { color: '#eab308' }]}>
                   {purchaseError || (storeUnavailable 
                     ? "Şu an mağazaya erişilemiyor. Lütfen daha sonra tekrar deneyin."
-                    : "Apple Store bağlantısı şu an kurulamadı. Lütfen tekrar deneyin.")}
+                    : `${Platform.OS === 'android' ? 'Google Play' : 'Apple Store'} bağlantısı şu an kurulamadı. Lütfen tekrar deneyin.`)}
                 </Text>
               </View>
               <TouchableOpacity 
@@ -449,14 +456,16 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* ── Apple legal note ── */}
+            {/* ── Store legal note ── */}
             <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted }]}>
-              Ödeme, satın alma onayında Apple Kimliği hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Hesabınız, mevcut dönemin bitiminden 24 saat önce yenileme için ücretlendirilecektir. Satın aldıktan sonra App Store'daki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz.
+              {Platform.OS === 'android' 
+                ? "Ödeme, satın alma onayında Google Play hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Satın aldıktan sonra Google Play'deki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz." 
+                : "Ödeme, satın alma onayında Apple Kimliği hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Hesabınız, mevcut dönemin bitiminden 24 saat önce yenileme için ücretlendirilecektir. Satın aldıktan sonra App Store'daki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz."}
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 4, marginBottom: 12 }}>
               <TouchableOpacity onPress={() => { onClose(); router.push('/terms'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                 <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted, textDecorationLine: 'underline', marginBottom: 0 }]}>
-                  Kullanım Koşulları (Apple Standart EULA)
+                  {Platform.OS === 'android' ? 'Kullanım Koşulları' : 'Kullanım Koşulları (Apple Standart EULA)'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { onClose(); router.push('/privacy-policy'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
@@ -488,7 +497,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 <View style={styles.loadingRow}>
                   <ActivityIndicator size="small" color="#FFF" />
                   <Text style={[styles.actionButtonText, { marginLeft: 10 }]}>
-                    {purchaseLoading ? 'Apple ile doğrulanıyor…' : 'Geri yükleniyor…'}
+                    {purchaseLoading ? `${Platform.OS === 'android' ? 'Google Play' : 'Apple'} ile doğrulanıyor…` : 'Geri yükleniyor…'}
                   </Text>
                 </View>
               ) : (selectedPlan !== 'free' && (!iapReady || !productsLoaded)) ? (

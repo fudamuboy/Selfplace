@@ -55,7 +55,7 @@ export default function PersonalityTestScreen() {
     setInterstitialText("Sonuçların sentezleniyor... Bu biraz zaman alabilir.");
     setShowInterstitial(true);
     
-    console.log('[DEBUG-SUBMIT] Submitting test answers. Fingerprint:', sessionFingerprint);
+    
     
     try {
       const res = await client.post(`/personality/tests/journey/submit`, { answers: finalAnswers });
@@ -78,8 +78,7 @@ export default function PersonalityTestScreen() {
   const logRuntimeQueueState = useCallback((context: string) => {
     if (!isActive || questions.length === 0) return;
     const currentHash = questions.map(q => q.id).join('-');
-    console.log(`[DEBUG-QUEUE] Context: ${context} | Fingerprint: ${sessionFingerprint} | Index: ${currentIndex} | Hash: ${currentHash}`);
-    console.log(`[DEBUG-QUEUE-IDS]`, questions.map(q => q.id));
+    
 
     if (queueHash && currentHash !== queueHash) {
       logger.error(`[QUEUE MUTATION DETECTED] EXPECTED HASH: ${queueHash} | CURRENT HASH: ${currentHash}`);
@@ -95,7 +94,7 @@ export default function PersonalityTestScreen() {
     try {
       const res = await client.get(`/personality/tests/journey`);
       if (res.data && res.data.test && res.data.test.questions) {
-        console.log('[DEBUG-FETCH] Received test from backend. Fingerprint:', res.data.test.sessionFingerprint);
+        
         startSession(res.data.test.questions, res.data.test.sessionFingerprint || 'legacy-none');
       } else {
         throw new Error('Invalid test data');
@@ -111,10 +110,10 @@ export default function PersonalityTestScreen() {
   // 2. Lock down useEffect to disable all automatic refetch systems
   useEffect(() => {
     if (!isActive) {
-      console.log('[DEBUG-SESSION] No active session. Fetching test...');
+      
       fetchTest();
     } else {
-      console.log('[DEBUG-SESSION] Session already active. Fingerprint:', sessionFingerprint, 'Questions count:', questions.length);
+      
       setLoading(false);
     }
   }, [isActive, fetchTest, sessionFingerprint, questions.length]);
@@ -122,7 +121,7 @@ export default function PersonalityTestScreen() {
   // 3. Navigation focus listeners
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      console.log('[DEBUG-FOCUS] Screen focused. Fingerprint:', sessionFingerprint, 'Current Index:', currentIndex);
+      
       logRuntimeQueueState('focus');
     });
     return unsubscribe;
@@ -131,7 +130,7 @@ export default function PersonalityTestScreen() {
   // 4. AppState listener
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      console.log('[DEBUG-APPSTATE] AppState changed to:', nextAppState, 'Fingerprint:', sessionFingerprint);
+      
       logRuntimeQueueState(`appstate-${nextAppState}`);
     });
     return () => {
@@ -146,7 +145,7 @@ export default function PersonalityTestScreen() {
     // Remaining Queue Validator & Graceful End
     const isOutOfQuestions = currentIndex >= questions.length;
     if (isOutOfQuestions) {
-      console.log('[DEBUG-QUEUE] No remaining questions left in the queue. Gracefully auto-submitting existing answers...');
+      
       submitTest(answers);
       return;
     }
@@ -237,7 +236,7 @@ export default function PersonalityTestScreen() {
     // 1. Commit answer to Zustand session store securely
     answerQuestion(questionId, optionIndex, option.weights || {});
 
-    console.log(`[DEBUG-ANSWER] Answered: ${questionId} with index ${optionIndex}. Next index: ${currentIndex + 1}`);
+    
     logRuntimeQueueState('answer');
 
     // 2. Predict adaptive behavior

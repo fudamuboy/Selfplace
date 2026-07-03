@@ -17,18 +17,34 @@ export const getSubscription = async (): Promise<SubscriptionStatus> => {
 // Called after every successful Apple purchase.
 // Backend validates the receipt with Apple and returns the confirmed plan.
 export const verifyAppleReceipt = async (
-  receiptData: string
+  receiptData: string,
+  platform: 'ios' | 'android' = 'ios',
+  purchaseToken?: string,
+  productId?: string
 ): Promise<SubscriptionStatus> => {
-  const res = await client.post('/subscriptions/verify', { receiptData });
+  const res = await client.post('/subscriptions/verify', { 
+    receiptData, 
+    platform, 
+    purchaseToken, 
+    productId 
+  });
   return res.data;
 };
 
 // ─── POST /api/subscriptions/restore ──────────────────────────────────────────
 // Called by "Restore Purchases" — same backend logic as verify.
 export const restorePurchases = async (
-  receiptData: string
+  receiptData: string,
+  platform: 'ios' | 'android' = 'ios',
+  purchaseToken?: string,
+  productId?: string
 ): Promise<SubscriptionStatus> => {
-  const res = await client.post('/subscriptions/restore', { receiptData });
+  const res = await client.post('/subscriptions/restore', { 
+    receiptData,
+    platform,
+    purchaseToken,
+    productId
+  });
   return res.data;
 };
 

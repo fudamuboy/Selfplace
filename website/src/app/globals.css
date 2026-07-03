@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+@plugin "@tailwindcss/typography";
+
+/* ── Custom Properties ───────────────────────────────────────────────────── */
+:root {
+  --color-bg-deep:    #0F111A;
+  --color-bg-mid:     #1E1B4B;
+  --color-primary:    #A78BFA;
+  --color-accent:     #C084FC;
+  --color-text:       #FFFFFF;
+  --color-text-sec:   #94A3B8;
+  --font-sans:        var(--font-inter), system-ui, sans-serif;
+  --font-display:     var(--font-outfit), system-ui, sans-serif;
+}
+
+/* ── Base Reset & Defaults ───────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--color-bg-deep);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(167, 139, 250, 0.3);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(167, 139, 250, 0.5);
+}
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(167, 139, 250, 0.3);
+  color: #ffffff;
+}
+
+/* ── Focus Visible ───────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* ── Gradient Text Utility ───────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #A78BFA 0%, #C084FC 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Glassmorphism Card Utility ──────────────────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Noise Texture Overlay (premium feel) ────────────────────────────────── */
+.noise-overlay::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Star particles background ───────────────────────────────────────────── */
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: star-twinkle var(--duration, 3s) var(--delay, 0s) ease-in-out infinite;
+}
+
+/* ── Animated Gradient Background ───────────────────────────────────────── */
+.animated-bg {
+  background: 
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(167, 139, 250, 0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(192, 132, 252, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 20% 60%, rgba(139, 92, 246, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #0F111A 0%, #1E1B4B 40%, #0F111A 100%);
+}
+
+/* ── Prose Overrides for dark theme ─────────────────────────────────────── */
+.prose {
+  color: #94A3B8;
+}
+
+.prose :where(h2, h3, h4) {
+  color: #FFFFFF;
+  margin-top: 2rem;
+}
+
+.prose :where(ul > li)::marker {
+  color: #A78BFA;
+}
+
+.prose :where(a) {
+  color: #A78BFA;
+  text-decoration-color: rgba(167, 139, 250, 0.4);
+}
+
+.prose :where(a):hover {
+  color: #C084FC;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

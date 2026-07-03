@@ -1,0 +1,203 @@
+{
+  "nav": {
+    "home": "Anasayfa",
+    "features": "Özellikler",
+    "download": "İndir",
+    "privacy": "Gizlilik Politikası",
+    "terms": "Kullanım Koşulları",
+    "contact": "İletişim",
+    "deleteAccount": "Hesabı Sil",
+    "blog": "Blog",
+    "faq": "SSS",
+    "changelog": "Değişiklik Günlüğü",
+    "getApp": "Uygulamayı Al"
+  },
+  "hero": {
+    "badge": "Şimdi App Store'da mevcut",
+    "headline": "İç dünyanız,\nnihayet anlaşıldı.",
+    "subheadline": "Selfplace, günlük yansımalar, duygu kontrolleri ve nazik rehberlik aracılığıyla kendinizle yeniden bağlantı kurmanıza yardımcı olan sakin, duygusal açıdan akıllı bir arkadaştır.",
+    "ctaDownload": "iOS için İndir",
+    "ctaLearn": "Daha Fazla Öğren",
+    "trustedBy": "Binlerce kullanıcının güvendiği",
+    "appStore": "App Store",
+    "googlePlay": "Google Play",
+    "comingSoon": "Yakında"
+  },
+  "features": {
+    "badge": "İçinde neler var",
+    "headline": "Kendinizi anlamak için\nihtiyacınız olan her şey.",
+    "subheadline": "Selfplace, duygusal sağlık araçlarını tek bir huzurlu, özel alanda birleştirir — günlük kullanım için tasarlanmıştır.",
+    "items": {
+      "checkin": {
+        "title": "Günlük Kontroller",
+        "description": "Nazik istemler ve ruh hali kartları ile her gün duygusal durumunuzu takip edin."
+      },
+      "mascot": {
+        "title": "Yaşayan Yoldaş",
+        "description": "Duygusal maskotunuz günün saatine ve ruh halinize göre uyum sağlar."
+      },
+      "ai": {
+        "title": "YZ İçgörüleri",
+        "description": "Duygusal örüntülerinizin düşünceli, YZ destekli özetlerini alın — özel, kişiselleştirilmiş."
+      },
+      "astrology": {
+        "title": "Astroloji & Enerji",
+        "description": "Burç işaretinize, ay evrelerine ve kozmik ritimlerinize bağlı günlük enerji okumalarını keşfedin."
+      },
+      "cards": {
+        "title": "Rehberlik Kartları",
+        "description": "Niyetlerinizi sabitlelemek için interaktif duygusal rehberlik kartlarından çekin."
+      },
+      "privacy": {
+        "title": "Tasarım Gereği Özel",
+        "description": "Yansımalarınız size aittir. Reklam veya üçüncü taraf veri paylaşımı yoktur."
+      }
+    }
+  },
+  "screenshots": {
+    "badge": "Çalışırken görün",
+    "headline": "Sizin için tasarlanmış\nsakin bir alan.",
+    "subheadline": "Her ekran, rahatlık, netlik ve duygusal rezonans için hazırlanmıştır.",
+    "captions": {
+      "home": "Anasayfa — Günlük yoldaşınız",
+      "checkin": "Kontrol — Bugün nasıl hissediyorsunuz?",
+      "journal": "Yolculuk — Duygusal zaman çizelgeniz",
+      "astrology": "Astroloji — Kozmik enerji okumaları"
+    }
+  },
+  "download": {
+    "badge": "Şimdi mevcut",
+    "headline": "İç yolculuğunuza\nbaşlayın.",
+    "subheadline": "Selfplace'i ücretsiz indirin. Duygusal netliğe doğru ilk adımınız burada başlıyor.",
+    "appStore": "App Store'dan İndir",
+    "googlePlay": "Google Play'den Al",
+    "googlePlaySoon": "Android'de yakında",
+    "free": "İndirmesi ücretsiz",
+    "premium": "Premium özellikler mevcut"
+  },
+  "privacy": {
+    "title": "Gizlilik Politikası",
+    "lastUpdated": "Son güncelleme: 30 Nisan 2026"
+  },
+  "terms": {
+    "title": "Kullanım Koşulları",
+    "lastUpdated": "Son güncelleme: 30 Nisan 2026"
+  },
+  "contact": {
+    "title": "Bize Ulaşın",
+    "headline": "Sizi\nduymak isteriz.",
+    "subheadline": "Sorunuz, geri bildiriminiz veya desteğe ihtiyacınız var mı? Genellikle 48 saat içinde yanıt veririz.",
+    "emailLabel": "Destek E-postası",
+    "email": "selfplace.support@gmail.com",
+    "responseTime": "48 saat içinde",
+    "responseTimeLabel": "Yanıt Süresi",
+    "supportBadge": "Destek",
+    "deleteAccount": "Hesabınızı silmek mi istiyorsunuz?",
+    "deleteAccountLink": "Hesap silme sayfamızı ziyaret edin",
+    "privacyNote": "Gizlilikle ilgili talepleriniz için lütfen <privacyLink>Gizlilik Politikası</privacyLink> sayfamıza bakın."
+  },
+  "deleteAccount": {
+    "title": "Hesabınızı Silin",
+    "headline": "Hesap Silme",
+    "subheadline": "Verileriniz üzerindeki kontrolünüzü kullanma hakkınıza saygı duyuyoruz.",
+    "badge": "Hesap Yönetimi",
+    "recommended": "Tavsiye Edilen",
+    "inApp": {
+      "title": "Uygulamadan silin",
+      "description": "Hesabınızı silmenin en kolay yolu doğrudan Selfplace uygulamasından.",
+      "steps": [
+        "Cihazınızda Selfplace'i açın",
+        "Profil → Ayarlar'a gidin",
+        "Gizlilik & Veriler'e dokunun",
+        "Hesabımı Sil'e dokunun",
+        "Silmeyi onaylayın"
+      ]
+    },
+    "byEmail": {
+      "title": "E-posta ile silme isteği",
+      "description": "Destek ekibimize e-posta göndererek de hesap silme talebinde bulunabilirsiniz.",
+      "email": "selfplace.support@gmail.com",
+      "subject": "Hesap Silme Talebi",
+      "note": "Lütfen hesabınızla ilişkili e-posta adresini belirtin. Talebinizi 30 gün içinde işleme alacağız."
+    },
+    "deleted": {
+      "title": "Ne silinir",
+      "items": [
+        "Hesabınız ve profil bilgileriniz",
+        "Tüm günlük girişleri ve yansımalar",
+        "Tüm ruh hali kontrol geçmişi",
+        "Kişiselleştirilmiş ayarlar ve tercihler",
+        "YZ konuşma geçmişi",
+        "Astrolojik ve enerji verileri"
+      ]
+    },
+    "retained": {
+      "title": "Ne saklanabilir",
+      "description": "Silme işleminden sonra 90 güne kadar yasal ve uyumluluk amaçları için belirli verileri saklayabiliriz:",
+      "items": [
+        "Kanun gereği gereken işlem kayıtları (uygulama içi satın alma geçmişi)",
+        "Dolandırıcılık önleme için güvenlik günlükleri",
+        "Anonimleştirilmiş, toplu analitik veriler"
+      ],
+      "note": "Bu veriler, hesap silme işleminden sonra size kişisel olarak bağlanamaz."
+    },
+    "contact": {
+      "title": "Sorularınız mı var?",
+      "description": "Veri silme hakkında sorularınız için bize ulaşın:",
+      "email": "selfplace.support@gmail.com"
+    }
+  },
+  "footer": {
+    "tagline": "İç dünyanız, nihayet anlaşıldı.",
+    "legal": "© 2026 Selfplace. Tüm hakları saklıdır.",
+    "madeWith": "İç dünyanız için",
+    "forYourInnerWorld": "ile yapıldı",
+    "links": {
+      "privacy": "Gizlilik Politikası",
+      "terms": "Kullanım Koşulları",
+      "contact": "İletişim",
+      "deleteAccount": "Hesabı Sil"
+    }
+  },
+  "common": {
+    "backToHome": "Anasayfaya Dön",
+    "learnMore": "Daha Fazla Öğren",
+    "getStarted": "Başla"
+  },
+  "metadata": {
+    "siteName": "Selfplace",
+    "defaultTitle": "Selfplace — İç Dünyanız, Nihayet Anlaşıldı",
+    "defaultDescription": "Selfplace, günlük yansımalar, duygu kontrolleri ve kişisel gelişim için sakin, duygusal açıdan akıllı bir uygulamadır.",
+    "privacyTitle": "Gizlilik Politikası — Selfplace",
+    "privacyDescription": "Selfplace'in kişisel verilerinizi nasıl topladığını, kullandığını ve koruduğunu öğrenin.",
+    "termsTitle": "Kullanım Koşulları — Selfplace",
+    "termsDescription": "Selfplace uygulamasını kullanmaya ilişkin Kullanım Koşullarını okuyun.",
+    "contactTitle": "İletişim — Selfplace",
+    "contactDescription": "Destek veya geri bildirim için Selfplace ekibiyle iletişime geçin.",
+    "deleteAccountTitle": "Hesabı Sil — Selfplace",
+    "deleteAccountDescription": "Selfplace hesabınızı nasıl sileceğinizi ve verilerinize ne olacağını öğrenin.",
+    "blogTitle": "Blog — Selfplace",
+    "blogDescription": "Selfplace ekibinden en son güncellemeleri, kılavuzları ve makaleleri okuyun.",
+    "faqTitle": "SSS — Selfplace",
+    "faqDescription": "Selfplace günlük yansımalar ve arkadaşlık uygulaması hakkında sıkça sorulan sorular.",
+    "changelogTitle": "Değişiklik Günlüğü — Selfplace",
+    "changelogDescription": "Selfplace uygulamasına ait güncellemeleri, iyileştirmeleri ve yayınları takip edin."
+  },
+  "blog": {
+    "title": "Blog",
+    "subtitle": "Selfplace ekibinden en son haberler, içgörüler ve hikayeler.",
+    "noPosts": "Henüz yayınlanmış blog yazısı yok.",
+    "backToBlog": "Blog'a Dön"
+  },
+  "faq": {
+    "title": "Sıkça Sorulan Sorular",
+    "subtitle": "Selfplace günlük yansımaları ve arkadaşlık uygulaması hakkında bilmeniz gereken her şey.",
+    "noQuestions": "Henüz soru eklenmedi."
+  },
+  "changelog": {
+    "title": "Değişiklik Günlüğü",
+    "subtitle": "Selfplace uygulamasındaki en son güncellemeleri, düzeltmeleri ve iyileştirmeleri takip edin.",
+    "noLogs": "Henüz yayın kaydı bulunmuyor.",
+    "releasedOn": "Yayınlanma tarihi"
+  }
+}

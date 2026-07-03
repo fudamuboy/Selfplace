@@ -103,9 +103,7 @@ export default function SettingsScreen() {
         router.push('/reset-password');
       }, 1500);
     } catch (error: any) {
-      if (__DEV__) {
-        console.log('[ForgotPassword] Error:', error.response?.data || error.message);
-      }
+      
       setInfoModal({ 
         visible: true, 
         title: 'Hata', 

@@ -6,7 +6,7 @@ import { View, ActivityIndicator, Animated, Text, StyleSheet, Platform, AppState
 import useThemeStore from "../store/useThemeStore";
 import useAuthStore from "../store/useAuthStore";
 import { useNetworkStore } from "../store/useNetworkStore";
-import * as Notifications from 'expo-notifications';
+import * as Notifications from '../utils/notifications';
 import { getSubscription } from '../api/userApi';
 import useSubscriptionStore from '../store/useSubscriptionStore';
 
@@ -120,11 +120,9 @@ export default function RootLayout() {
   useEffect(() => {
     async function initialize() {
       try {
-        console.log('[Startup] Starting initialization...');
 
         // Load theme
         try {
-          console.log('[Startup] Loading theme...');
           await loadTheme();
         } catch (e) {
           console.error('[Startup] Theme load failed:', e);
@@ -132,7 +130,6 @@ export default function RootLayout() {
 
         // Check onboarding status
         try {
-          console.log('[Startup] Checking onboarding status...');
           const onboardingValue = await AsyncStorage.getItem('onboardingCompleted');
           await setOnboardingCompleted(onboardingValue === 'true');
         } catch (e) {
@@ -142,7 +139,6 @@ export default function RootLayout() {
 
         // Check post-auth onboarding status
         try {
-          console.log('[Startup] Checking post-auth onboarding status...');
           const postAuthValue = await AsyncStorage.getItem('postAuthOnboardingCompleted');
           await setPostAuthOnboardingCompleted(postAuthValue === 'true');
         } catch (e) {
@@ -152,7 +148,6 @@ export default function RootLayout() {
 
         // Restore session — token validity is enforced server-side on first API call
         try {
-          console.log('[Startup] Restoring session...');
           const storedToken = await AsyncStorage.getItem('token');
           const storedUser = await AsyncStorage.getItem('user');
           if (storedToken && storedUser) {
@@ -192,7 +187,6 @@ export default function RootLayout() {
         // Configure Android notification channel
         if (Platform.OS === 'android') {
           try {
-            console.log('[Startup] Configuring Android notification channel...');
             await Notifications.setNotificationChannelAsync('default', {
               name: 'default',
               importance: Notifications.AndroidImportance.MAX,
@@ -206,13 +200,10 @@ export default function RootLayout() {
 
         // Initialize IAP globally (fire and forget so it doesn't block UI)
         try {
-          console.log('[Startup] Initializing IAP globally...');
           useSubscriptionStore.getState().initIAP();
         } catch (e) {
           console.error('[Startup] IAP init exception:', e);
         }
-
-        console.log('[Startup] Initialization complete.');
       } catch (e) {
         console.error('[Startup] Critical initialization error:', e);
         // Fallback state so the app doesn't hang on splash
@@ -233,9 +224,7 @@ export default function RootLayout() {
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
       if (nextAppState === 'active') {
-        if (__DEV__) {
-          console.log('[AppState] App returned to active. Revalidating connectivity...');
-        }
+        
         const isOnlineNow = await useNetworkStore.getState().checkConnectivity();
         if (isOnlineNow) {
           useNetworkStore.getState().triggerGlobalRefresh();

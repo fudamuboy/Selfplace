@@ -56,7 +56,6 @@ exports.extractCheckInThemes = async (userId) => {
 
     // 2. Rule-based Fallback (Cost-control)
     if (entries.length < 3) {
-      console.log(`[checkInIntelligenceService] User ${userId}: Less than 3 check-in responses (${entries.length}). Applying rule-based fallback.`);
       const uniqueThemes = new Set();
       for (const entry of entries) {
         const textToMatch = `${entry.question_text.toLowerCase()} ${entry.answer.toLowerCase()}`;
@@ -75,7 +74,6 @@ exports.extractCheckInThemes = async (userId) => {
       themesStr = Array.from(uniqueThemes).join(', ');
     } else {
       // 3. LLM-based Thematic Extraction (>= 3 entries)
-      console.log(`[checkInIntelligenceService] User ${userId}: ${entries.length} check-in responses. Triggering GPT-4o-mini thematic extraction.`);
       const checkinText = entries.map(r => `Question: ${r.question_text}\nAnswer: ${r.answer}`).join('\n\n');
 
       const systemPrompt = `You are a psychological thematic analyzer.

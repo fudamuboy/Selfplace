@@ -12,7 +12,6 @@ function getClient() {
       throw new Error('[aiService] OPENAI_API_KEY is not configured.');
     }
     _openai = new OpenAI({ apiKey: key });
-    console.log('[aiService] OpenAI client initialised (model: gpt-4o-mini)');
   }
   return _openai;
 }

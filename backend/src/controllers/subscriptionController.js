@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const https = require('https');
 const { Buffer } = require('buffer');
+const { google } = require('googleapis');
 
 // ---------------------------------------------------------------------------
 // Apple verification URLs
@@ -74,6 +75,29 @@ function mapProductIdToPlan(productId) {
 }
 
 /**
+ * Calls Google Play Developer API to verify a subscription token.
+ */
+async function callGoogleVerify(purchaseToken, productId) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
+      scopes: ['https://www.googleapis.com/auth/androidpublisher']
+    });
+    const androidpublisher = google.androidpublisher({ version: 'v3', auth });
+    
+    const response = await androidpublisher.purchases.subscriptions.get({
+      packageName: process.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.silmo.Selfplace',
+      subscriptionId: productId,
+      token: purchaseToken
+    });
+    return response.data;
+  } catch (err) {
+    console.error('[Subscription] Google Play API Error:', err.message);
+    throw err;
+  }
+}
+
+/**
  * Extract the most recent valid latest_receipt_info item for a given product.
  * Apple may return multiple items; we want the one with the latest expiry date.
  */
@@ -92,13 +116,16 @@ function extractLatestTransaction(latestReceiptInfo) {
  * Persists the validated subscription state to the database.
  */
 async function persistSubscription(userId, {
+  platform = 'ios',
   planType,
   isActive,
   expiresAt,
-  appleOriginalTransactionId,
-  appleProductId,
-  receiptData,
-  latestReceipt,
+  appleOriginalTransactionId = null,
+  appleProductId = null,
+  receiptData = null,
+  latestReceipt = null,
+  googlePurchaseToken = null,
+  googleOrderId = null,
 }) {
   // Check if a row exists
   const existing = await db.query(
@@ -109,25 +136,32 @@ async function persistSubscription(userId, {
   if (existing.rows.length === 0) {
     await db.query(
       `INSERT INTO subscription_status
-         (user_id, plan_type, is_active, expires_at,
+         (user_id, platform, plan_type, is_active, expires_at,
           apple_original_transaction_id, apple_product_id,
-          apple_receipt_data, apple_latest_receipt, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
-      [userId, planType, isActive, expiresAt,
+          apple_receipt_data, apple_latest_receipt,
+          google_purchase_token, google_order_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+      [userId, platform, planType, isActive, expiresAt,
        appleOriginalTransactionId, appleProductId,
-       receiptData, latestReceipt]
+       receiptData, latestReceipt,
+       googlePurchaseToken, googleOrderId]
     );
   } else {
     await db.query(
       `UPDATE subscription_status
-       SET plan_type = $1, is_active = $2, expires_at = $3,
-           apple_original_transaction_id = $4, apple_product_id = $5,
-           apple_receipt_data = $6, apple_latest_receipt = $7,
+       SET platform = $1, plan_type = $2, is_active = $3, expires_at = $4,
+           apple_original_transaction_id = COALESCE($5, apple_original_transaction_id),
+           apple_product_id = COALESCE($6, apple_product_id),
+           apple_receipt_data = COALESCE($7, apple_receipt_data),
+           apple_latest_receipt = COALESCE($8, apple_latest_receipt),
+           google_purchase_token = COALESCE($9, google_purchase_token),
+           google_order_id = COALESCE($10, google_order_id),
            updated_at = NOW()
-       WHERE user_id = $8`,
-      [planType, isActive, expiresAt,
+       WHERE user_id = $11`,
+      [platform, planType, isActive, expiresAt,
        appleOriginalTransactionId, appleProductId,
-       receiptData, latestReceipt, userId]
+       receiptData, latestReceipt,
+       googlePurchaseToken, googleOrderId, userId]
     );
   }
 }
@@ -137,19 +171,56 @@ async function persistSubscription(userId, {
 // ---------------------------------------------------------------------------
 exports.verifyAppleReceipt = async (req, res) => {
   const userId = req.user.id;
-  const { receiptData } = req.body;
+  const { receiptData, platform, purchaseToken, productId } = req.body;
+  const isAndroid = platform === 'android';
 
-  if (!receiptData) {
-    return res.status(400).json({ message: 'receiptData zorunludur.' });
-  }
-
-  if (!process.env.APPLE_SHARED_SECRET) {
-    console.error('[Subscription] APPLE_SHARED_SECRET environment variable is not set.');
-    return res.status(500).json({ message: 'Sunucu yapılandırma hatası.' });
+  if (isAndroid) {
+    if (!purchaseToken || !productId) {
+      return res.status(400).json({ message: 'purchaseToken ve productId zorunludur.' });
+    }
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+      console.error('[Subscription] GOOGLE_SERVICE_ACCOUNT_JSON is not set.');
+      return res.status(500).json({ message: 'Sunucu yapılandırma hatası (Google).' });
+    }
+  } else {
+    if (!receiptData) {
+      return res.status(400).json({ message: 'receiptData zorunludur.' });
+    }
+    if (!process.env.APPLE_SHARED_SECRET) {
+      console.error('[Subscription] APPLE_SHARED_SECRET environment variable is not set.');
+      return res.status(500).json({ message: 'Sunucu yapılandırma hatası (Apple).' });
+    }
   }
 
   try {
-    console.log(`[Subscription] Verifying Apple receipt for user ${userId}...`);
+    if (isAndroid) {
+      const googleData = await callGoogleVerify(purchaseToken, productId);
+      
+      const expiresMs = parseInt(googleData.expiryTimeMillis || '0', 10);
+      const expiresAt = expiresMs ? new Date(expiresMs).toISOString() : null;
+      const isCancelled = googleData.cancelReason !== undefined;
+      const isExpired = expiresMs > 0 && Date.now() > expiresMs;
+      // paymentState: 0=pending, 1=received, 2=free trial
+      const isPaymentPending = googleData.paymentState === 0;
+      const isActive = !isExpired && !isPaymentPending;
+
+      const planType = isActive ? mapProductIdToPlan(productId) : 'free';
+
+      await persistSubscription(userId, {
+        platform: 'android',
+        planType,
+        isActive,
+        expiresAt,
+        googlePurchaseToken: purchaseToken,
+        googleOrderId: googleData.orderId || null,
+      });
+
+      return res.json({
+        plan_type: planType,
+        is_active: isActive,
+        expires_at: expiresAt,
+      });
+    }
 
     // Step 1: Verify with Apple (production first, fall back to sandbox)
     const isProd = process.env.NODE_ENV === 'production';
@@ -157,7 +228,6 @@ exports.verifyAppleReceipt = async (req, res) => {
 
     // Step 2: If sandbox receipt was sent to production, retry with sandbox
     if (isProd && appleResponse.status === APPLE_STATUS_SANDBOX_ON_PROD) {
-      console.log('[Subscription] Sandbox receipt detected in production. Retrying against sandbox...');
       appleResponse = await callAppleVerify(receiptData, true);
     }
 
@@ -203,8 +273,6 @@ exports.verifyAppleReceipt = async (req, res) => {
 
     const planType = isActive ? mapProductIdToPlan(latestTx.product_id) : 'free';
 
-    console.log(`[Subscription] User ${userId}: plan=${planType}, active=${isActive}, expires=${expiresAt}, product=${latestTx.product_id}`);
-
     // Step 6: Persist to database
     await persistSubscription(userId, {
       planType,
@@ -248,7 +316,8 @@ exports.getSubscriptionStatus = async (req, res) => {
   try {
     const result = await db.query(
       `SELECT plan_type, is_active, expires_at,
-              apple_product_id, apple_original_transaction_id
+              apple_product_id, apple_original_transaction_id,
+              platform, google_order_id
        FROM subscription_status
        WHERE user_id = $1`,
       [userId]

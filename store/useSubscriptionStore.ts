@@ -8,7 +8,9 @@ import {
   purchaseErrorListener,
   finishTransaction,
   getAvailablePurchases,
+  type Subscription,
   type SubscriptionIOS,
+  type SubscriptionAndroid,
   type Purchase,
   type PurchaseError,
 } from 'react-native-iap';
@@ -27,7 +29,7 @@ export const ALL_PRODUCT_IDS = [IAP_PRODUCT_IDS.plus, IAP_PRODUCT_IDS.signature]
 
 // ─── Store interface ──────────────────────────────────────────────────────────
 interface SubscriptionState {
-  availableProducts:   SubscriptionIOS[];
+  availableProducts:   Subscription[];
   productsLoading:     boolean;
   purchaseLoading:     boolean;
   purchaseError:       string | null;
@@ -65,10 +67,8 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
   // ── initIAP ────────────────────────────────────────────────────────────────
   initIAP: async () => {
-    if (Platform.OS !== 'ios') return;
-
     try {
-      if (__DEV__) console.log('[StoreKit] Starting initIAP...');
+      if (__DEV__) console.log('[Store] Starting initIAP...');
       set({ 
         productsLoading: true, 
         purchaseError: null,
@@ -100,19 +100,27 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       purchaseErrorSub?.remove();
       
       purchaseUpdateSub = purchaseUpdatedListener(async (purchase: Purchase) => {
-        if (__DEV__) console.log('[StoreKit] purchaseUpdatedListener triggered for product:', purchase.productId);
+        if (__DEV__) console.log('[Store] purchaseUpdatedListener triggered for product:', purchase.productId);
         const receipt = purchase.transactionReceipt;
-        if (!receipt) {
-          console.warn('[StoreKit Debug] Purchase triggered but no transaction receipt found.');
+        const purchaseToken = purchase.purchaseToken;
+        const isAndroid = Platform.OS === 'android';
+
+        if ((isAndroid && !purchaseToken) || (!isAndroid && !receipt)) {
+          console.warn('[Store Debug] Purchase triggered but no valid receipt/token found.');
           return;
         }
 
         set({ purchaseLoading: true, purchaseError: null });
 
         try {
-          if (__DEV__) console.log('[StoreKit] Verifying receipt with backend...');
-          const result = await verifyAppleReceipt(receipt);
-          if (__DEV__) console.log('[StoreKit] Backend validation success. plan_type updated to:', result.plan_type);
+          if (__DEV__) console.log('[Store] Verifying receipt with backend...');
+          const result = await verifyAppleReceipt(
+            isAndroid ? '' : receipt,
+            isAndroid ? 'android' : 'ios',
+            isAndroid ? purchaseToken : undefined,
+            isAndroid ? purchase.productId : undefined
+          );
+          if (__DEV__) console.log('[Store] Backend validation success. plan_type updated to:', result.plan_type);
 
           // Update global plan — ONLY set after backend confirms
           useAuthStore.getState().setPlanType(result.plan_type);
@@ -179,17 +187,17 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
           return;
         }
 
-        // Filter to iOS-only subscriptions to satisfy SubscriptionIOS type
-        const products = (raw as any[]).filter(
-          (p): p is SubscriptionIOS => !('subscriptionOfferDetails' in p) && 'localizedPrice' in p
+        // Filter products based on current platform
+        const products = (raw as Subscription[]).filter(
+          (p) => p.platform === (Platform.OS === 'android' ? 'android' : 'ios')
         );
-        if (__DEV__) console.log('[StoreKit] Filtered iOS products count:', products.length);
+        if (__DEV__) console.log('[Store] Filtered products count:', products.length);
         if (__DEV__) products.forEach(p =>
           console.log(`[StoreKit] Product: ID=${p.productId}, Title=${p.title}, Price=${p.localizedPrice}`)
         );
 
         if (products.length === 0 && raw.length > 0) {
-          console.warn('[StoreKit Debug] All products filtered out (not matching iOS subscription shape).');
+          console.warn('[Store Debug] All products filtered out (not matching platform).');
           set({ 
             productsLoading: false,
             productsLoaded: true,
@@ -249,12 +257,10 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
   // ── purchasePlan ───────────────────────────────────────────────────────────
   purchasePlan: async (productId: string) => {
-    if (Platform.OS !== 'ios') return;
-
-    if (__DEV__) console.log('[StoreKit] purchasePlan requested for:', productId);
+    if (__DEV__) console.log('[Store] purchasePlan requested for:', productId);
 
     if (!get().iapConnected || !get().iapReady) {
-      console.warn('[StoreKit Debug] Connection not ready. Rejecting purchase.');
+      console.warn('[Store Debug] Connection not ready. Rejecting purchase.');
       set({
         purchaseLoading: false,
         purchaseError: 'Apple Store bağlantısı aktif değil. Satın alma işlemi başlatılamaz.',
@@ -274,9 +280,26 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     set({ purchaseLoading: true, purchaseError: null });
 
     try {
-      if (__DEV__) console.log('[StoreKit] Initiating requestSubscription for:', productId);
-      await requestSubscription({ sku: productId });
-      if (__DEV__) console.log('[StoreKit] requestSubscription call returned.');
+      if (__DEV__) console.log('[Store] Initiating requestSubscription for:', productId);
+      
+      if (Platform.OS === 'android') {
+        const product = get().availableProducts.find(p => p.productId === productId) as SubscriptionAndroid;
+        const offerToken = product?.subscriptionOfferDetails?.[0]?.offerToken;
+        
+        if (!offerToken) {
+          console.warn('[Store Debug] Missing offerToken for Android subscription.');
+          set({ purchaseLoading: false, purchaseError: 'Ürün teklifi bulunamadı.' });
+          return;
+        }
+        await requestSubscription({ 
+          sku: productId, 
+          subscriptionOffers: [{ sku: productId, offerToken }] 
+        });
+      } else {
+        await requestSubscription({ sku: productId });
+      }
+      
+      if (__DEV__) console.log('[Store] requestSubscription call returned.');
       // Completion is handled by purchaseUpdatedListener above.
       // purchaseLoading stays true until the listener fires and resets it.
     } catch (err: any) {
@@ -296,12 +319,10 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
   // ── restorePurchases ───────────────────────────────────────────────────────
   restorePurchases: async () => {
-    if (Platform.OS !== 'ios') return;
-
     if (!get().iapConnected) {
       set({
         restoreLoading: false,
-        restoreMessage: 'Apple Store bağlantısı aktif değil. Satın alımlar geri yüklenemez.',
+        restoreMessage: 'Mağaza bağlantısı aktif değil. Satın alımlar geri yüklenemez.',
       });
       return;
     }
@@ -325,7 +346,8 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         .filter((p) => ALL_PRODUCT_IDS.includes(p.productId))
         .sort((a, b) => (b.transactionDate ?? 0) - (a.transactionDate ?? 0))[0];
 
-      if (!latestPurchase?.transactionReceipt) {
+      const isAndroid = Platform.OS === 'android';
+      if ((isAndroid && !latestPurchase?.purchaseToken) || (!isAndroid && !latestPurchase?.transactionReceipt)) {
         set({
           restoreLoading: false,
           restoreMessage: 'Geri yüklenecek aktif abonelik bulunamadı.',
@@ -334,7 +356,12 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       }
 
       // Validate with backend
-      const result = await restoreFromBackend(latestPurchase.transactionReceipt);
+      const result = await restoreFromBackend(
+        isAndroid ? '' : latestPurchase.transactionReceipt,
+        isAndroid ? 'android' : 'ios',
+        isAndroid ? latestPurchase.purchaseToken : undefined,
+        isAndroid ? latestPurchase.productId : undefined
+      );
       useAuthStore.getState().setPlanType(result.plan_type);
 
       const planLabel =

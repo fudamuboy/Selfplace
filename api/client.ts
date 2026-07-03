@@ -172,7 +172,12 @@ client.interceptors.response.use(
 const inFlightRequests = new Map<string, Promise<any>>();
 
 const getRequestKey = (config: any) => {
-  return `${config.method || 'get'}:${config.url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}`;
+  // CRITICAL: get the token directly from the Zustand store.
+  // Axios request interceptors (which populate headers.Authorization)
+  // run AFTER client.request() wrapper checks, meaning config.headers
+  // is undefined here. Directly fetching the token guarantees isolation.
+  const token = useAuthStore.getState().token || '';
+  return `${config.method || 'get'}:${config.url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}:${token}`;
 };
 
 const originalRequest = client.request.bind(client);

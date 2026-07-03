@@ -55,7 +55,6 @@ exports.extractCardThemes = async (userId) => {
 
     // 2. Rule-based Fallback (Cost-control)
     if (entries.length < 3) {
-      console.log(`[cardIntelligenceService] User ${userId}: Less than 3 card responses (${entries.length}). Applying rule-based clustering fallback.`);
       const uniqueThemes = new Set();
       for (const entry of entries) {
         const theme = CATEGORY_THEME_MAPPING[entry.category] || 'Kişisel farkındalık ve gelişim';
@@ -64,7 +63,6 @@ exports.extractCardThemes = async (userId) => {
       themesStr = Array.from(uniqueThemes).join(', ');
     } else {
       // 3. LLM-based Thematic Extraction (>= 3 entries)
-      console.log(`[cardIntelligenceService] User ${userId}: ${entries.length} card responses. Triggering GPT-4o-mini thematic extraction.`);
       const cardText = entries.map(r => `[Card Title: ${r.title} | Category: ${r.category} | Prompt: ${r.content}] User Response: ${r.response}`).join('\n\n');
 
       const systemPrompt = `You are a psychological thematic analyzer.

@@ -8,6 +8,7 @@ interface User {
   zodiac_sign?: string;
   birth_date?: string;
   createdAt?: string;
+  onboarding_goals?: string[];
 }
 
 interface AuthState {
