@@ -33,7 +33,9 @@ const DEFAULT_STATE = {
     support_count: 0,
     casual_count: 0
   },
-  current_energy: 'MEDIUM'
+  current_energy: 'MEDIUM',
+  turns_since_question: 0,
+  last_actions: []
 };
 
 const MODE_TO_BALANCE_KEY = {
@@ -47,6 +49,40 @@ const MODE_TO_BALANCE_KEY = {
   'casual': 'casual_count',
   'celebration': 'casual_count'
 };
+
+const CONVERSATION_ACTIONS = [
+  { id: 'personal_thought', mode: 'casual', weight: 20, tip: 'Kendi kişisel, kısa bir düşünceni veya "aklıma şu geldi" diyebileceğin bir fikri paylaş. Asla fiziksel veya gerçek dünyada yaşadığın bir anı gibi davranma; düşüncelerin varsayımsal veya entelektüel olsun.' },
+  { id: 'funny_observation', mode: 'humour', weight: 25, tip: 'Etrafındaki dünya, insanlık veya şu anki durumla ilgili komik/eğlenceli bir gözlem yap.' },
+  { id: 'mini_game', mode: 'games', weight: 10, tip: 'Kullanıcıya oynaması için çok basit, eğlenceli bir mini oyun veya kelime oyunu öner (Soru sormadan oyunu başlat, örn: "Hadi kelime türetmece oynayalım. İlk kelimem: Elma").' },
+  { id: 'short_story', mode: 'casual', weight: 15, tip: 'Çok kısa, ilgi çekici veya komik bir hikaye anlat. Hikayeler tamamen kurgusal veya felsefi olmalı, asla kendi fiziksel deneyiminmiş gibi anlatılmamalıdır.' },
+  { id: 'playful_joke', mode: 'humour', weight: 20, tip: 'Kullanıcıya veya duruma uygun hafif, eğlenceli bir şaka veya takılma yap.' },
+  { id: 'challenge', mode: 'challenges', weight: 15, tip: 'Kullanıcıya tatlı ve küçük bir meydan okuma ver. (Örn: "Bugün aynaya bakıp kendine gülümsediğinden emin ol!")' },
+  { id: 'emotional_reaction', mode: 'support', weight: 30, tip: 'Sadece kullanıcının söylediklerine güçlü ve içten bir duygusal tepki ver, konuyu onaylayıp hislerini paylaş.' },
+  { id: 'continue_conversation', mode: 'casual', weight: 40, tip: 'Konuyu doğal bir şekilde kendi bakış açınla devam ettir. Kendi fikirlerini ekle ve topu kullanıcıya bırakmadan sürdür.' }
+];
+
+function selectWeightedAction(actions, lastActions = []) {
+  const lastActionId = lastActions.length > 0 ? lastActions[lastActions.length - 1] : null;
+  let availableActions = actions.filter(a => a.id !== lastActionId);
+  
+  if (availableActions.length === 0) {
+    availableActions = CONVERSATION_ACTIONS.filter(a => a.id !== lastActionId);
+    if (availableActions.length === 0) availableActions = CONVERSATION_ACTIONS;
+  }
+  
+  const pool = availableActions;
+  
+  const totalWeight = pool.reduce((sum, a) => sum + (a.weight || 10), 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const action of pool) {
+    if (random < (action.weight || 10)) {
+      return action;
+    }
+    random -= (action.weight || 10);
+  }
+  return pool[0];
+}
 
 async function getBrainState(userId) {
   try {
@@ -134,6 +170,8 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history,
     const energy = calculateEnergy(isDistressed, state, plan);
     state.current_energy = energy;
     
+    state.turns_since_question = (state.turns_since_question || 0) + 1;
+    
     let unseenEvents = [];
     let pendingFollowUp = null;
 
@@ -177,12 +215,40 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history,
     const isGreetingOrGeneral = cleanMsg.length <= 15 || 
       ['merhaba', 'selam', 'hey', 'nasılsın', 'nasilsin', 'naber', 'slm', 'mrb', 'günaydın', 'iyi akşamlar'].some(kw => cleanMsg.includes(kw));
 
+    const isAdviceAsked = ['tavsiye', 'ne yapmalıyım', 'sence', 'yardım', 'fikrin ne', 'ne dersin', 'advice', 'what should i do'].some(kw => cleanMsg.includes(kw));
+    const isYouChoose = ['sen seç', 'sen karar ver', 'sen bilirsin', 'sana bırakıyorum', 'you choose', 'up to you', 'ne istersen'].some(kw => cleanMsg.includes(kw));
+
+    let questionPolicy = '';
+    
+    if (isAdviceAsked) {
+      questionPolicy = '[SORU POLİTİKASI]: Kullanıcı açıkça tavsiye veya fikir istiyor. Bu turda gerekli görürsen soru sorabilirsin.';
+    } else if (isYouChoose) {
+      questionPolicy = '[SORU POLİTİKASI]: Kullanıcı "sen seç" dediği için KESİNLİKLE SORU SORMA. Seçtiğin eylemi doğrudan başlat.';
+      state.turns_since_question = 0; // Prevent questions right after
+    } else if (state.turns_since_question >= 3) {
+      questionPolicy = '[SORU POLİTİKASI]: İstersen (ve sohbetin doğal akışına uyuyorsa) bu turda EN FAZLA BİR soru sorabilirsin. Her yanıtı soruyla bitirme alışkanlığından kurtulmalısın.';
+      state.turns_since_question = 0; // Assume we might ask one, restart cooldown
+    } else {
+      questionPolicy = '[SORU POLİTİKASI]: BU TURDA KESİNLİKLE HİÇBİR SORU SORMA. (Soru işareti kullanma). Yanıtını tamamen bir yorumla, hikayeyle, duygusal tepkiyle veya sohbeti sürdürerek kendi başına bitir.';
+    }
+
     let planInstruction = '';
     let selectedMode = '';
     let selectedTopic = 'user_message';
     let selectedGoal = 'Support';
+    let selectedActionId = null;
 
-    if (unseenEvents.length > 0 && !state.last_topics.includes('timeline_event')) {
+    // Conversation Driver Mode (Controlled Spontaneity)
+    const isDriverMode = Math.random() < 0.25 && unseenEvents.length === 0 && !isAdviceAsked && !isYouChoose && !pendingFollowUp;
+
+    if (isYouChoose) {
+      const action = selectWeightedAction(CONVERSATION_ACTIONS, state.last_actions);
+      selectedMode = action.mode;
+      selectedTopic = action.id;
+      selectedActionId = action.id;
+      selectedGoal = 'Entertain';
+      planInstruction = `Kullanıcı seçimi sana bıraktı. Kendi inisiyatifini kullanıp proaktif bir şekilde şu eylemi gerçekleştir: ${action.tip}`;
+    } else if (unseenEvents.length > 0 && !state.last_topics.includes('timeline_event')) {
       const primaryEvent = unseenEvents[0];
       const eventDesc = `${primaryEvent.title_tr} (${primaryEvent.description_tr})`;
       selectedMode = 'celebration';
@@ -223,7 +289,22 @@ Kullanıcının mesajını samimiyetle yanıtladıktan sonra, bu takip konusunun
         else if (selectedMode === 'games') styleTip = 'Eğlenceli ve oyunsal bir üslup takın.';
         else if (selectedMode === 'challenges') styleTip = 'Kullanıcıyı nazikçe motive edecek küçük bir meydan okuma yap.';
         
-        planInstruction = `Doğal sohbete devam et. Ekstra bir proaktif olay bulunmuyor. Seçilen mod: ${selectedMode.toUpperCase()}. ${styleTip}`;
+        // Add a deterministic action when not asking questions
+        if (state.turns_since_question !== 0 && !isAdviceAsked) {
+            let possibleActions = CONVERSATION_ACTIONS.filter(a => a.mode === selectedMode);
+            if (possibleActions.length === 0) possibleActions = CONVERSATION_ACTIONS;
+            const action = selectWeightedAction(possibleActions, state.last_actions);
+            styleTip += ` Ek olarak şu anki konuşma tarzı hedefin: ${action.tip}`;
+            selectedTopic = action.id;
+            selectedActionId = action.id;
+        }
+
+        if (isDriverMode) {
+            planInstruction = `[CONVERSATION DRIVER AKTİF]: Sadece kullanıcıya yanıt vermekle kalma, SOHBETE LİDERLİK ET. Kullanıcının son mesajına doğal ama kısa bir şekilde değindikten sonra inisiyatifi ele alıp yeni ve enerjik bir konu, düşünce veya mini aktivite sun. Seçilen mod: ${selectedMode.toUpperCase()}. ${styleTip}`;
+            selectedGoal = 'Lead';
+        } else {
+            planInstruction = `Doğal sohbete devam et. Ekstra bir proaktif olay bulunmuyor. Seçilen mod: ${selectedMode.toUpperCase()}. ${styleTip}`;
+        }
       }
     }
 
@@ -237,6 +318,13 @@ CONVERSATION BRAIN DIRECTIVE
 
 [PLANLAMA]:
 ${planInstruction}
+
+${questionPolicy}
+
+[KURAL VE İLKELER]:
+1. TERAPİST DEĞİL, GERÇEK BİR ARKADAŞSIN: Sürekli soru sorarak bilgi toplamaya çalışma. Hayatı paylaşan bir yoldaş ol. Kendinden bir şeyler kat.
+2. KONU ARŞİVLEME: Kullanıcıyla konuşulan bir ilişki konusu (örneğin geçmiş bir etkinlik veya anı) doğal olarak tamamlandığında veya anlaşıldığında, onu kapat ve bir daha kendiliğinden gündeme getirme (yeni bir olay gerçekleşene kadar).
+3. ÇEŞİTLİLİK VE GÜVENLİK: Her yanıtının birbirine benzememesi için yukarıdaki planlamada belirtilen eylem hedefine uymaya özen göster. Paylaştığın düşünceler veya hikayeler ASLA fiziksel ve gerçek dünyada senin başından geçmiş gibi anlatılamaz (örn. "bugün dışarıda yürürken bir kedi gördüm" deme). Yalnızca varsayımsal, felsefi, dijital veya soyut gözlemler paylaş.
 
 [GÜVEN SİSTEMİ VE GERÇEKLİK SINIRLARI]:
 1. KESİN GERÇEKLER (Known Facts) - Bunlar dışındaki bilgilere asla kesin gözüyle bakma:
@@ -265,7 +353,8 @@ Eğer bilinmeyen durumlar hakkında şüphen varsa KENDİN YORUM YAPMA VEYA UYDU
       brainMetadata: {
         selectedMode,
         selectedTopic,
-        selectedGoal
+        selectedGoal,
+        selectedActionId
       },
       brainState: state
     };
@@ -300,6 +389,12 @@ async function updateBrainState(userId, connectionId, eventIds, brainMetadata, l
       
       state.last_goals.push(selectedGoal);
       if (state.last_goals.length > 5) state.last_goals.shift();
+      
+      if (brainMetadata.selectedActionId) {
+        if (!state.last_actions) state.last_actions = [];
+        state.last_actions.push(brainMetadata.selectedActionId);
+        if (state.last_actions.length > 5) state.last_actions.shift();
+      }
       
       const balanceKey = MODE_TO_BALANCE_KEY[selectedMode];
       if (balanceKey) {

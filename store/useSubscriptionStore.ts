@@ -193,7 +193,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         );
         if (__DEV__) console.log('[Store] Filtered products count:', products.length);
         if (__DEV__) products.forEach(p =>
-          console.log(`[StoreKit] Product: ID=${p.productId}, Title=${p.title}, Price=${p.localizedPrice}`)
+          console.log(`[StoreKit] Product: ID=${p.productId}, Title=${p.title}, Price=${(p as any).localizedPrice || 'N/A'}`)
         );
 
         if (products.length === 0 && raw.length > 0) {
