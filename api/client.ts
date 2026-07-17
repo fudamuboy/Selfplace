@@ -43,11 +43,21 @@ client.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  if (__DEV__) {
+    const ts = new Date().toISOString();
+    console.log(
+      `[AUTH-TRACE REQUEST] ${ts}\n` +
+      `  URL    : ${config.url}\n` +
+      `  Method : ${(config.method || 'get').toUpperCase()}\n` +
+      `  Auth   : ${config.headers.Authorization ? `Bearer ${token?.slice(0, 12)}...` : 'NONE'}\n` +
+      `  Zustand: ${token ? token.slice(0, 12) + '...' : 'NULL'}`
+    );
+  }
+
   // Orchestrate heavy API requests
   const configAny = config as any;
   if (isHeavyRequest(config.url)) {
     if (configAny.__isRetry) {
-      // Retries bypass the queue delay but still contribute to the concurrent active count
       activeRequestsCount++;
     } else {
       await new Promise<void>((resolve) => {
@@ -113,41 +123,50 @@ client.interceptors.response.use(
       }
     }
 
-    // ── Session expiry: 401 Unauthorized or 403 Forbidden ───────────────────
-    if (status === 401 || status === 403) {
+    // ── Session expiry ──────────────────────────────────────────────────────
+    if (isSessionExpired) {
+      const authHeader = config?.headers?.Authorization;
+      const requestToken = typeof authHeader === 'string' ? authHeader.replace('Bearer ', '') : null;
+      const currentToken = useAuthStore.getState().token || null;
+
+      const ts = new Date().toISOString();
+      console.warn(
+        `[AUTH-TRACE SESSION-EXPIRY] ${ts}\n` +
+        `  URL          : ${config?.url}\n` +
+        `  Method       : ${(config?.method || 'get').toUpperCase()}\n` +
+        `  HTTP Status  : ${status}\n` +
+        `  Request token: ${requestToken ? requestToken.slice(0, 12) + '...' : 'NONE'}\n` +
+        `  Zustand token: ${currentToken ? currentToken.slice(0, 12) + '...' : 'NULL'}\n` +
+        `  Token match  : ${requestToken === currentToken ? 'YES ← this is a real expiry' : 'NO ← stale/obsolete request'}`
+      );
+
+      if (requestToken !== currentToken) {
+        console.warn('[AUTH-TRACE] OBSOLETE TOKEN — ignoring 401. Session is still valid.');
+        const obsoleteError = new Error('OBSOLETE_TOKEN');
+        (obsoleteError as any).isObsolete = true;
+        return Promise.reject(obsoleteError);
+      }
+
+      if (!currentToken) {
+        console.warn('[AUTH-TRACE] UNAUTHENTICATED — no current token. Ignoring 401.');
+        const unauthError = new Error('UNAUTHENTICATED');
+        (unauthError as any).isUnauthenticated = true;
+        return Promise.reject(unauthError);
+      }
+
       if (!sessionExpiryHandled) {
         sessionExpiryHandled = true;
-
-        // Clear token/session and trigger session-expiry flow
+        console.warn('[AUTH-TRACE] REAL SESSION EXPIRY — calling handleSessionExpiry()');
+        console.trace('[AUTH-TRACE] SESSION EXPIRED call stack');
         useAuthStore.getState().handleSessionExpiry();
-
-        // Reset dedup flag after navigation completes so future logins work
         setTimeout(() => {
           sessionExpiryHandled = false;
         }, 3000);
       }
 
-      // Return a rejected promise with a clean, user-friendly error
       const sessionError = new Error('SESSION_EXPIRED');
       (sessionError as any).isSessionExpiry = true;
       return Promise.reject(sessionError);
-    }
-
-    // ── User not found (multi-env safety) ───────────────────────────────────
-    if (
-      status === 404 &&
-      error.response?.data?.message === 'Kullanıcı bulunamadı.'
-    ) {
-      if (!sessionExpiryHandled) {
-        sessionExpiryHandled = true;
-        useAuthStore.getState().handleSessionExpiry();
-        setTimeout(() => {
-          sessionExpiryHandled = false;
-        }, 3000);
-      }
-      const notFoundError = new Error('SESSION_EXPIRED');
-      (notFoundError as any).isSessionExpiry = true;
-      return Promise.reject(notFoundError);
     }
 
     // ── Network / no-response errors ────────────────────────────────────────

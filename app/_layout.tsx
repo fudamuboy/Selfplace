@@ -153,11 +153,14 @@ export default function RootLayout() {
           if (storedToken && storedUser) {
             try {
               const parsedUser = JSON.parse(storedUser);
+              console.log('[AUTH-TRACE _layout] hydration: calling setAuth with stored token.');
               await setAuth(storedToken, parsedUser);
+              console.log('[AUTH-TRACE _layout] hydration: setAuth complete. Fetching subscription...');
 
               // Hydrate subscription state
               try {
                 const sub = await getSubscription();
+                console.log('[AUTH-TRACE _layout] hydration: getSubscription OK, plan:', sub.plan_type);
                 useAuthStore.getState().setPlanType(sub.plan_type);
               } catch (subErr: any) {
                 if (subErr?.isSessionExpiry || subErr?.message === 'SESSION_EXPIRED') {
@@ -198,12 +201,14 @@ export default function RootLayout() {
           }
         }
 
-        // Initialize IAP globally (fire and forget so it doesn't block UI)
-        try {
-          useSubscriptionStore.getState().initIAP();
-        } catch (e) {
-          console.error('[Startup] IAP init exception:', e);
-        }
+        // IAP is intentionally NOT initialised here.
+        // purchaseUpdatedListener can fire synchronously inside initConnection()
+        // for pending StoreKit transactions. If initIAP() runs before the token
+        // is confirmed stable in the store, those listener-triggered calls to
+        // verifyAppleReceipt() go out with no Authorization header, the JWT
+        // middleware returns 401, and the global interceptor calls
+        // handleSessionExpiry() — logging the user out immediately after login.
+        // initIAP() is deferred to a separate useEffect guarded by isReady + token.
       } catch (e) {
         console.error('[Startup] Critical initialization error:', e);
         // Fallback state so the app doesn't hang on splash
@@ -215,16 +220,58 @@ export default function RootLayout() {
           console.error('[Startup] Fallback initialization error:', fallbackError);
         }
       } finally {
+        useAuthStore.getState().clearSessionExpired();
         setIsReady(true);
       }
     }
     initialize();
   }, []);
 
+  // ── IAP initialisation — deferred until the user is authenticated ───────────
+  // MUST run after isReady=true so the token is guaranteed to be in the store
+  // before purchaseUpdatedListener can fire and call verifyAppleReceipt().
+  // Without this guard, a pending StoreKit transaction fires the listener
+  // synchronously inside initConnection(), the request goes out with no token,
+  // the JWT middleware returns 401, and handleSessionExpiry() is triggered
+  // immediately after a fresh login.
+  const iapInitialisedRef = useRef(false);
+  useEffect(() => {
+    if (!token) {
+      iapInitialisedRef.current = false;
+      try {
+        useSubscriptionStore.getState().teardownIAP();
+      } catch (e) {
+        console.error('[IAP] Teardown exception:', e);
+      }
+      return;
+    }
+    if (!isReady) {
+      return;
+    }
+    if (iapInitialisedRef.current) {
+      return;
+    }
+    iapInitialisedRef.current = true;
+    try {
+      useSubscriptionStore.getState().initIAP();
+    } catch (e) {
+      console.error('[Startup] IAP init exception:', e);
+    }
+  }, [isReady, token]);
+
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
       if (nextAppState === 'active') {
-        
+        // Guard: never fire authenticated requests before startup hydration is complete
+        // and never fire if the user is not logged in.
+        const currentToken = useAuthStore.getState().token;
+        console.log(`[AUTH-TRACE _layout] AppState -> active. isReady=${isReady}, token=${currentToken ? 'SET' : 'NULL'}`);
+
+        if (!isReady || !currentToken) {
+          console.log('[AUTH-TRACE _layout] AppState wake skipped: not ready or not authenticated.');
+          return;
+        }
+
         const isOnlineNow = await useNetworkStore.getState().checkConnectivity();
         if (isOnlineNow) {
           useNetworkStore.getState().triggerGlobalRefresh();
@@ -245,15 +292,32 @@ export default function RootLayout() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [isReady]);
+
+  // Track the last active token so we only show the toast on expiry of an ACTIVE session
+  const prevTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (token) {
+      prevTokenRef.current = token;
+    } else if (!sessionExpired) {
+      prevTokenRef.current = null;
+    }
+  }, [token, sessionExpired]);
 
   // ── Session expiry: show soft toast then redirect to login ─────────────────
   useEffect(() => {
+    console.log(`[AUTH-TRACE _layout] sessionExpired effect: sessionExpired=${sessionExpired}, isReady=${isReady}, prevToken=${prevTokenRef.current ? 'SET' : 'NULL'}`);
     if (sessionExpired && isReady) {
-      setShowSessionToast(true);
+      if (prevTokenRef.current !== null) {
+        console.warn('[AUTH-TRACE _layout] ⚠️  Showing session-expired toast and redirecting to login.');
+        setShowSessionToast(true);
+      } else {
+        console.log('[AUTH-TRACE _layout] Silent session expiry (startup hydration / no active session). Redirecting to login.');
+      }
       // Navigate to login after a brief delay so the toast is visible
       const timer = setTimeout(() => {
         router.replace('/(auth)/login');
+        prevTokenRef.current = null;
       }, 800);
       return () => clearTimeout(timer);
     }

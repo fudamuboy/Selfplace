@@ -1,4 +1,4 @@
-/* eslint-env node */
+/* global __dirname */
 const fs = require('fs');
 const path = require('path');
 
@@ -40,4 +40,59 @@ end
   console.log('react-native-iap RNIap.podspec patched successfully.');
 } else {
   console.warn('RNIap.podspec not found at:', podspecPath);
+}
+
+const rniapModulePath = path.join(__dirname, '..', 'node_modules', 'react-native-iap', 'android', 'src', 'play', 'java', 'com', 'dooboolab', 'rniap', 'RNIapModule.kt');
+
+if (fs.existsSync(rniapModulePath)) {
+  console.log('Patching react-native-iap RNIapModule.kt...');
+  let content = fs.readFileSync(rniapModulePath, 'utf8');
+
+  const target1 = `        val activity = currentActivity
+        if (activity == null) {
+            promise.safeReject(PromiseUtils.E_UNKNOWN, "getCurrentActivity returned null")
+            return
+        }`;
+        
+  const replacement1 = `        val activity = reactApplicationContext.currentActivity
+        if (activity == null) {
+            promise.safeReject(PromiseUtils.E_UNKNOWN, "getCurrentActivity returned null")
+            return
+        }`;
+
+  const target2 = `            val flowParams = builder.build()
+            val billingResultCode = billingClient.launchBillingFlow(activity, flowParams).responseCode
+            if (billingResultCode != BillingClient.BillingResponseCode.OK) {
+                val errorData = PlayUtils.getBillingResponseData(billingResultCode)
+                promise.safeReject(errorData.code, errorData.message)
+            }`;
+
+  const replacement2 = `            val flowParams = builder.build()
+            activity.runOnUiThread {
+                val billingResultCode = billingClient.launchBillingFlow(activity, flowParams).responseCode
+                if (billingResultCode != BillingClient.BillingResponseCode.OK) {
+                    val errorData = PlayUtils.getBillingResponseData(billingResultCode)
+                    promise.safeReject(errorData.code, errorData.message)
+                }
+            }`;
+
+  let changed = false;
+  if (content.includes(target1)) {
+    content = content.replace(target1, replacement1);
+    changed = true;
+  }
+  
+  if (content.includes(target2)) {
+    content = content.replace(target2, replacement2);
+    changed = true;
+  }
+
+  if (changed) {
+    fs.writeFileSync(rniapModulePath, content, 'utf8');
+    console.log('react-native-iap RNIapModule.kt patched successfully.');
+  } else {
+    console.log('react-native-iap RNIapModule.kt is already patched or targets not found.');
+  }
+} else {
+  console.warn('RNIapModule.kt not found at:', rniapModulePath);
 }

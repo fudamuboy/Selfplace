@@ -83,7 +83,7 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>9. Apple Standart Lisans Sözleşmesi (EULA)</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Bu uygulamayı kullanarak, Apple'ın Standart Son Kullanıcı Lisans Sözleşmesi'ne (EULA) tabi olduğunuzu kabul edersiniz. Daha fazla bilgi için lütfen Apple'ın resmi EULA sayfasını ziyaret edin: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+              Bu uygulamayı kullanarak, Apple&apos;ın Standart Son Kullanıcı Lisans Sözleşmesi&apos;ne (EULA) tabi olduğunuzu kabul edersiniz. Daha fazla bilgi için lütfen Apple&apos;ın resmi EULA sayfasını ziyaret edin: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
             </Text>
           </View>
 

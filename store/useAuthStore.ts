@@ -40,6 +40,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
   setPlanType: (planType) => set({ planType }),
 
   setAuth: async (token, user) => {
+    if (__DEV__) {
+      console.log(`[AUTH-TRACE setAuth] ${new Date().toISOString()} — token: ${token.slice(0, 12)}...`);
+      console.trace('[AUTH-TRACE setAuth] call stack');
+    }
     await AsyncStorage.setItem('token', token);
     await AsyncStorage.setItem('user', JSON.stringify(user));
     set({ token, user, sessionExpired: false });
@@ -55,6 +59,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    if (__DEV__) {
+      console.warn(`[AUTH-TRACE logout] ${new Date().toISOString()}`);
+      console.trace('[AUTH-TRACE logout] call stack');
+    }
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
     set({ token: null, user: null, sessionExpired: false, planType: 'free' });
@@ -65,6 +73,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
    * Clears credentials from storage and signals the UI to redirect to login.
    */
   handleSessionExpiry: async () => {
+    if (__DEV__) {
+      console.warn(`[AUTH-TRACE handleSessionExpiry] ${new Date().toISOString()}`);
+      console.trace('[AUTH-TRACE handleSessionExpiry] call stack');
+    }
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
     set({ token: null, user: null, sessionExpired: true, planType: 'free' });

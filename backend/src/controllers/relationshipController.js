@@ -54,7 +54,7 @@ exports.sendInvite = async (req, res) => {
         [requesterId]
       );
       if (parseInt(activeCountRes.rows[0].count) >= 1) {
-        return res.status(403).json({
+        return res.status(409).json({
           message: 'Ücretsiz planda yalnızca 1 aktif bağlantı kurabilirsiniz. Sınırsız bağlantı için planınızı Selfplace Plus\'a yükseltin.',
           isLimitReached: true
         });
@@ -210,7 +210,7 @@ exports.respondInvite = async (req, res) => {
           [userId]
         );
         if (parseInt(activeCountRes.rows[0].count) >= 1) {
-          return res.status(403).json({
+          return res.status(409).json({
             message: 'Ücretsiz planda yalnızca 1 aktif bağlantı kurabilirsiniz. Sınırsız bağlantı için planınızı yükseltin.',
             isLimitReached: true
           });
@@ -640,6 +640,8 @@ exports.getDailySync = async (req, res) => {
   const connectionId = req.params.id;
   const userId = req.user.id;
 
+  console.log('DAILY_SYNC_CONTROLLER_V2', new Date().toISOString(), { connectionId, userId });
+
   try {
     // 1. Verify active connection
     const checkRes = await db.query(
@@ -649,6 +651,7 @@ exports.getDailySync = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
+      console.log('RETURN STATUS', 404, 'NO_ACTIVE_CONNECTION');
       return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
     }
 
@@ -659,14 +662,17 @@ exports.getDailySync = async (req, res) => {
     );
 
     const isSig = await isSignatureConnection(connectionId);
+    console.log('DAILY_SYNC_CONTROLLER_V2 branch', { todaySyncCount: todaySync.rows.length, isSig });
 
     if (todaySync.rows.length > 0) {
       const row = todaySync.rows[0];
       // If the connection has Signature but the stored daily sync is missing signature fields,
       // let's force re-generate it. Otherwise, return the cached sync.
       if (isSig && !row.emotional_aura) {
+        console.log('DAILY_SYNC_CONTROLLER_V2 forcing regen for Signature upgrade');
         // Force regeneration to fill Signature fields
       } else {
+        console.log('RETURN STATUS', 200, 'CACHED_TODAY_SYNC');
         return res.json(row);
       }
     }
@@ -675,9 +681,11 @@ exports.getDailySync = async (req, res) => {
     const plan = await getUserPlan(userId);
     const countRes = await db.query('SELECT COUNT(*) FROM relationship_daily_syncs WHERE connection_id = $1', [connectionId]);
     const syncCount = parseInt(countRes.rows[0].count);
+    console.log('DAILY_SYNC_CONTROLLER_V2 limits', { plan, syncCount });
 
     if (plan === 'free' && syncCount >= 3) {
-      return res.status(403).json({
+      console.log('RETURN STATUS', 402, 'FREE_LIMIT_REACHED');
+      return res.status(402).json({
         message: 'Ücretsiz planda günlük uyum limiti doldu. Sınırsız günlük uyum, hava durumu ve zengin analizler için Selfplace Plus\'a geçebilirsiniz.',
         isPremiumLocked: true
       });
@@ -912,10 +920,12 @@ Respond ONLY with valid JSON.`;
       );
     }
 
+    console.log('RETURN STATUS', 200, 'NEW_SYNC_GENERATED');
     res.json(insertRes.rows[0]);
 
   } catch (err) {
     console.error('[relationshipController] getDailySync error:', err);
+    console.log('RETURN STATUS', 500, 'UNHANDLED_ERROR', err.message);
     res.status(500).json({ message: 'Günlük uyum verisi oluşturulamadı.' });
   }
 };
@@ -956,7 +966,7 @@ exports.getRituals = async (req, res) => {
 
     const plan = await getUserPlan(userId);
     if (plan === 'free') {
-      return res.status(403).json({ message: 'İlişki ritüelleri premium bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: 'İlişki ritüelleri premium bir özelliktir.', isPremiumLocked: true });
     }
 
     // Get today's ritual prompt
@@ -1153,7 +1163,7 @@ exports.getTimeline = async (req, res) => {
 
     const plan = await getUserPlan(userId);
     if (plan === 'free') {
-      return res.status(403).json({ message: 'İlişki zaman tüneli premium bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: 'İlişki zaman tüneli premium bir özelliktir.', isPremiumLocked: true });
     }
 
     // 2. Fetch timeline
@@ -1191,7 +1201,7 @@ exports.getInsightFeed = async (req, res) => {
 
     const plan = await getUserPlan(userId);
     if (plan === 'free') {
-      return res.status(403).json({ message: 'Uyum Fısıltıları premium bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: 'Uyum Fısıltıları premium bir özelliktir.', isPremiumLocked: true });
     }
 
     // 2. Fetch or generate the insights
@@ -1226,7 +1236,7 @@ exports.getCrystals = async (req, res) => {
     // 2. Check Signature tier
     const isSig = await isSignatureConnection(connectionId);
     if (!isSig) {
-      return res.status(403).json({ message: 'Anı Kristalleri Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: 'Anı Kristalleri Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
     }
 
     // 3. Fetch crystals
@@ -1266,7 +1276,7 @@ exports.getGardenState = async (req, res) => {
     // 2. Check Signature tier
     const isSig = await isSignatureConnection(connectionId);
     if (!isSig) {
-      return res.status(403).json({ message: 'İlişki Bahçesi Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: 'İlişki Bahçesi Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
     }
 
     // 3. Query metrics
