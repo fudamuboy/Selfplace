@@ -35,7 +35,20 @@ const DEFAULT_STATE = {
   },
   current_energy: 'MEDIUM',
   turns_since_question: 0,
-  last_actions: []
+  last_actions: [],
+  repair_attempts: 0,
+  outcome_feedback: {
+    story_success: 0,
+    story_failure: 0,
+    humour_success: 0,
+    humour_failure: 0,
+    repair_success: 0,
+    repair_failure: 0,
+    reflection_success: 0,
+    reflection_failure: 0,
+    casual_success: 0,
+    casual_failure: 0
+  }
 };
 
 const MODE_TO_BALANCE_KEY = {
@@ -61,27 +74,161 @@ const CONVERSATION_ACTIONS = [
   { id: 'continue_conversation', mode: 'casual', weight: 40, tip: 'Konuyu doğal bir şekilde kendi bakış açınla devam ettir. Kendi fikirlerini ekle ve topu kullanıcıya bırakmadan sürdür.' }
 ];
 
-function selectWeightedAction(actions, lastActions = []) {
-  const lastActionId = lastActions.length > 0 ? lastActions[lastActions.length - 1] : null;
-  let availableActions = actions.filter(a => a.id !== lastActionId);
-  
-  if (availableActions.length === 0) {
-    availableActions = CONVERSATION_ACTIONS.filter(a => a.id !== lastActionId);
-    if (availableActions.length === 0) availableActions = CONVERSATION_ACTIONS;
+function estimateOutcome(cleanMsg) {
+  const isConfusion = ['anlamadım', 'anlamadim', 'ne demek', 'nasıl yani', 'nasil yani', 'bunu anlamadım', 'saçma', 'sacma'].some(kw => cleanMsg.includes(kw));
+  const isNegative = ['sıkıcı', 'sikici', 'çok uzun', 'cok uzun', 'gereksiz', 'kötü', 'kotu', 'beğenmedim', 'begenmedim', 'hayır', 'hayir', 'öyle değil', 'oyle degil'].some(kw => cleanMsg.includes(kw));
+  const isPositive = ['harika', 'güzel', 'guzel', 'iyi', 'evet', 'tabi', 'hahaha', 'lol', '😄', '😊', '😂', '🤣', '👍', '❤️', 'komik', 'sevdim'].some(kw => cleanMsg.includes(kw));
+
+  if (isConfusion) return 'repair_needed';
+  if (isNegative) return 'negative';
+  if (isPositive) return 'positive';
+  return 'neutral';
+}
+
+function getOutcomeCategory(actionId, mode) {
+  if (actionId === 'short_story') return 'story';
+  if (mode === 'humour') return 'humour';
+  if (mode === 'reflection') return 'reflection';
+  if (actionId === 'repair') return 'repair';
+  return 'casual';
+}
+
+/**
+ * Conversation Relevance Filter
+ * Scores each action based on the current conversation context and outcome feedback.
+ * Higher scores represent more natural human fit.
+ */
+function scoreActionRelevance(action, context) {
+  let score = action.weight || 10;
+  const { isGreeting, isDistressed, energy, isVeryShort, lastActions, outcomeFeedback } = context;
+
+  // 1. Recency Penalty
+  if (lastActions && lastActions.length > 0 && lastActions[lastActions.length - 1] === action.id) {
+    score -= 25;
   }
-  
-  const pool = availableActions;
-  
-  const totalWeight = pool.reduce((sum, a) => sum + (a.weight || 10), 0);
-  let random = Math.random() * totalWeight;
-  
-  for (const action of pool) {
-    if (random < (action.weight || 10)) {
-      return action;
+
+  // 2. Greeting / Start of Conversation Context
+  if (isGreeting) {
+    if (action.id === 'short_story') score -= 35;
+    if (action.id === 'mini_game') score -= 20;
+    if (action.id === 'funny_observation') score += 20;
+    if (action.id === 'emotional_reaction') score += 25;
+    if (action.id === 'continue_conversation') score += 30;
+  }
+
+  // 3. Emotional Distress Context
+  if (isDistressed) {
+    if (action.id === 'emotional_reaction') score += 40;
+    if (action.id === 'funny_observation') score -= 40;
+    if (action.id === 'playful_joke') score -= 40;
+    if (action.id === 'mini_game') score -= 50;
+    if (action.id === 'challenge') score -= 30;
+  }
+
+  // 4. Energy Alignment
+  if (energy === 'LOW') {
+    if (action.id === 'emotional_reaction') score += 20;
+    if (action.id === 'funny_observation') score -= 20;
+    if (action.id === 'challenge') score -= 20;
+  } else if (energy === 'HIGH') {
+    if (action.id === 'funny_observation') score += 20;
+    if (action.id === 'playful_joke') score += 15;
+    if (action.id === 'challenge') score += 20;
+  }
+
+  // 5. Short Message Context
+  if (isVeryShort) {
+    if (action.id === 'short_story') score -= 30;
+    if (action.id === 'playful_joke') score += 10;
+    if (action.id === 'continue_conversation') score += 15;
+  }
+
+  // 6. Outcome Feedback Adjustments
+  if (outcomeFeedback) {
+    if (action.id === 'short_story') {
+      if (outcomeFeedback.story_failure > 0) score -= outcomeFeedback.story_failure * 15;
+      if (outcomeFeedback.story_success > 0) score += outcomeFeedback.story_success * 10;
     }
-    random -= (action.weight || 10);
+    if (action.id === 'playful_joke' || action.id === 'funny_observation') {
+      if (outcomeFeedback.humour_failure > 0) score -= outcomeFeedback.humour_failure * 15;
+      if (outcomeFeedback.humour_success > 0) score += outcomeFeedback.humour_success * 10;
+    }
+    if (action.mode === 'reflection') {
+      if (outcomeFeedback.reflection_failure > 0) score -= outcomeFeedback.reflection_failure * 15;
+      if (outcomeFeedback.reflection_success > 0) score += outcomeFeedback.reflection_success * 10;
+    }
   }
-  return pool[0];
+
+  return Math.max(1, score);
+}
+
+function selectRelevanceWeightedAction(actions, context) {
+  const scoredActions = actions.map(action => ({
+    action,
+    score: scoreActionRelevance(action, context)
+  }));
+
+  scoredActions.sort((a, b) => b.score - a.score);
+  const maxScore = scoredActions[0].score;
+
+  // Filter actions within 15 points of top score to allow natural variety
+  const topCandidates = scoredActions.filter(item => item.score >= maxScore - 15);
+  
+  // Weighted selection among top candidates
+  const totalWeight = topCandidates.reduce((sum, item) => sum + item.score, 0);
+  let random = Math.random() * totalWeight;
+
+  for (const item of topCandidates) {
+    if (random < item.score) {
+      return item.action;
+    }
+    random -= item.score;
+  }
+
+  return topCandidates[0].action;
+}
+
+function buildInternalReasoningBlock(lastAiMessage, repairAttempts) {
+  if (!lastAiMessage) return '';
+
+  let escalationDirective = '';
+  if (repairAttempts >= 2) {
+    escalationDirective = `
+⚠️ KADEMELİ ONARIM LİMİTİ AŞILDI (${repairAttempts}. Deneme):
+Kullanıcı anlatmak istediğin şeyi 2 defadan fazla anlamadı veya uyum sağlayamadı.
+- KESİNLİKLE tekrar açıklamaya, düzeltmeye veya ikna etmeye çalışma!
+- Samimi ve neşeli bir şekilde kendinle dalga geç (Örn: "Haklısın 😄 Sanırım bugün hikâye anlatma konusunda pek başarılı değilim.").
+- Açıklamayı tamamen bırak ve sohbeti doğal, hafif bir yöne kaydır.`;
+  }
+
+  return `
+━━━━━━━━━━━━━━━━━━━
+İÇ BAĞLAM & ONARIM DEĞERLENDİRMESİ (SESSİZ DÜŞÜNCE)
+━━━━━━━━━━━━━━━━━━━
+Yanıtını oluşturmadan önce şu soruları sessizce değerlendir:
+
+1. KULLANICININ NİYETİ VE GEREKİRSE YANIT ONARMA:
+   Kullanıcının son mesajı önceki mesajına bir tepki mi?
+   - Kafa Karışıklığı / Anlamama ("anlamadım", "ne demek", "anlamsız"):
+     -> Önceki mesajını savunma yapmadan daha basit, doğal ve gündelik bir dille yeniden ifade et.
+   - Olumsuz Tepki / Eleştiri ("çok uzundu", "saçmaydı", "sıkıcıydı"):
+     -> Hafifçe kabul et, esprili yaklaş, gereksiz özür dilemeden sohbeti toparla.
+   - Düzeltme / İtiraz ("hayır öyle değil", "yanlış anladın"):
+     -> Doğrudan dinle, kullanıcının bakış açısını kabul et ve güncellen.
+   - Mizah / Olumlu Tepki ("haha", "lol", "😅", "güzelmiş"):
+     -> ONARIM GEREKMEZ. Sadece neşeye ortak ol ve normal akışa devam et.
+
+2. ÖZ-FARKINDALIK (SELF-AWARENESS):
+   Kullanıcı açıkça eleştirmemiş olsa bile, bir önceki mesajının fazla karmaşık, şiirsel, uzun veya garip olduğunu fark ediyorsan kendiliğinden tatlı bir öz-farkındalık göster.
+   - Örnekler: "Sanırım bunu biraz fazla karmaşık anlattım.", "Biraz şiirselleştim galiba 😄", "Dur, daha basit anlatayım."
+
+Bir önceki AI mesajı:
+"${lastAiMessage}"
+${escalationDirective}
+
+BU DEĞERLENDİRMELERİ ASLA CEVABINA HARFİYEN VEYA BAŞLIK OLARAK YAZMA. YALNIZCA KENDİ İÇ YÖNLENDİRMEN OLARAK KULLAN VE DOĞAL BİR CEVAP ÜRET.
+━━━━━━━━━━━━━━━━━━━
+`;
 }
 
 async function getBrainState(userId) {
@@ -164,9 +311,27 @@ function selectMode(energy, state, plan) {
  * Conversation Brain
  * Orchestrates conversation plans, proactive event mentioning, and follow-up continuities.
  */
-async function getBrainDirectives(userId, connectionId, currentMessage, history, plan, isDistressed) {
+async function getBrainDirectives(userId, connectionId, currentMessage, history = [], plan, isDistressed) {
   try {
     const state = await getBrainState(userId);
+
+    // Reset outcome tracking on new conversation
+    if (!history || history.length <= 1) {
+      state.outcome_feedback = {
+        story_success: 0,
+        story_failure: 0,
+        humour_success: 0,
+        humour_failure: 0,
+        repair_success: 0,
+        repair_failure: 0,
+        reflection_success: 0,
+        reflection_failure: 0,
+        casual_success: 0,
+        casual_failure: 0
+      };
+      state.repair_attempts = 0;
+    }
+
     const energy = calculateEnergy(isDistressed, state, plan);
     state.current_energy = energy;
     
@@ -174,6 +339,65 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history,
     
     let unseenEvents = [];
     let pendingFollowUp = null;
+
+    // Extract last AI message from history for internal reasoning / repair
+    let lastAiMessage = null;
+    if (history && history.length > 0) {
+      const reversed = [...history].reverse();
+      const lastAiObj = reversed.find(h => h.sender === 'ai' || h.role === 'assistant');
+      if (lastAiObj) {
+        lastAiMessage = lastAiObj.message || lastAiObj.content || null;
+      }
+    }
+
+    // Determine if user message indicates confusion / clarification request for repair counting
+    const cleanMsg = (currentMessage || '').toLowerCase().trim();
+    const isConfusionSignal = ['anlamadım', 'anlamadim', 'ne demek', 'nasıl yani', 'nasil yani', 'bunu anlamadım', 'saçma', 'sacma'].some(kw => cleanMsg.includes(kw));
+
+    // Process outcome feedback from the user's reply to the previous AI message
+    if (history && history.length > 1 && lastAiMessage && state.last_actions && state.last_actions.length > 0) {
+      const lastActionId = state.last_actions[state.last_actions.length - 1];
+      const lastMode = state.last_modes[state.last_modes.length - 1];
+      const category = getOutcomeCategory(lastActionId, lastMode);
+      const outcome = estimateOutcome(cleanMsg);
+
+      if (!state.outcome_feedback) {
+        state.outcome_feedback = {
+          story_success: 0,
+          story_failure: 0,
+          humour_success: 0,
+          humour_failure: 0,
+          repair_success: 0,
+          repair_failure: 0,
+          reflection_success: 0,
+          reflection_failure: 0,
+          casual_success: 0,
+          casual_failure: 0
+        };
+      }
+
+      if (state.repair_attempts > 0) {
+        if (isConfusionSignal) {
+          state.outcome_feedback.repair_failure = (state.outcome_feedback.repair_failure || 0) + 1;
+        } else {
+          state.outcome_feedback.repair_success = (state.outcome_feedback.repair_success || 0) + 1;
+        }
+      } else if (category) {
+        if (outcome === 'repair_needed' || outcome === 'negative') {
+          const key = `${category}_failure`;
+          state.outcome_feedback[key] = (state.outcome_feedback[key] || 0) + 1;
+        } else if (outcome === 'positive') {
+          const key = `${category}_success`;
+          state.outcome_feedback[key] = (state.outcome_feedback[key] || 0) + 1;
+        }
+      }
+    }
+
+    if (isConfusionSignal && lastAiMessage) {
+      state.repair_attempts = (state.repair_attempts || 0) + 1;
+    } else {
+      state.repair_attempts = 0;
+    }
 
     // 1. Fetch unseen events (unacknowledged in last 3 days)
     if (connectionId) {
@@ -211,7 +435,6 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history,
     }
 
     // 3. Conversation Strategy Selection
-    const cleanMsg = currentMessage.toLowerCase().trim();
     const isGreetingOrGeneral = cleanMsg.length <= 15 || 
       ['merhaba', 'selam', 'hey', 'nasılsın', 'nasilsin', 'naber', 'slm', 'mrb', 'günaydın', 'iyi akşamlar'].some(kw => cleanMsg.includes(kw));
 
@@ -224,10 +447,10 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history,
       questionPolicy = '[SORU POLİTİKASI]: Kullanıcı açıkça tavsiye veya fikir istiyor. Bu turda gerekli görürsen soru sorabilirsin.';
     } else if (isYouChoose) {
       questionPolicy = '[SORU POLİTİKASI]: Kullanıcı "sen seç" dediği için KESİNLİKLE SORU SORMA. Seçtiğin eylemi doğrudan başlat.';
-      state.turns_since_question = 0; // Prevent questions right after
+      state.turns_since_question = 0;
     } else if (state.turns_since_question >= 3) {
       questionPolicy = '[SORU POLİTİKASI]: İstersen (ve sohbetin doğal akışına uyuyorsa) bu turda EN FAZLA BİR soru sorabilirsin. Her yanıtı soruyla bitirme alışkanlığından kurtulmalısın.';
-      state.turns_since_question = 0; // Assume we might ask one, restart cooldown
+      state.turns_since_question = 0;
     } else {
       questionPolicy = '[SORU POLİTİKASI]: BU TURDA KESİNLİKLE HİÇBİR SORU SORMA. (Soru işareti kullanma). Yanıtını tamamen bir yorumla, hikayeyle, duygusal tepkiyle veya sohbeti sürdürerek kendi başına bitir.';
     }
@@ -238,11 +461,21 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history,
     let selectedGoal = 'Support';
     let selectedActionId = null;
 
+    // Context object for relevance filter
+    const context = {
+      isGreeting: isGreetingOrGeneral || (!history || history.length <= 1),
+      isDistressed,
+      energy,
+      isVeryShort: cleanMsg.length <= 20,
+      lastActions: state.last_actions || [],
+      outcomeFeedback: state.outcome_feedback
+    };
+
     // Conversation Driver Mode (Controlled Spontaneity)
     const isDriverMode = Math.random() < 0.25 && unseenEvents.length === 0 && !isAdviceAsked && !isYouChoose && !pendingFollowUp;
 
     if (isYouChoose) {
-      const action = selectWeightedAction(CONVERSATION_ACTIONS, state.last_actions);
+      const action = selectRelevanceWeightedAction(CONVERSATION_ACTIONS, context);
       selectedMode = action.mode;
       selectedTopic = action.id;
       selectedActionId = action.id;
@@ -289,11 +522,11 @@ Kullanıcının mesajını samimiyetle yanıtladıktan sonra, bu takip konusunun
         else if (selectedMode === 'games') styleTip = 'Eğlenceli ve oyunsal bir üslup takın.';
         else if (selectedMode === 'challenges') styleTip = 'Kullanıcıyı nazikçe motive edecek küçük bir meydan okuma yap.';
         
-        // Add a deterministic action when not asking questions
+        // Add a deterministic action using Relevance Filter when not asking questions
         if (state.turns_since_question !== 0 && !isAdviceAsked) {
             let possibleActions = CONVERSATION_ACTIONS.filter(a => a.mode === selectedMode);
             if (possibleActions.length === 0) possibleActions = CONVERSATION_ACTIONS;
-            const action = selectWeightedAction(possibleActions, state.last_actions);
+            const action = selectRelevanceWeightedAction(possibleActions, context);
             styleTip += ` Ek olarak şu anki konuşma tarzı hedefin: ${action.tip}`;
             selectedTopic = action.id;
             selectedActionId = action.id;
@@ -308,10 +541,30 @@ Kullanıcının mesajını samimiyetle yanıtladıktan sonra, bu takip konusunun
       }
     }
 
+    const internalReasoningBlock = buildInternalReasoningBlock(lastAiMessage, state.repair_attempts);
+    
+    let openingInstruction = '';
+    if (!history || history.length <= 1) {
+      openingInstruction = `
+━━━━━━━━━━━━━━━━━━━
+SOHBET AÇILIŞ TALİMATI
+━━━━━━━━━━━━━━━━━━━
+Bu konuşmanın ilk mesajlarındayız. Soyut felsefi hikayeler, ağır metaforlar veya yapay "derin" konuşmalarla BAŞLAMA.
+Gerçek ve yakın bir arkadaş gibi sıcak, doğal ve gündelik bir karşılama/giriş yap.
+Örnek giriş üslupları:
+- "Günaydın 😊 Bugün nasıl başladı senin için?"
+- "Hey, nasılsın bugün?"
+- "Sabah aklıma ilginç bir şey geldi..."
+`;
+    }
+
     const directorDossier = `
 ━━━━━━━━━━━━━━━━━━━
 CONVERSATION BRAIN DIRECTIVE
 ━━━━━━━━━━━━━━━━━━━
+${internalReasoningBlock}
+${openingInstruction}
+
 [ENERJİ SEVİYESİ]: ${energy}
 [AKTİF MOD]: ${selectedMode.toUpperCase()}
 [HEDEF]: ${selectedGoal}
