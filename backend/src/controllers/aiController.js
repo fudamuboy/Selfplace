@@ -195,7 +195,7 @@ Kural:
     let userProfileDirectives = '';
     userProfileDirectives += `\n- Denge Kuralı: İlişki konuları sohbete tamamen hakim olmamalı (maks %30). Bireysel hayata da odaklan.`;
     userProfileDirectives += `\n- Geçmiş Hafıza Kuralı: Eski ve çözülmüş sorunları tekrar ısıtıp gündeme getirme.`;
-    userProfileDirectives += `\n- Onboarding Hedefleri Rehberi: Kullanıcının onboarding hedeflerini sohbette doğrudan telaffuz etmeden, uzun vadeli rehberlik sinyalleri olarak kullan.`;
+
     userProfileDirectives += `\n${partnerIdentitySection}`;
 
     // Add Journey Personality behavioral directives if data exists
@@ -221,12 +221,52 @@ Kural:
 
     const { getLivingContext } = require('../services/livingContextEngine');
     const { getBrainDirectives } = require('../services/conversationBrain');
-    
-    const [liveContext, brainRes] = await Promise.all([
+    const { getEntityKnowledge } = require('../services/entityKnowledgeLayer');
+
+    // Run EKL in parallel with Living Context and Brain — zero added latency
+    const [liveContext, brainRes, ekl] = await Promise.all([
       getLivingContext(userId),
-      getBrainDirectives(userId, connectionId, message, history, plan, isDistressed)
+      getBrainDirectives(userId, connectionId, message, history, plan, isDistressed),
+      getEntityKnowledge(message)
     ]);
     const { directorDossier, eventIds, brainMetadata, brainState } = brainRes;
+
+    // ── Build confidence-aware EKL block ─────────────────────────────
+    let entityKnowledgeSection = '';
+    if (ekl && ekl.entityFound) {
+      const locationLine = [ekl.city, ekl.district].filter(Boolean).join(' / ');
+      if (ekl.confidence >= 0.80) {
+        // High confidence — Brain should state facts directly
+        entityKnowledgeSection = `
+━━━━━━━━━━━━━━━━━━━
+ENTITY KNOWLEDGE LAYER
+━━━━━━━━━━━━━━━━━━━
+Kullanıcının mesajında doğrulanmış bir varlık tespit edildi.
+Güven seviyesi YÜKSEK — bilgiyi doğrudan ve kesin bir dille kullan.
+Örnek ton: "${ekl.canonicalName}${locationLine ? ` ${locationLine}'de` : ''} bulunan..."
+
+Varlık: ${ekl.canonicalName} (${ekl.entityType})
+${locationLine ? `Konum: ${locationLine}` : ''}
+Özet: ${ekl.summary}
+Kaynak: ${ekl.sourceType} | Güncellik: ${ekl.freshness} | Güven: ${ekl.confidence}
+━━━━━━━━━━━━━━━━━━━`;
+      } else {
+        // Medium confidence — Brain should use tentative language
+        entityKnowledgeSection = `
+━━━━━━━━━━━━━━━━━━━
+ENTITY KNOWLEDGE LAYER
+━━━━━━━━━━━━━━━━━━━
+Kullanıcının mesajında muhtemelen gerçek bir varlık var.
+Güven seviyesi ORTA — bilgiyi yumuşak ve tahmin modunda sun.
+Örnek ton: "Sanırım ${ekl.canonicalName ? ekl.canonicalName + "'i" : 'bunu'} kastediyorsun..."
+
+Varlık: ${ekl.canonicalName || '(belirsiz)'} (${ekl.entityType})
+${locationLine ? `Konum (tahmini): ${locationLine}` : ''}
+Özet: ${ekl.summary}
+Kaynak: ${ekl.sourceType} | Güncellik: ${ekl.freshness} | Güven: ${ekl.confidence}
+━━━━━━━━━━━━━━━━━━━`;
+      }
+    }
 
     const systemPrompt = `# SELFPLACE — AI COMPANION WITH LIVING CONTEXT & EVENT INTELLIGENCE
 
@@ -236,20 +276,24 @@ ${liveContext}
 
 ${directorDossier}
 
+${entityKnowledgeSection}
+
 ${userProfileDirectives}
 
 ━━━━━━━━━━━━━━━━━━━
 HALÜSİNASYON ENGELLEME VE GERÇEKLİK KURALLARI (STRICT REALITY DIRECTIVES)
 ━━━━━━━━━━━━━━━━━━━
-1. Yalnızca yukarıdaki "SELFPLACE LIVE CONTEXT" içinde sağlanan gerçek verileri temel al. Bu verilerde yer almayan hiçbir ilişki durumunu, tartışmayı, gerilimi, duyguyu, günlük girdisini, anıyı veya kişiyi kendin UYDURMA (hallucination kesinlikle yasaktır).
-2. Eğer bir bilgi (örneğin partnerin ne hissettiği, aranızda gerginlik olup olmadığı) Live Context içinde bulunmuyorsa, tahmin etme, uydurma; gerekirse kullanıcıya doğrudan ama nazikçe sor.
-3. Partnerden bahsederken "arkadaşın", "eşin" veya "ortağın" gibi jenerik kelimeler kullanma. Live Context'te partnerin adı belirtilmişse (örn: "Android"), ona mutlaka ismiyle hitap et.
-4. Bilgi Öncelik Sıralaması:
-   1. Canlı uygulama durumu (Live Context)
-   2. İlişki hafızası
-   3. Kayıtlı duygusal bellek
-   4. Mevcut konuşma geçmişi
-   5. Kendi yapay zeka çıkarımların
+1. Yalnızca yukarıdaki "SELFPLACE LIVE CONTEXT" ve "ENTITY KNOWLEDGE LAYER" içinde sağlanan gerçek verileri temel al. Bu verilerde yer almayan hiçbir ilişki durumunu, tartışmayı, gerilimi, duyguyu, günlük girdisini, anıyı veya kişiyi kendin UYDURMA (hallucination kesinlikle yasaktır).
+2. Entity Knowledge Layer'dan gelen bilgileri doğal bir şekilde konuşmaya entegre et; asla ham JSON veya teknik başlık gösterme.
+3. Eğer bir bilgi (örneğin partnerin ne hissettiği, aranızda gerginlik olup olmadığı) Live Context içinde bulunmuyorsa, tahmin etme, uydurma; gerekirse kullanıcıya doğrudan ama nazikçe sor.
+4. Partnerden bahsederken "arkadaşın", "eşin" veya "ortağın" gibi jenerik kelimeler kullanma. Live Context'te partnerin adı belirtilmişse (örn: "Android"), ona mutlaka ismiyle hitap et.
+5. Bilgi Öncelik Sıralaması:
+   1. Entity Knowledge Layer (doğrulanmış gerçek dünya bilgisi)
+   2. Canlı uygulama durumu (Live Context)
+   3. İlişki hafızası
+   4. Kayıtlı duygusal bellek
+   5. Mevcut konuşma geçmişi
+   6. Kendi yapay zeka çıkarımların
 
 ━━━━━━━━━━━━━━━━━━━
 PROAKTİF FARKINDALIK (EVENT-DRIVEN CONVERSATION)

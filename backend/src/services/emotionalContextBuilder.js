@@ -111,8 +111,38 @@ exports.buildEmotionalContext = async (userId) => {
 
     // Onboarding Goals (ALL TIERS - Free, Plus, Signature)
     const goalsRes = await db.query(`SELECT memory_value FROM emotional_memories WHERE user_id = $1 AND memory_key = 'onboarding_goals'`, [userId]);
-    if (goalsRes.rows.length > 0) {
-      layer1 += `- Onboarding Hedefleri: ${goalsRes.rows[0].memory_value}\n`;
+    if (goalsRes.rows.length > 0 && goalsRes.rows[0].memory_value) {
+      const selectedGoals = goalsRes.rows[0].memory_value.split(',').map(s => s.trim());
+      
+      const goalGuidanceMap = {
+        'Self-understanding': 'derin yansıtıcı düşünmeye ve öz-farkındalığa teşvik etmeyi',
+        'Relationship growth': 'empati, sağlıklı iletişim ve bağ kurma yeteneklerini güçlendirmeyi',
+        'Emotional balance': 'duygusal stabiliteyi ve dengeli bir bakış açısını korumayı',
+        'Stress reduction': 'rahatlamayı, sinir sistemini yatıştırmayı ve şimdiki ana odaklanmayı',
+        'Personal development': 'büyüme zihniyetini (growth mindset) ve yapıcı küçük adımlar atmayı'
+      };
+
+      const matchedGuidance = selectedGoals
+        .map(g => goalGuidanceMap[g])
+        .filter(Boolean);
+
+      if (matchedGuidance.length > 0) {
+        let joinedGuidance;
+        if (matchedGuidance.length === 1) {
+          joinedGuidance = matchedGuidance[0];
+        } else if (matchedGuidance.length === 2) {
+          joinedGuidance = `${matchedGuidance[0]} ve ${matchedGuidance[1]}`;
+        } else {
+          const last = matchedGuidance.pop();
+          joinedGuidance = `${matchedGuidance.join(', ')} ve ${last}`;
+        }
+        
+        layer1 += `\n━━━━━━━━━━━━━━━━━━━\nSOFT GUIDANCE PROFILE (HEDEFLER)\n━━━━━━━━━━━━━━━━━━━\n`;
+        layer1 += `- Birleşik Hedef Profili: Kullanıcının genel gelişimi; ${joinedGuidance} hedeflerini içeriyor.\n`;
+        layer1 += `- Öncelik Kuralı: Bu hedefler daima "Güvenlik", "Güncel Sohbet Bağlamı" ve "Anlık Duygusal İhtiyaçlar"dan DAHA DÜŞÜK önceliğe sahiptir.\n`;
+        layer1 += `- Uygulama (Soft Guidance): Uygun olduğunda ve birden fazla geçerli destekleyici yanıt ihtimali varsa, bu profile uyan yaklaşımı hafifçe tercih et (slightly prefer).\n`;
+        layer1 += `- Gizlilik: Bu hedefleri bildiğini veya bunlara göre yanıt verdiğini kullanıcıya asla doğrudan söyleme. Doğal akış içinde hissettir.\n\n`;
+      }
     }
 
     // Check-ins (Moods)
