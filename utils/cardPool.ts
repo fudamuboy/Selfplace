@@ -340,13 +340,55 @@ export const CARD_POOL: PoolCard[] = [
   },
 ];
 
+const CARD_POOL_EN: Record<string, { category: string; title: string; message: string }> = {
+  'oz_1': { category: 'Self-Compassion', title: 'Be Gentle with Yourself', message: 'Treat yourself today as you would treat your best friend. You are that friend.' },
+  'oz_2': { category: 'Self-Compassion', title: 'Mistakes Do Not Define You', message: 'Is there something you feel went wrong today? You did your best for that moment.' },
+  'oz_3': { category: 'Self-Compassion', title: 'Stand by Your Side', message: 'Was there a moment you criticized yourself today? Softly tell that voice to pause now.' },
+  'oz_4': { category: 'Self-Compassion', title: 'You Are Enough', message: 'Just as you are, right in this moment — you are enough. Breathe that in.' },
+  'oz_5': { category: 'Self-Compassion', title: 'Listen to Your Inner Voice', message: 'If your inner voice spoke harshly today, tell it what you need: "You are right, but I am with you."' },
+  'oz_6': { category: 'Self-Compassion', title: 'Patience Is Love', message: 'You can be a bit more patient with yourself today. Growth takes time.' },
+  'far_1': { category: 'Mindfulness', title: 'Catch the Moment', message: 'How do you feel right now? No need to put it into words — just feel it.' },
+  'far_2': { category: 'Mindfulness', title: 'What Echoed Today', message: 'What echoed inside you today? Even if a small memory — hold it for a moment.' },
+  'far_3': { category: 'Mindfulness', title: 'A Pausing Moment', message: 'Was there something that made you pause today? What was that moment trying to tell you?' },
+  'far_4': { category: 'Mindfulness', title: 'A Weight in Your Heart', message: 'Is there something you are carrying in your heart today? Noticing it begins to lighten it.' },
+  'far_5': { category: 'Mindfulness', title: 'Silent Observer', message: 'If you observed yourself from the outside today, what would you see? Share that gaze now.' },
+  'far_6': { category: 'Mindfulness', title: 'Which Moment Was Real?', message: 'Was there a moment today where you felt fully present? How long did it last?' },
+  'nef_1': { category: 'Breath', title: 'Breath Ritual', message: 'Count four in, hold, count four out. That is all. Return to your body.' },
+  'nef_2': { category: 'Breath', title: 'One Breath, Now', message: 'Just one deep breath. That is the whole practice. Take it now.' },
+  'nef_3': { category: 'Breath', title: 'Feel Your Body', message: 'Do you feel your chest or abdomen as you breathe? Bring your attention there for a few seconds.' },
+  'nef_4': { category: 'Breath', title: 'Slow Down', message: 'Did everything flow too quickly today? Now slow the world down by one breath.' },
+  'nef_5': { category: 'Breath', title: 'Breath = Return', message: 'Whenever you feel lost, your breath is always ready to bring you back. Try it now.' },
+  'alan_1': { category: 'Make Space', title: 'Gift of Silence', message: 'Spend five minutes just with yourself. Screens off, breath open.' },
+  'alan_2': { category: 'Make Space', title: 'Stop and Listen', message: 'Was there a moment today where you stopped just to exist? Dedicate five minutes to it now.' },
+  'alan_3': { category: 'Make Space', title: 'Allow Empty Space', message: 'Would you like to empty a bit instead of overflowing? What can you let go of today?' },
+  'alan_4': { category: 'Make Space', title: 'Simply Exist', message: 'Without producing anything, without solving anything — what is it like to simply exist?' },
+  'ces_1': { category: 'Small Courage', title: 'A Small Step', message: 'Do just one thing today to make yourself feel good. Small steps are also progress.' },
+  'ces_2': { category: 'Small Courage', title: 'The Waiting Thing', message: 'What is that tiny thing you postponed for so long? Take just the first step today.' },
+  'ces_3': { category: 'Small Courage', title: 'Unspoken Words', message: 'Was there something you wanted to say today but could not? Say it at least to yourself.' },
+  'ces_4': { category: 'Small Courage', title: 'One Courageous Thing', message: 'What could be one single thing today that makes you feel brave, even if small?' },
+  'ces_5': { category: 'Small Courage', title: 'Setting Boundaries', message: 'Saying "no" is sometimes the bravest act. Did you set a boundary for yourself today?' },
+  'min_1': { category: 'Gratitude', title: 'Gratitude', message: 'Think of one thing that felt good today. No matter how small — it counts.' },
+  'min_2': { category: 'Gratitude', title: 'Unnoticed Good', message: 'What good thing might you have received today without realizing? See it for a moment.' },
+  'min_3': { category: 'Gratitude', title: 'Small Lights', message: 'Find a moment that was a small light in your day. However brief — that moment was real.' },
+  'min_4': { category: 'Gratitude', title: 'Grateful for Whom?', message: 'Did someone presence feel good to you today? Think of that person sincerely.' },
+  'min_5': { category: 'Gratitude', title: 'Thanking Your Body', message: 'Your body carried you today. What small thing can you thank it for?' },
+  'bag_1': { category: 'Connection', title: 'A Touch with Someone', message: 'Was there someone you felt truly connected with today? A message, a look — how long did it last?' },
+  'bag_2': { category: 'Connection', title: 'You Are Not Alone', message: 'If you feel lonely right now, know that this feeling comes to everyone. And it passes. I am here.' },
+  'bag_3': { category: 'Connection', title: 'Return to Yourself', message: 'Was there a moment today when you said "me"? Did you hear your own voice?' },
+  'yan_1': { category: 'Reflection', title: 'How Was Today?', message: 'If you described today with a single color or weather, what would it be?' },
+  'yan_2': { category: 'Reflection', title: 'What Do You Wish for Tomorrow?', message: 'If you could carry one thing learned today into tomorrow, what would it be?' },
+  'yan_3': { category: 'Reflection', title: 'What Challenged You', message: 'Which moment challenged you a bit? Simply see that moment without judging.' },
+  'yan_4': { category: 'Reflection', title: 'What You Can Release', message: 'Which thought or feeling can you release before falling asleep tonight?' },
+  'yan_5': { category: 'Reflection', title: 'Morning Intention', message: 'Was there an intention you carried for yourself today? Did that intention live today?' },
+  'yan_6': { category: 'Reflection', title: 'Wish to Relive?', message: 'Was there a moment today you wished you could relive? Feel that moment again now.' },
+};
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Weighted shuffle — slightly favors cards with matching peakHours */
 function weightedShuffle(cards: PoolCard[], hour: number): PoolCard[] {
   const scored = cards.map(c => {
     const isPeak = c.peakHours ? c.peakHours.includes(hour) : false;
-    // Peak-hour cards get a boost, others get a small random weight
     const weight = (isPeak ? 2 : 1) * Math.random();
     return { card: c, weight };
   });
@@ -367,7 +409,6 @@ async function loadRecent(): Promise<string[]> {
 /** Persist updated recency list */
 async function saveRecent(ids: string[]): Promise<void> {
   try {
-    // Keep only the last RECENCY_LIMIT entries
     const trimmed = ids.slice(-RECENCY_LIMIT);
     await AsyncStorage.setItem(RECENCY_KEY, JSON.stringify(trimmed));
   } catch {
@@ -379,23 +420,34 @@ async function saveRecent(ids: string[]): Promise<void> {
  * Pick `n` fresh local fallback cards, avoiding recently shown ones.
  * Applies time-of-day weighting for organic variety.
  */
-export async function pickFallbackCards(n: number = 3): Promise<PoolCard[]> {
+export async function pickFallbackCards(n: number = 3, isEn: boolean = false): Promise<PoolCard[]> {
   const hour = new Date().getHours();
   const recent = await loadRecent();
 
-  // Prefer cards not recently shown
   const fresh = CARD_POOL.filter(c => !recent.includes(c.id));
   const stale = CARD_POOL.filter(c => recent.includes(c.id));
 
-  // If pool is exhausted, reset and use everything
   const pool = fresh.length >= n ? fresh : [...fresh, ...stale];
-
   const shuffled = weightedShuffle(pool, hour);
   const picked = shuffled.slice(0, n);
 
-  // Record shown IDs
   const newRecent = [...recent, ...picked.map(c => c.id)];
   await saveRecent(newRecent);
+
+  if (isEn) {
+    return picked.map(c => {
+      const enMap = CARD_POOL_EN[c.id];
+      if (enMap) {
+        return {
+          ...c,
+          category: enMap.category,
+          title: enMap.title,
+          message: enMap.message,
+        };
+      }
+      return c;
+    });
+  }
 
   return picked;
 }

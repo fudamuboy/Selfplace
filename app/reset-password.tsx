@@ -11,6 +11,8 @@ import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
 import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 
+import { useT } from '../i18n';
+
 export default function ResetPasswordScreen() {
   const { token: urlToken, email: urlEmail } = useLocalSearchParams<{ token: string, email: string }>();
   const [token, setToken] = useState(urlToken || '');
@@ -22,6 +24,8 @@ export default function ResetPasswordScreen() {
   const [modal, setModal] = useState({ visible: false, title: '', message: '', success: false });
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
 
   useEffect(() => {
     if (urlToken) {
@@ -31,17 +35,17 @@ export default function ResetPasswordScreen() {
 
   const handleResetPassword = async () => {
     if (!token || !newPassword || !confirmPassword) {
-      setModal({ visible: true, title: 'Hata', message: 'Lütfen tüm alanları doldurun.', success: false });
+      setModal({ visible: true, title: isEn ? 'Error' : 'Hata', message: isEn ? 'Please fill in all fields.' : 'Lütfen tüm alanları doldurun.', success: false });
       return;
     }
 
     if (newPassword.length < 6) {
-      setModal({ visible: true, title: 'Hata', message: 'Yeni şifre en az 6 karakter olmalıdır.', success: false });
+      setModal({ visible: true, title: isEn ? 'Error' : 'Hata', message: isEn ? 'New password must be at least 6 characters long.' : 'Yeni şifre en az 6 karakter olmalıdır.', success: false });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setModal({ visible: true, title: 'Hata', message: 'Şifreler eşleşmiyor.', success: false });
+      setModal({ visible: true, title: isEn ? 'Error' : 'Hata', message: isEn ? 'Passwords do not match.' : 'Şifreler eşleşmiyor.', success: false });
       return;
     }
 
@@ -50,15 +54,15 @@ export default function ResetPasswordScreen() {
       await client.post('/auth/reset-password', { token, newPassword });
       setModal({ 
         visible: true, 
-        title: 'Başarılı', 
-        message: 'Şifreniz başarıyla güncellendi. Giriş yapabilirsin.', 
+        title: isEn ? 'Success' : 'Başarılı', 
+        message: isEn ? 'Your password has been successfully updated. You can now log in.' : 'Şifreniz başarıyla güncellendi. Giriş yapabilirsin.', 
         success: true 
       });
     } catch (error: any) {
       setModal({ 
         visible: true, 
-        title: 'Hata', 
-        message: error.response?.data?.message || 'Şifre sıfırlanırken bir sorun oluştu.',
+        title: isEn ? 'Error' : 'Hata', 
+        message: error.response?.data?.message || (isEn ? 'An issue occurred while resetting password.' : 'Şifre sıfırlanırken bir sorun oluştu.'),
         success: false
       });
     } finally {
@@ -79,16 +83,18 @@ export default function ResetPasswordScreen() {
               <MascotBlob mood="neutral" />
             </View>
 
-            <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Şifre Yenileme</Text>
+            <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Reset Password' : 'Şifre Yenileme'}</Text>
             <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-              {urlEmail ? `${urlEmail} adresine` : 'E-posta adresine'} gelen 6 haneli kodu ve yeni şifreni gir.
+              {isEn 
+                ? `Enter the 6-digit code sent to ${urlEmail ? urlEmail : 'your email address'} and your new password.` 
+                : `${urlEmail ? `${urlEmail} adresine` : 'E-posta adresine'} gelen 6 haneli kodu ve yeni şifreni gir.`}
             </Text>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Sıfırlama Kodu</Text>
+              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Reset Code' : 'Sıfırlama Kodu'}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
-                placeholder="6 Haneli Kod"
+                placeholder={isEn ? '6-Digit Code' : '6 Haneli Kod'}
                 placeholderTextColor={currentTheme.colors.text.muted}
                 value={token}
                 onChangeText={setToken}
@@ -98,11 +104,11 @@ export default function ResetPasswordScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Yeni Şifre</Text>
+              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'New Password' : 'Yeni Şifre'}</Text>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder, paddingRight: 50 }]}
-                  placeholder="Yeni Şifre"
+                  placeholder={isEn ? 'New Password' : 'Yeni Şifre'}
                   placeholderTextColor={currentTheme.colors.text.muted}
                   value={newPassword}
                   onChangeText={setNewPassword}
@@ -122,11 +128,11 @@ export default function ResetPasswordScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Şifre Tekrar</Text>
+              <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Confirm Password' : 'Şifre Tekrar'}</Text>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder, paddingRight: 50 }]}
-                  placeholder="Şifreyi Onayla"
+                  placeholder={isEn ? 'Confirm Password' : 'Şifreyi Onayla'}
                   placeholderTextColor={currentTheme.colors.text.muted}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -146,14 +152,14 @@ export default function ResetPasswordScreen() {
             </View>
 
             <CustomButton 
-              title="Şifreyi Güncelle" 
+              title={isEn ? 'Update Password' : 'Şifreyi Güncelle'} 
               onPress={handleResetPassword} 
               loading={loading} 
               style={{ marginTop: 10, width: '100%' }}
             />
 
             <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backLink}>
-              <Text style={[styles.backLinkText, { color: currentTheme.colors.primary }]}>Giriş ekranına dön</Text>
+              <Text style={[styles.backLinkText, { color: currentTheme.colors.primary }]}>{isEn ? 'Back to login' : 'Giriş ekranına dön'}</Text>
             </TouchableOpacity>
             </View>
           </View>

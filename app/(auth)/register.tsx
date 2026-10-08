@@ -13,6 +13,8 @@ import { MascotBlob } from '../../components/MascotBlob';
 import { Colors } from '../../constants/Colors';
 import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
+import { useT } from '../../i18n';
+
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -25,18 +27,19 @@ export default function RegisterScreen() {
   const [modal, setModal] = useState({ visible: false, title: '', message: '', success: false });
 
   const router = useRouter();
+  const { t, language } = useT();
+  const isEn = language === 'en';
 
   const handleRegister = async () => {
     if (!username || !email || !password || !birthDate) {
-      setModal({ visible: true, title: 'Hata', message: 'Lütfen tüm alanları (Doğum Tarihi dahil) doldurun.', success: false });
+      setModal({ visible: true, title: t('common.error'), message: isEn ? 'Please fill in all fields (including Birth Date).' : 'Lütfen tüm alanları (Doğum Tarihi dahil) doldurun.', success: false });
       return;
     }
     
     if (!acceptedTerms) {
-      setModal({ visible: true, title: 'Hata', message: 'Lütfen kullanım koşullarını ve gizlilik politikasını kabul edin.', success: false });
+      setModal({ visible: true, title: t('common.error'), message: isEn ? 'Please accept the terms of service and privacy policy.' : 'Lütfen kullanım koşullarını ve gizlilik politikasını kabul edin.', success: false });
       return;
     }
-
 
     setLoading(true);
     try {
@@ -54,19 +57,17 @@ export default function RegisterScreen() {
 
       setModal({
         visible: true,
-        title: 'Başarılı',
-        message: 'Kayıt olundu, şimdi giriş yapabilirsiniz.',
+        title: t('common.success'),
+        message: isEn ? 'Registration successful, you can now log in.' : 'Kayıt olundu, şimdi giriş yapabilirsiniz.',
         success: true
       });
     } catch (err: any) {
       const errorData = err.response?.data;
-      const debugInfo = errorData?.debug || errorData?.debug_error || err.message;
-      const stackInfo = errorData?.stack;
 
       setModal({
         visible: true,
-        title: 'Kayıt Başarısız',
-        message: errorData?.message || 'Hesap oluşturulurken bir sorun oluştu. Lütfen daha sonra tekrar deneyin.',
+        title: t('auth.registerTab') + ' ' + t('common.error'),
+        message: errorData?.message || t('errors.generic'),
         success: false
       });
 
@@ -86,13 +87,13 @@ export default function RegisterScreen() {
           <View style={styles.mascotContainer}>
             <MascotBlob mood="happy" />
           </View>
-          <Text style={styles.title}>Yeni Hesap</Text>
-          <Text style={styles.subtitle}>Kendine giden yolculuğa buradan başla.</Text>
+          <Text style={styles.title}>{isEn ? 'Create Account' : 'Yeni Hesap'}</Text>
+          <Text style={styles.subtitle}>{isEn ? 'Begin your journey of self-discovery here.' : 'Kendine giden yolculuğa buradan başla.'}</Text>
 
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Ad Soyadınızı girin"
+              placeholder={isEn ? 'Enter your full name' : 'Ad Soyadınızı girin'}
               placeholderTextColor={Colors.text.secondary}
               value={username}
               onChangeText={setUsername}
@@ -106,7 +107,7 @@ export default function RegisterScreen() {
               activeOpacity={0.7}
             >
               <Text style={[styles.dateText, { color: birthDate ? Colors.text.primary : Colors.text.secondary }]}>
-                {birthDate ? birthDate.toLocaleDateString('tr-TR') : 'Doğum Tarihinizi Seçin'}
+                {birthDate ? birthDate.toLocaleDateString(isEn ? 'en-US' : 'tr-TR') : (isEn ? 'Select Birth Date' : 'Doğum Tarihinizi Seçin')}
               </Text>
               <Ionicons name="calendar-outline" size={20} color={Colors.text.secondary} />
             </TouchableOpacity>
@@ -120,9 +121,9 @@ export default function RegisterScreen() {
                 <View style={styles.modalOverlay}>
                   <View style={styles.pickerContainer}>
                     <View style={styles.pickerHeader}>
-                      <Text style={[styles.pickerTitle, { color: Colors.text.secondary }]}>Doğum Tarihi</Text>
+                      <Text style={[styles.pickerTitle, { color: Colors.text.secondary }]}>{t('profile.birthDate')}</Text>
                       <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                        <Text style={styles.doneButtonText}>Tamam</Text>
+                        <Text style={styles.doneButtonText}>{t('common.done')}</Text>
                       </TouchableOpacity>
                     </View>
                     <DateTimePicker
@@ -159,7 +160,7 @@ export default function RegisterScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="E-posta adresinizi girin"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={Colors.text.secondary}
               value={email}
               onChangeText={setEmail}
@@ -172,7 +173,7 @@ export default function RegisterScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, { paddingRight: 50 }]}
-              placeholder="Şifrenizi girin"
+              placeholder={t('auth.passwordPlaceholder')}
               placeholderTextColor={Colors.text.secondary}
               value={password}
               onChangeText={setPassword}
@@ -203,30 +204,30 @@ export default function RegisterScreen() {
             <View style={styles.termsTextWrapper}>
               <Text style={styles.termsTextInner}>
                 <Link href="/terms" style={styles.termsLink} suppressHighlighting>
-                  Kullanım Koşulları
+                  {t('settings.termsOfService')}
                 </Link>
-                &apos;nı ve{' '}
+                {isEn ? ' and ' : '\'nı ve '}
                 <Link href="/privacy-policy" style={styles.termsLink} suppressHighlighting>
-                  Gizlilik Politikası
+                  {t('settings.privacyPolicy')}
                 </Link>
-                &apos;nı okudum ve kabul ediyorum.
+                {isEn ? '. I accept.' : '\'nı okudum ve kabul ediyorum.'}
               </Text>
             </View>
           </View>
 
           <CustomButton
-            title="Kayıt Ol"
+            title={t('auth.registerButton')}
             onPress={handleRegister}
             loading={loading}
             style={{ marginTop: 20, width: '100%' }}
           />
 
           <TouchableOpacity onPress={() => router.replace('/(auth)/login')} style={styles.loginLink}>
-            <Text style={styles.linkText}>Zaten hesabın var mı? <Text style={{ fontWeight: 'bold' }}>Giriş Yap</Text></Text>
+            <Text style={styles.linkText}>{t('auth.hasAccount')} <Text style={{ fontWeight: 'bold' }}>{t('auth.loginButton')}</Text></Text>
           </TouchableOpacity>
           
           <Text style={styles.disclaimerText}>
-            Selfplace duygusal destek ve farkındalık amaçlıdır. Profesyonel terapi yerine geçmez.
+            {isEn ? "Selfplace is designed for emotional awareness and mindfulness. It is not a replacement for professional therapy." : "Selfplace duygusal destek ve farkındalık amaçlıdır. Profesyonel terapi yerine geçmez."}
           </Text>
           </View>
         </View>

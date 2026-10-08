@@ -75,9 +75,13 @@ const CONVERSATION_ACTIONS = [
 ];
 
 function estimateOutcome(cleanMsg) {
-  const isConfusion = ['anlamadım', 'anlamadim', 'ne demek', 'nasıl yani', 'nasil yani', 'bunu anlamadım', 'saçma', 'sacma'].some(kw => cleanMsg.includes(kw));
-  const isNegative = ['sıkıcı', 'sikici', 'çok uzun', 'cok uzun', 'gereksiz', 'kötü', 'kotu', 'beğenmedim', 'begenmedim', 'hayır', 'hayir', 'öyle değil', 'oyle degil'].some(kw => cleanMsg.includes(kw));
-  const isPositive = ['harika', 'güzel', 'guzel', 'iyi', 'evet', 'tabi', 'hahaha', 'lol', '😄', '😊', '😂', '🤣', '👍', '❤️', 'komik', 'sevdim'].some(kw => cleanMsg.includes(kw));
+  const confusionKws = ['anlamadım', 'anlamadim', 'ne demek', 'nasıl yani', 'nasil yani', 'bunu anlamadım', 'saçma', 'sacma', 'don\'t understand', 'dont understand', 'what do you mean', 'makes no sense', 'confused', 'unclear'];
+  const negativeKws = ['sıkıcı', 'sikici', 'çok uzun', 'cok uzun', 'gereksiz', 'kötü', 'kotu', 'beğenmedim', 'begenmedim', 'hayır', 'hayir', 'öyle değil', 'oyle degil', 'boring', 'too long', 'unnecessary', 'bad', 'dislike', 'don\'t like', 'no', 'not really'];
+  const positiveKws = ['harika', 'güzel', 'guzel', 'iyi', 'evet', 'tabi', 'hahaha', 'lol', '😄', '😊', '😂', '🤣', '👍', '❤️', 'komik', 'sevdim', 'great', 'awesome', 'nice', 'good', 'yes', 'sure', 'love it', 'cool'];
+
+  const isConfusion = confusionKws.some(kw => cleanMsg.includes(kw));
+  const isNegative = negativeKws.some(kw => cleanMsg.includes(kw));
+  const isPositive = positiveKws.some(kw => cleanMsg.includes(kw));
 
   if (isConfusion) return 'repair_needed';
   if (isNegative) return 'negative';
@@ -188,12 +192,18 @@ function selectRelevanceWeightedAction(actions, context) {
   return topCandidates[0].action;
 }
 
-function buildInternalReasoningBlock(lastAiMessage, repairAttempts) {
+function buildInternalReasoningBlock(lastAiMessage, repairAttempts, language = 'tr') {
   if (!lastAiMessage) return '';
 
+  const isEn = language === 'en';
   let escalationDirective = '';
   if (repairAttempts >= 2) {
-    escalationDirective = `
+    escalationDirective = isEn ? `
+⚠️ REPAIR ESCALATION LIMIT REACHED (${repairAttempts} Attempts):
+The user did not understand or align with your explanation after 2 attempts.
+- DO NOT attempt to explain, justify, or re-frame again!
+- Warmly and lightheartedly laugh at yourself (e.g. "You're right 😄 I guess I'm not explaining this well today.").
+- Drop the explanation completely and transition naturally to a fresh, light topic.` : `
 ⚠️ KADEMELİ ONARIM LİMİTİ AŞILDI (${repairAttempts}. Deneme):
 Kullanıcı anlatmak istediğin şeyi 2 defadan fazla anlamadı veya uyum sağlayamadı.
 - KESİNLİKLE tekrar açıklamaya, düzeltmeye veya ikna etmeye çalışma!
@@ -201,7 +211,33 @@ Kullanıcı anlatmak istediğin şeyi 2 defadan fazla anlamadı veya uyum sağla
 - Açıklamayı tamamen bırak ve sohbeti doğal, hafif bir yöne kaydır.`;
   }
 
-  return `
+  return isEn ? `
+━━━━━━━━━━━━━━━━━━━
+INTERNAL CONTEXT & REPAIR EVALUATION (SILENT THOUGHT)
+━━━━━━━━━━━━━━━━━━━
+Before generating your response, quietly evaluate:
+
+1. USER INTENT AND RESPONSE REPAIR:
+   Is the user's message a reaction to your previous statement?
+   - Confusion / Misunderstanding ("don't understand", "what do you mean", "makes no sense"):
+     -> Rephrase your previous message in a simpler, natural, everyday tone without being defensive.
+   - Negative Reaction / Criticism ("too long", "boring", "pointless"):
+     -> Gracefully accept, add light humor, and pivot without over-apologizing.
+   - Correction / Disagreement ("no not really", "that's wrong"):
+     -> Listen directly, validate their perspective, and update your understanding.
+   - Positive Reaction / Humor ("haha", "lol", "😄", "love it"):
+     -> NO REPAIR NEEDED. Share the joy and continue naturally.
+
+2. SELF-AWARENESS:
+   Even if the user hasn't explicitly criticized you, if you notice your previous message was overly complex, poetic, long, or awkward, demonstrate gentle self-awareness.
+
+Previous AI message:
+"${lastAiMessage}"
+${escalationDirective}
+
+DO NOT WRITE THESE EVALUATIONS DIRECTLY IN YOUR OUTPUT. USE THEM ONLY AS SILENT INTERNAL GUIDANCE.
+━━━━━━━━━━━━━━━━━━━
+` : `
 ━━━━━━━━━━━━━━━━━━━
 İÇ BAĞLAM & ONARIM DEĞERLENDİRMESİ (SESSİZ DÜŞÜNCE)
 ━━━━━━━━━━━━━━━━━━━
@@ -311,8 +347,10 @@ function selectMode(energy, state, plan) {
  * Conversation Brain
  * Orchestrates conversation plans, proactive event mentioning, and follow-up continuities.
  */
-async function getBrainDirectives(userId, connectionId, currentMessage, history = [], plan, isDistressed) {
+async function getBrainDirectives(userId, connectionId, currentMessage, history = [], plan, isDistressed, language = 'tr') {
   try {
+    const lang = language === 'en' ? 'en' : 'tr';
+    const isEn = lang === 'en';
     const state = await getBrainState(userId);
 
     // Reset outcome tracking on new conversation
@@ -352,7 +390,8 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history 
 
     // Determine if user message indicates confusion / clarification request for repair counting
     const cleanMsg = (currentMessage || '').toLowerCase().trim();
-    const isConfusionSignal = ['anlamadım', 'anlamadim', 'ne demek', 'nasıl yani', 'nasil yani', 'bunu anlamadım', 'saçma', 'sacma'].some(kw => cleanMsg.includes(kw));
+    const confusionKws = ['anlamadım', 'anlamadim', 'ne demek', 'nasıl yani', 'nasil yani', 'bunu anlamadım', 'saçma', 'sacma', 'don\'t understand', 'dont understand', 'what do you mean', 'makes no sense', 'confused', 'unclear'];
+    const isConfusionSignal = confusionKws.some(kw => cleanMsg.includes(kw));
 
     // Process outcome feedback from the user's reply to the previous AI message
     if (history && history.length > 1 && lastAiMessage && state.last_actions && state.last_actions.length > 0) {
@@ -435,24 +474,34 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history 
     }
 
     // 3. Conversation Strategy Selection
-    const isGreetingOrGeneral = cleanMsg.length <= 15 || 
-      ['merhaba', 'selam', 'hey', 'nasılsın', 'nasilsin', 'naber', 'slm', 'mrb', 'günaydın', 'iyi akşamlar'].some(kw => cleanMsg.includes(kw));
+    const greetingKws = ['merhaba', 'selam', 'hey', 'nasılsın', 'nasilsin', 'naber', 'slm', 'mrb', 'günaydın', 'iyi akşamlar', 'hello', 'hi', 'good morning', 'good evening', 'how are you', 'whats up'];
+    const isGreetingOrGeneral = cleanMsg.length <= 15 || greetingKws.some(kw => cleanMsg.includes(kw));
 
-    const isAdviceAsked = ['tavsiye', 'ne yapmalıyım', 'sence', 'yardım', 'fikrin ne', 'ne dersin', 'advice', 'what should i do'].some(kw => cleanMsg.includes(kw));
-    const isYouChoose = ['sen seç', 'sen karar ver', 'sen bilirsin', 'sana bırakıyorum', 'you choose', 'up to you', 'ne istersen'].some(kw => cleanMsg.includes(kw));
+    const adviceKws = ['tavsiye', 'ne yapmalıyım', 'sence', 'yardım', 'fikrin ne', 'ne dersin', 'advice', 'what should i do', 'recommend', 'suggestion'];
+    const isAdviceAsked = adviceKws.some(kw => cleanMsg.includes(kw));
+    const youChooseKws = ['sen seç', 'sen karar ver', 'sen bilirsin', 'sana bırakıyorum', 'you choose', 'up to you', 'ne istersen'];
+    const isYouChoose = youChooseKws.some(kw => cleanMsg.includes(kw));
 
     let questionPolicy = '';
     
     if (isAdviceAsked) {
-      questionPolicy = '[SORU POLİTİKASI]: Kullanıcı açıkça tavsiye veya fikir istiyor. Bu turda gerekli görürsen soru sorabilirsin.';
+      questionPolicy = isEn
+        ? '[QUESTION POLICY]: User is explicitly asking for advice or ideas. You may ask a question if helpful.'
+        : '[SORU POLİTİKASI]: Kullanıcı açıkça tavsiye veya fikir istiyor. Bu turda gerekli görürsen soru sorabilirsin.';
     } else if (isYouChoose) {
-      questionPolicy = '[SORU POLİTİKASI]: Kullanıcı "sen seç" dediği için KESİNLİKLE SORU SORMA. Seçtiğin eylemi doğrudan başlat.';
+      questionPolicy = isEn
+        ? '[QUESTION POLICY]: User said "you choose". DO NOT ask a question. Initiate your chosen action directly.'
+        : '[SORU POLİTİKASI]: Kullanıcı "sen seç" dediği için KESİNLİKLE SORU SORMA. Seçtiğin eylemi doğrudan başlat.';
       state.turns_since_question = 0;
     } else if (state.turns_since_question >= 3) {
-      questionPolicy = '[SORU POLİTİKASI]: İstersen (ve sohbetin doğal akışına uyuyorsa) bu turda EN FAZLA BİR soru sorabilirsin. Her yanıtı soruyla bitirme alışkanlığından kurtulmalısın.';
+      questionPolicy = isEn
+        ? '[QUESTION POLICY]: You may ask AT MOST ONE question if natural. Avoid ending every message with a question.'
+        : '[SORU POLİTİKASI]: İstersen (ve sohbetin doğal akışına uyuyorsa) bu turda EN FAZLA BİR soru sorabilirsin. Her yanıtı soruyla bitirme alışkanlığından kurtulmalısın.';
       state.turns_since_question = 0;
     } else {
-      questionPolicy = '[SORU POLİTİKASI]: BU TURDA KESİNLİKLE HİÇBİR SORU SORMA. (Soru işareti kullanma). Yanıtını tamamen bir yorumla, hikayeyle, duygusal tepkiyle veya sohbeti sürdürerek kendi başına bitir.';
+      questionPolicy = isEn
+        ? '[QUESTION POLICY]: DO NOT ASK ANY QUESTIONS THIS TURN. (Do not use question marks).'
+        : '[SORU POLİTİKASI]: BU TURDA KESİNLİKLE HİÇBİR SORU SORMA. (Soru işareti kullanma). Yanıtını tamamen bir yorumla, hikayeyle, duygusal tepkiyle veya sohbeti sürdürerek kendi başına bitir.';
     }
 
     let planInstruction = '';
@@ -480,7 +529,7 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history 
       selectedTopic = action.id;
       selectedActionId = action.id;
       selectedGoal = 'Entertain';
-      planInstruction = `Kullanıcı seçimi sana bıraktı. Kendi inisiyatifini kullanıp proaktif bir şekilde şu eylemi gerçekleştir: ${action.tip}`;
+      planInstruction = `User left choice to you. Take initiative and carry out action: ${action.tip}`;
     } else if (unseenEvents.length > 0 && !state.last_topics.includes('timeline_event')) {
       const primaryEvent = unseenEvents[0];
       const eventDesc = `${primaryEvent.title_tr} (${primaryEvent.description_tr})`;
@@ -489,84 +538,108 @@ async function getBrainDirectives(userId, connectionId, currentMessage, history 
       selectedGoal = 'Celebrate';
       
       if (isGreetingOrGeneral) {
-        planInstruction = `Kullanıcı genel bir selam verdi veya kısa bir giriş yaptı. 
-Önceliğin, yeni gerçekleşen şu önemli olayı doğrudan kutlamak/bahsetmektir: "${eventDesc}".
-Sohbete bu olaydan bahsederek başla, ardından kullanıcının mesajına kısaca değin.`;
+        planInstruction = `User gave a general greeting. Priorities: mention timeline event "${eventDesc}".`;
       } else {
-        planInstruction = `Kullanıcı özel bir konudan veya sorudan bahsediyor.
-Önce kullanıcının mesajındaki konuya odaklan ve yanıt ver. Yanıtın sonuna doğru, yeni gerçekleşen şu önemli olayı da doğal bir şekilde entegre et: "${eventDesc}".`;
+        planInstruction = `User mentioned a specific topic. Address it first, then integrate event "${eventDesc}".`;
       }
     } else if (pendingFollowUp) {
       selectedMode = 'reflection';
       selectedTopic = 'follow_up';
       selectedGoal = 'Reflect';
-      planInstruction = `Geçmişten gelen bekleyen bir takip konun var: "${pendingFollowUp}".
-Kullanıcının mesajını samimiyetle yanıtladıktan sonra, bu takip konusunun nasıl gittiğini veya durumunu nazikçe sor.`;
+      planInstruction = `Follow up on pending topic: "${pendingFollowUp}".`;
     } else {
       // Surprise Engine
       if (plan === 'signature' && !isDistressed && Math.random() < 0.10 && state.current_energy === 'HIGH' && isGreetingOrGeneral) {
         selectedMode = 'games';
         selectedTopic = 'surprise_engine';
         selectedGoal = 'Play';
-        planInstruction = `Bugün enerjik bir moddasın. Doğrudan standart bir soru sormak yerine kısa, eğlenceli ve sıra dışı bir etkileşim başlat. (Örn: Eğlenceli bir psikoloji sorusu, minik bir zihinsel meydan okuma veya neşeli bir şaka). Kullanıcının mesajına kısaca cevap verdikten sonra bu sürprizi sun.`;
+        planInstruction = `Energetic mode. Start a fun interaction instead of standard questions.`;
       } else {
         selectedMode = selectMode(energy, state, plan);
         selectedTopic = 'casual_chat';
         selectedGoal = 'Listen';
         
         let styleTip = '';
-        if (selectedMode === 'humour') styleTip = 'Yanıtına doğal ve ince bir mizah/neşe kat.';
-        else if (selectedMode === 'reflection') styleTip = 'Daha derin, iç gözlem yaptıracak açık uçlu bir soruyla destekle.';
-        else if (selectedMode === 'advice') styleTip = 'Eğer kullanıcının mesajı uyuyorsa, hafif bir rehberlik veya perspektif sun.';
-        else if (selectedMode === 'support') styleTip = 'Şefkatli, onaylayıcı ve rahatlatıcı bir ton kullan.';
-        else if (selectedMode === 'games') styleTip = 'Eğlenceli ve oyunsal bir üslup takın.';
-        else if (selectedMode === 'challenges') styleTip = 'Kullanıcıyı nazikçe motive edecek küçük bir meydan okuma yap.';
+        if (selectedMode === 'humour') styleTip = 'Add subtle humor/joy.';
+        else if (selectedMode === 'reflection') styleTip = 'Support deep introspection.';
+        else if (selectedMode === 'advice') styleTip = 'Offer gentle guidance.';
+        else if (selectedMode === 'support') styleTip = 'Use comforting tone.';
+        else if (selectedMode === 'games') styleTip = 'Use playful style.';
+        else if (selectedMode === 'challenges') styleTip = 'Offer a gentle challenge.';
         
         // Add a deterministic action using Relevance Filter when not asking questions
         if (state.turns_since_question !== 0 && !isAdviceAsked) {
             let possibleActions = CONVERSATION_ACTIONS.filter(a => a.mode === selectedMode);
             if (possibleActions.length === 0) possibleActions = CONVERSATION_ACTIONS;
             const action = selectRelevanceWeightedAction(possibleActions, context);
-            styleTip += ` Ek olarak şu anki konuşma tarzı hedefin: ${action.tip}`;
+            styleTip += ` Action tip: ${action.tip}`;
             selectedTopic = action.id;
             selectedActionId = action.id;
         }
 
         if (isDriverMode) {
-            planInstruction = `[CONVERSATION DRIVER AKTİF]: Sadece kullanıcıya yanıt vermekle kalma, SOHBETE LİDERLİK ET. Kullanıcının son mesajına doğal ama kısa bir şekilde değindikten sonra inisiyatifi ele alıp yeni ve enerjik bir konu, düşünce veya mini aktivite sun. Seçilen mod: ${selectedMode.toUpperCase()}. ${styleTip}`;
+            planInstruction = `[CONVERSATION DRIVER ACTIVE]: Lead conversation in mode: ${selectedMode.toUpperCase()}. ${styleTip}`;
             selectedGoal = 'Lead';
         } else {
-            planInstruction = `Doğal sohbete devam et. Ekstra bir proaktif olay bulunmuyor. Seçilen mod: ${selectedMode.toUpperCase()}. ${styleTip}`;
+            planInstruction = `Continue natural conversation. Selected mode: ${selectedMode.toUpperCase()}. ${styleTip}`;
         }
       }
     }
 
-    const internalReasoningBlock = buildInternalReasoningBlock(lastAiMessage, state.repair_attempts);
+    const internalReasoningBlock = buildInternalReasoningBlock(lastAiMessage, state.repair_attempts, lang);
     
     let openingInstruction = '';
     if (!history || history.length <= 1) {
-      openingInstruction = `
+      openingInstruction = isEn ? `
+━━━━━━━━━━━━━━━━━━━
+CONVERSATION OPENING INSTRUCTION
+━━━━━━━━━━━━━━━━━━━
+This is the beginning of the conversation. DO NOT start with complex philosophical essays or heavy metaphors.
+Give a warm, natural, casual opening like a close friend.
+Examples:
+- "Good morning 😊 How is your day starting off?"
+- "Hey, how are you today?"
+- "Something interesting crossed my mind..."
+` : `
 ━━━━━━━━━━━━━━━━━━━
 SOHBET AÇILIŞ TALİMATI
 ━━━━━━━━━━━━━━━━━━━
 Bu konuşmanın ilk mesajlarındayız. Soyut felsefi hikayeler, ağır metaforlar veya yapay "derin" konuşmalarla BAŞLAMA.
 Gerçek ve yakın bir arkadaş gibi sıcak, doğal ve gündelik bir karşılama/giriş yap.
-Örnek giriş üslupları:
-- "Günaydın 😊 Bugün nasıl başladı senin için?"
-- "Hey, nasılsın bugün?"
-- "Sabah aklıma ilginç bir şey geldi..."
 `;
     }
+
+    const languageDirective = isEn ? `
+━━━━━━━━━━━━━━━━━━━
+[CRITICAL LANGUAGE INSTRUCTION]
+━━━━━━━━━━━━━━━━━━━
+The user's selected language is ENGLISH (en).
+You MUST write your response entirely in natural, warm, fluent ENGLISH.
+Never speak in Turkish unless explicitly requested by the user.
+` : `
+━━━━━━━━━━━━━━━━━━━
+[CRITICAL LANGUAGE INSTRUCTION]
+━━━━━━━━━━━━━━━━━━━
+Kullanıcının seçili dili TÜRKÇE (tr).
+Yanıtını doğal, sıcak ve akıcı bir TÜRKÇE ile oluşturmalısın.
+`;
 
     const directorDossier = `
 ━━━━━━━━━━━━━━━━━━━
 CONVERSATION BRAIN DIRECTIVE
 ━━━━━━━━━━━━━━━━━━━
+${languageDirective}
 ${internalReasoningBlock}
 ${openingInstruction}
 
-[ENERJİ SEVİYESİ]: ${energy}
-[AKTİF MOD]: ${selectedMode.toUpperCase()}
+[ENERGY LEVEL]: ${energy}
+[ACTIVE MODE]: ${selectedMode.toUpperCase()}
+[GOAL]: ${selectedGoal}
+
+[PLANNING]:
+${planInstruction}
+
+${questionPolicy}
 [HEDEF]: ${selectedGoal}
 
 [PLANLAMA]:

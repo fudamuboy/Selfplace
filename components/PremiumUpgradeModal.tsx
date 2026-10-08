@@ -20,6 +20,7 @@ import useSubscriptionStore, { IAP_PRODUCT_IDS } from '../store/useSubscriptionS
 import useAuthStore from '../store/useAuthStore';
 import type { Subscription, SubscriptionAndroid } from 'react-native-iap';
 import { useRouter } from 'expo-router';
+import { useT } from '../i18n';
 
 const { width } = Dimensions.get('window');
 
@@ -55,6 +56,8 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
   const { currentTheme } = useThemeStore();
   const { planType }     = useAuthStore();
   const router = useRouter();
+  const { t, language }  = useT();
+  const isEn = language === 'en';
 
   const {
     availableProducts,
@@ -75,10 +78,8 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
 
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'plus' | 'signature'>(currentPlan);
 
-  // Pulse animation for the loading ring
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // ── Clear errors when modal opens ─────────────────────────────────────────────
   useEffect(() => {
     if (visible) {
       clearPurchaseError();
@@ -86,19 +87,16 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
     }
   }, [visible]);
 
-  // ── Keep selectedPlan in sync with currentPlan prop ───────────────────────
   useEffect(() => {
     setSelectedPlan(currentPlan);
   }, [currentPlan, visible]);
 
-  // ── Watch for planType updates from IAP listener ──────────────────────────
   useEffect(() => {
     if (planType !== currentPlan) {
       onPlanUpdated(planType);
     }
   }, [planType]);
 
-  // ── Pulse animation during loading ───────────────────────────────────────
   useEffect(() => {
     if (purchaseLoading || restoreLoading) {
       Animated.loop(
@@ -113,7 +111,6 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
     }
   }, [purchaseLoading, restoreLoading]);
 
-  // ── Trigger purchase ──────────────────────────────────────────────────────
   const handleUpgrade = async () => {
     if (selectedPlan === 'free' || selectedPlan === currentPlan) {
       onClose();
@@ -127,15 +124,13 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
     await purchasePlan(productId);
   };
 
-  // ── Products ──────────────────────────────────────────────────────────────
   const plusProduct      = findProduct(availableProducts, IAP_PRODUCT_IDS.plus);
   const signatureProduct = findProduct(availableProducts, IAP_PRODUCT_IDS.signature);
 
-  // ── Action button label ───────────────────────────────────────────────────
   const getButtonLabel = () => {
-    if (selectedPlan === currentPlan) return 'Kapat';
-    if (selectedPlan === 'free')      return 'Ücretsiz Plana Dön';
-    return Platform.OS === 'android' ? 'Google Play ile Abone Ol' : 'Apple ile Abone Ol';
+    if (selectedPlan === currentPlan) return t('common.close');
+    if (selectedPlan === 'free')      return isEn ? 'Switch to Free Plan' : 'Ücretsiz Plana Dön';
+    return Platform.OS === 'android' ? (isEn ? 'Subscribe with Google Play' : 'Google Play ile Abone Ol') : (isEn ? 'Subscribe with Apple' : 'Apple ile Abone Ol');
   };
 
   // ── Feature row helper ────────────────────────────────────────────────────
@@ -224,8 +219,8 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 <Ionicons name="information-circle-outline" size={16} color="#eab308" />
                 <Text style={[styles.errorText, { color: '#eab308' }]}>
                   {purchaseError || (storeUnavailable 
-                    ? "Şu an mağazaya erişilemiyor. Lütfen daha sonra tekrar deneyin."
-                    : `${Platform.OS === 'android' ? 'Google Play' : 'Apple Store'} bağlantısı şu an kurulamadı. Lütfen tekrar deneyin.`)}
+                    ? (isEn ? "Store currently unavailable. Please try again later." : "Şu an mağazaya erişilemiyor. Lütfen daha sonra tekrar deneyin.")
+                    : (isEn ? `${Platform.OS === 'android' ? 'Google Play' : 'Apple Store'} connection failed. Please try again.` : `${Platform.OS === 'android' ? 'Google Play' : 'Apple Store'} bağlantısı şu an kurulamadı. Lütfen tekrar deneyin.`))}
                 </Text>
               </View>
               <TouchableOpacity 
@@ -237,7 +232,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                   borderRadius: 8,
                   borderColor: '#eab308',
                 }}>
-                <Text style={{ color: '#eab308', fontSize: 12, fontWeight: 'bold' }}>Bağlantı Sorunu</Text>
+                <Text style={{ color: '#eab308', fontSize: 12, fontWeight: 'bold' }}>{isEn ? 'Connection Issue' : 'Bağlantı Sorunu'}</Text>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -247,7 +242,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
             <View style={[styles.errorBanner, { backgroundColor: 'rgba(59,130,246,0.1)', borderColor: '#3b82f6' }]}>
               <ActivityIndicator size="small" color="#3b82f6" style={{ marginRight: 8 }} />
               <Text style={[styles.errorText, { color: '#3b82f6' }]}>
-                Store bağlantısı hazırlanıyor...
+                {isEn ? 'Connecting to store...' : 'Store bağlantısı hazırlanıyor...'}
               </Text>
             </View>
           ) : null}
@@ -258,23 +253,23 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
               style={[
                 styles.errorBanner,
                 {
-                  backgroundColor: restoreMessage.includes('yüklendi')
+                  backgroundColor: restoreMessage.includes('yüklendi') || restoreMessage.includes('restored')
                     ? 'rgba(74,222,128,0.1)'
                     : 'rgba(148,163,184,0.1)',
-                  borderColor: restoreMessage.includes('yüklendi') ? '#4ade80' : currentTheme.colors.cardBorder,
+                  borderColor: restoreMessage.includes('yüklendi') || restoreMessage.includes('restored') ? '#4ade80' : currentTheme.colors.cardBorder,
                 },
               ]}
             >
               <Ionicons
-                name={restoreMessage.includes('yüklendi') ? 'checkmark-circle-outline' : 'information-circle-outline'}
+                name={restoreMessage.includes('yüklendi') || restoreMessage.includes('restored') ? 'checkmark-circle-outline' : 'information-circle-outline'}
                 size={16}
-                color={restoreMessage.includes('yüklendi') ? '#4ade80' : currentTheme.colors.text.secondary}
+                color={restoreMessage.includes('yüklendi') || restoreMessage.includes('restored') ? '#4ade80' : currentTheme.colors.text.secondary}
               />
               <Text
                 style={[
                   styles.errorText,
                   {
-                    color: restoreMessage.includes('yüklendi')
+                    color: restoreMessage.includes('yüklendi') || restoreMessage.includes('restored')
                       ? '#4ade80'
                       : currentTheme.colors.text.secondary,
                   },
@@ -308,22 +303,22 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
               <View style={styles.planHeader}>
                 <View style={{ flex: 1, paddingRight: 8 }}>
                   <Text style={[styles.planTitle, { color: currentTheme.colors.text.primary }]}>
-                    Ücretsiz Plan
+                    {isEn ? 'Free Plan' : 'Ücretsiz Plan'}
                   </Text>
                   <Text style={[styles.planDesc, { color: currentTheme.colors.text.muted }]}>
-                    Kendinle sakin ve güvenli bir alan.
+                    {isEn ? 'A calm, private space for yourself.' : 'Kendinle sakin ve güvenli bir alan.'}
                   </Text>
                 </View>
                 <Text style={[styles.priceText, { color: currentTheme.colors.text.primary, fontSize: 32 }]}>
-                  0₺
+                  {isEn ? '$0' : '0₺'}
                 </Text>
               </View>
               {selectedPlan === 'free' && (
                 <View style={styles.featuresList}>
-                  {renderFeatureRow("Günlük ruh hali check-in'leri")}
-                  {renderFeatureRow('Hafif ve güvenli yapay zeka yoldaşlığı')}
-                  {renderFeatureRow('1 Özel ilişki bağlantısı')}
-                  {renderFeatureRow('Zaman tüneli ve derin hafıza', 'close-circle', false)}
+                  {renderFeatureRow(isEn ? 'Daily emotional check-ins' : "Günlük ruh hali check-in'leri")}
+                  {renderFeatureRow(isEn ? 'Gentle AI companionship' : 'Hafif ve güvenli yapay zeka yoldaşlığı')}
+                  {renderFeatureRow(isEn ? '1 Dedicated connection' : '1 Özel ilişki bağlantısı')}
+                  {renderFeatureRow(isEn ? 'Time Tunnel & deep memory' : 'Zaman tüneli ve derin hafıza', 'close-circle', false)}
                 </View>
               )}
             </TouchableOpacity>
@@ -358,7 +353,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                       Selfplace Plus
                     </Text>
                     <Text style={[styles.planDesc, { color: currentTheme.colors.text.muted }]}>
-                      Sizi giderek daha iyi anlayan duygusal bir yoldaş.
+                      {isEn ? 'An empathetic companion that understands you deeper over time.' : 'Sizi giderek daha iyi anlayan duygusal bir yoldaş.'}
                     </Text>
                   </View>
                   <View style={styles.priceContainer}>
@@ -366,7 +361,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                       <ActivityIndicator size="small" color={currentTheme.colors.primary} />
                     ) : !iapReady || !productsLoaded ? (
                       <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>
-                        Yükleniyor...
+                        {isEn ? 'Loading...' : 'Yükleniyor...'}
                       </Text>
                     ) : (
                       <>
@@ -374,7 +369,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                           {getDisplayPrice(plusProduct)}
                         </Text>
                         <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted }]}>
-                          / 1 Ay
+                          {isEn ? '/ 1 Mo' : '/ 1 Ay'}
                         </Text>
                       </>
                     )}
@@ -382,11 +377,11 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 </View>
                 {selectedPlan === 'plus' && (
                   <View style={styles.featuresList}>
-                    {renderFeatureRow('Sizi hatırlayan duygusal devamlılık')}
-                    {renderFeatureRow('Ruh halinize uyum sağlayan doğal konuşmalar')}
-                    {renderFeatureRow('İlişkinizin ritmini ve hava durumunu anlama')}
-                    {renderFeatureRow('Sınırsız yansıma ve uyum analizi')}
-                    {renderFeatureRow('Ortak ritüeller and zaman tüneli')}
+                    {renderFeatureRow(isEn ? 'Emotional continuity that remembers you' : 'Sizi hatırlayan duygusal devamlılık')}
+                    {renderFeatureRow(isEn ? 'Conversations adapting to your mood' : 'Ruh halinize uyum sağlayan doğal konuşmalar')}
+                    {renderFeatureRow(isEn ? 'Relationship rhythm & emotional weather insights' : 'İlişkinizin ritmini ve hava durumunu anlama')}
+                    {renderFeatureRow(isEn ? 'Unlimited reflections & harmony analysis' : 'Sınırsız yansıma ve uyum analizi')}
+                    {renderFeatureRow(isEn ? 'Shared rituals & time tunnel' : 'Ortak ritüeller ve zaman tüneli')}
                   </View>
                 )}
               </LinearGradient>
@@ -422,7 +417,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                       Selfplace Signature
                     </Text>
                     <Text style={[styles.planDesc, { color: currentTheme.colors.text.muted }]}>
-                      Daha gerçek hissettiren derin duygusal deneyim.
+                      {isEn ? 'A truly intimate and deep emotional experience.' : 'Daha gerçek hissettiren derin duygusal deneyim.'}
                     </Text>
                   </View>
                   <View style={styles.priceContainer}>
@@ -430,7 +425,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                       <ActivityIndicator size="small" color={currentTheme.colors.mascot.start} />
                     ) : !iapReady || !productsLoaded ? (
                       <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>
-                        Yükleniyor...
+                        {isEn ? 'Loading...' : 'Yükleniyor...'}
                       </Text>
                     ) : (
                       <>
@@ -438,7 +433,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                           {getDisplayPrice(signatureProduct)}
                         </Text>
                         <Text style={[styles.pricePeriod, { color: currentTheme.colors.text.muted }]}>
-                          / 1 Ay
+                          {isEn ? '/ 1 Mo' : '/ 1 Ay'}
                         </Text>
                       </>
                     )}
@@ -446,11 +441,11 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 </View>
                 {selectedPlan === 'signature' && (
                   <View style={styles.featuresList}>
-                    {renderFeatureRow('Daha doğal ve yaşayan konuşmalar')}
-                    {renderFeatureRow('İlişkinizi daha derinden hisseden bir AI')}
-                    {renderFeatureRow('Sessizliği bile anlayabilen bir yoldaş')}
-                    {renderFeatureRow('Kişiliğinize ve anlık derinliğinize uyum')}
-                    {renderFeatureRow('Tüm Plus ayrıcalıkları')}
+                    {renderFeatureRow(isEn ? 'Living, natural conversations' : 'Daha doğal ve yaşayan konuşmalar')}
+                    {renderFeatureRow(isEn ? 'AI that deeply understands your bond' : 'İlişkinizi daha derinden hisseden bir AI')}
+                    {renderFeatureRow(isEn ? 'A companion that understands quiet moments' : 'Sessizliği bile anlayabilen bir yoldaş')}
+                    {renderFeatureRow(isEn ? 'Adapts to your personality & real-time depth' : 'Kişiliğinize ve anlık derinliğinize uyum')}
+                    {renderFeatureRow(isEn ? 'All Plus privileges included' : 'Tüm Plus ayrıcalıkları')}
                   </View>
                 )}
               </LinearGradient>
@@ -459,18 +454,18 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
             {/* ── Store legal note ── */}
             <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted }]}>
               {Platform.OS === 'android' 
-                ? "Ödeme, satın alma onayında Google Play hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Satın aldıktan sonra Google Play'deki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz." 
-                : "Ödeme, satın alma onayında Apple Kimliği hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Hesabınız, mevcut dönemin bitiminden 24 saat önce yenileme için ücretlendirilecektir. Satın aldıktan sonra App Store'daki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz."}
+                ? (isEn ? "Payment will be charged to your Google Play Account at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. You can manage and cancel your subscriptions in your Account Settings on Google Play after purchase." : "Ödeme, satın alma onayında Google Play hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Satın aldıktan sonra Google Play'deki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz.")
+                : (isEn ? "Payment will be charged to your Apple ID Account at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions in your App Store Account Settings after purchase." : "Ödeme, satın alma onayında Apple Kimliği hesabınızdan tahsil edilecektir. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir. Hesabınız, mevcut dönemin bitiminden 24 saat önce yenileme için ücretlendirilecektir. Satın aldıktan sonra App Store'daki hesap ayarlarınıza giderek aboneliklerinizi yönetebilir ve iptal edebilirsiniz.")}
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 4, marginBottom: 12 }}>
               <TouchableOpacity onPress={() => { onClose(); router.push('/terms'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                 <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted, textDecorationLine: 'underline', marginBottom: 0 }]}>
-                  {Platform.OS === 'android' ? 'Kullanım Koşulları' : 'Kullanım Koşulları (Apple Standart EULA)'}
+                  {Platform.OS === 'android' ? (isEn ? 'Terms of Use' : 'Kullanım Koşulları') : (isEn ? 'Terms of Use (Apple EULA)' : 'Kullanım Koşulları (Apple Standart EULA)')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { onClose(); router.push('/privacy-policy'); }} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                 <Text style={[styles.legalNote, { color: currentTheme.colors.text.muted, textDecorationLine: 'underline', marginBottom: 0 }]}>
-                  Gizlilik Politikası
+                  {isEn ? 'Privacy Policy' : 'Gizlilik Politikası'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -497,11 +492,13 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
                 <View style={styles.loadingRow}>
                   <ActivityIndicator size="small" color="#FFF" />
                   <Text style={[styles.actionButtonText, { marginLeft: 10 }]}>
-                    {purchaseLoading ? `${Platform.OS === 'android' ? 'Google Play' : 'Apple'} ile doğrulanıyor…` : 'Geri yükleniyor…'}
+                    {purchaseLoading 
+                      ? (isEn ? `Verifying with ${Platform.OS === 'android' ? 'Google Play' : 'Apple'}…` : `${Platform.OS === 'android' ? 'Google Play' : 'Apple'} ile doğrulanıyor…`) 
+                      : (isEn ? 'Restoring purchases…' : 'Geri yükleniyor…')}
                   </Text>
                 </View>
               ) : (selectedPlan !== 'free' && (!iapReady || !productsLoaded)) ? (
-                <Text style={styles.actionButtonText}>Store Bağlantısı Bekleniyor...</Text>
+                <Text style={styles.actionButtonText}>{isEn ? 'Connecting to Store...' : 'Store Bağlantısı Bekleniyor...'}</Text>
               ) : (
                 <Text style={styles.actionButtonText}>{getButtonLabel()}</Text>
               )}
@@ -519,7 +516,7 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
               <ActivityIndicator size="small" color={currentTheme.colors.text.muted} />
             ) : (
               <Text style={[styles.restoreBtnText, { color: currentTheme.colors.text.muted }]}>
-                Satın Alımları Geri Yükle
+                {isEn ? 'Restore Purchases' : 'Satın Alımları Geri Yükle'}
               </Text>
             )}
           </TouchableOpacity>

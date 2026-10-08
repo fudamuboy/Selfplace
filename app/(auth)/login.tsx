@@ -12,6 +12,8 @@ import { Colors } from '../../constants/Colors';
 import useAuthStore from '../../store/useAuthStore';
 import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
 
+import { useT } from '../../i18n';
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,10 +22,11 @@ export default function LoginScreen() {
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
   const setAuth = useAuthStore(state => state.setAuth);
+  const { t, language } = useT();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setModal({ visible: true, title: 'Hata', message: 'Lütfen tüm alanları doldurun.' });
+      setModal({ visible: true, title: t('common.error'), message: t('errors.validationError') });
       return;
     }
 
@@ -43,21 +46,17 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (err: any) {
       const errorData = err.response?.data;
-      const debugInfo = errorData?.debug || errorData?.debug_error || err.message;
-      const stackInfo = errorData?.stack;
 
       setModal({
         visible: true,
-        title: 'Giriş Başarısız',
-        message: errorData?.message || 'E-posta veya şifre hatalı. Lütfen kontrol edin.'
+        title: t('auth.loginTab') + ' ' + t('common.error'),
+        message: errorData?.message || (language === 'en' ? 'Incorrect email or password. Please check your details.' : 'E-posta veya şifre hatalı. Lütfen kontrol edin.')
       });
 
     } finally {
       setLoading(false);
     }
   };
-
-
 
   return (
     <GradientBackground style={styles.container}>
@@ -71,13 +70,13 @@ export default function LoginScreen() {
             <MascotBlob mood="calm" />
           </View>
 
-          <Text style={styles.title}>Tekrar hoş geldin</Text>
-          <Text style={styles.subtitle}>Kendine ayırdığın küçük alana geri dön.</Text>
+          <Text style={styles.title}>{language === 'en' ? 'Welcome Back' : 'Tekrar hoş geldin'}</Text>
+          <Text style={styles.subtitle}>{language === 'en' ? 'Return to your quiet space.' : 'Kendine ayırdığın küçük alana geri dön.'}</Text>
 
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="E-posta adresinizi girin"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={Colors.text.secondary}
               value={email}
               onChangeText={setEmail}
@@ -89,7 +88,7 @@ export default function LoginScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, { paddingRight: 50 }]}
-              placeholder="Şifrenizi girin"
+              placeholder={t('auth.passwordPlaceholder')}
               placeholderTextColor={Colors.text.secondary}
               value={password}
               onChangeText={setPassword}
@@ -108,18 +107,18 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')} style={styles.forgotPasswordContainer}>
-            <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
+            <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
           </TouchableOpacity>
 
           <CustomButton
-            title="Giriş Yap"
+            title={t('auth.loginButton')}
             onPress={handleLogin}
             loading={loading}
             style={{ marginTop: 10, width: '100%' }}
           />
 
           <TouchableOpacity onPress={() => router.replace('/(auth)/register')} style={styles.registerLink}>
-            <Text style={styles.linkText}>Hesabın yok mu? <Text style={{ fontWeight: 'bold' }}>Kayıt Ol</Text></Text>
+            <Text style={styles.linkText}>{t('auth.noAccount')} <Text style={{ fontWeight: 'bold' }}>{t('auth.registerButton')}</Text></Text>
           </TouchableOpacity>
 
 

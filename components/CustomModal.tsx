@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import useThemeStore from '../store/useThemeStore';
 import { CustomButton } from './CustomButton';
+import { useT } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -20,11 +21,15 @@ export const CustomModal: React.FC<Props> = ({
   message,
   onClose,
   onConfirm,
-  confirmText = "Tamam",
+  confirmText,
   secondaryText,
   onSecondaryPress
 }) => {
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+
+  const finalConfirmText = confirmText || (language === 'en' ? 'OK' : 'Tamam');
+  const finalCancelText = language === 'en' ? 'Cancel' : 'Vazgeç';
 
   return (
     <Modal
@@ -47,14 +52,14 @@ export const CustomModal: React.FC<Props> = ({
           )}
 
           <CustomButton
-            title={confirmText}
+            title={finalConfirmText}
             onPress={onConfirm || onClose}
             variant="primary"
           />
 
           {(onConfirm && !secondaryText) && (
             <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
-              <Text style={[styles.cancelText, { color: currentTheme.colors.text.secondary }]}>Vazgeç</Text>
+              <Text style={[styles.cancelText, { color: currentTheme.colors.text.secondary }]}>{finalCancelText}</Text>
             </TouchableOpacity>
           )}
         </View>

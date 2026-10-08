@@ -13,7 +13,18 @@
       "bundleIdentifier": "com.silmo.Selfplace",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "SceneDelegate"
+              }
+            ]
+          }
+        }
       }
     },
     "android": {
@@ -35,19 +46,21 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-transparent.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#A5AD94",
+          "backgroundColor": "#0F111A",
           "dark": {
-            "backgroundColor": "#A5AD94"
+            "backgroundColor": "#0F111A"
           }
         }
       ],
       "@react-native-community/datetimepicker",
       "expo-notifications",
       "expo-web-browser",
-      "react-native-iap"
+      "react-native-iap",
+      "expo-build-properties",
+      "./plugins/withSceneDelegate"
     ],
     "experiments": {
       "typedRoutes": true,

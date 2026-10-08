@@ -75,9 +75,41 @@ exports.runMigrations = async () => {
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         text TEXT NOT NULL,
+        language VARCHAR(10) DEFAULT 'tr',
         generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    try {
+      await db.query('ALTER TABLE weekly_insights ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT \'tr\'');
+      await db.query('ALTER TABLE daily_whisper ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT \'tr\'');
+      await db.query('ALTER TABLE weekly_guidance ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT \'tr\'');
+      await db.query('ALTER TABLE daily_reflections ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT \'tr\'');
+      await db.query('ALTER TABLE relationship_insights ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT \'tr\'');
+      await db.query("UPDATE daily_reflections SET language = 'tr' WHERE language IS NULL");
+      await db.query(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'daily_reflections_user_id_created_at_key'
+          ) THEN
+            ALTER TABLE daily_reflections DROP CONSTRAINT daily_reflections_user_id_created_at_key;
+          END IF;
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'daily_reflections_user_id_created_at_language_code_key'
+          ) THEN
+            ALTER TABLE daily_reflections DROP CONSTRAINT daily_reflections_user_id_created_at_language_code_key;
+          END IF;
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'daily_reflections_user_id_created_at_language_key'
+          ) THEN
+            ALTER TABLE daily_reflections ADD CONSTRAINT daily_reflections_user_id_created_at_language_key UNIQUE (user_id, created_at, language);
+          END IF;
+        END $$;
+      `);
+    } catch (e) {
+      console.log('[MIGRATION] ALTER language column error:', e.message);
+    }
 
     // 7. Ensure advanced_check_ins table exists
     await db.query(`
@@ -842,6 +874,37 @@ exports.runMigrations = async () => {
     `);
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Bilingual reflection_questions support
+    // ──────────────────────────────────────────────────────────────────────────
+    await db.query(`
+      ALTER TABLE reflection_questions
+      ADD COLUMN IF NOT EXISTS text_tr TEXT,
+      ADD COLUMN IF NOT EXISTS text_en TEXT,
+      ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'reflection',
+      ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
+    `);
+
+    await db.query(`
+      UPDATE reflection_questions SET text_tr = text WHERE text_tr IS NULL;
+    `);
+
+    const curatedQuestions = [
+      { tr: 'Bugün seni en çok ne etkiledi?', en: 'What affected you most today?' },
+      { tr: 'Bugün kendine nasıl davrandın?', en: 'How did you treat yourself today?' },
+      { tr: 'Son zamanlarda aklında kalan bir şey var mı?', en: 'Has anything been lingering on your mind lately?' },
+      { tr: 'Bugün kendine karşı biraz daha nazik olabildin mi?', en: 'Were you able to be a bit gentler with yourself today?' },
+      { tr: 'Bugün neye ihtiyaç duyduğunu fark ettin mi?', en: 'Did you notice what you needed today?' },
+      { tr: 'Şu an bedeninde ne hissediyorsun?', en: 'What are you feeling in your body right now?' },
+      { tr: 'Bugün seni gülümseten küçük bir şey oldu mu?', en: 'Was there a small thing that made you smile today?' },
+      { tr: 'Kendine bugün bir teşekkür etsen, bu ne için olurdu?', en: 'If you were to thank yourself today, what would it be for?' },
+    ];
+
+    for (const q of curatedQuestions) {
+      await db.query(
+        'UPDATE reflection_questions SET text_en = $1 WHERE (text_tr = $2 OR text = $2) AND (text_en IS NULL OR text_en = \'\')',
+        [q.en, q.tr]
+      );
+    }
 
     console.log('[MIGRATION] Database schema checks completed successfully.');
   } catch (err) {

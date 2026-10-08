@@ -98,7 +98,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   resetAll: async () => {
+    const savedLang = await AsyncStorage.getItem('appLanguage');
+    const savedSelected = await AsyncStorage.getItem('hasCompletedLanguageSelection');
     await AsyncStorage.clear();
+    if (savedLang) await AsyncStorage.setItem('appLanguage', savedLang);
+    if (savedSelected) await AsyncStorage.setItem('hasCompletedLanguageSelection', savedSelected);
     set({ token: null, user: null, onboardingCompleted: false, postAuthOnboardingCompleted: false, sessionExpired: false, planType: 'free' });
   },
 }));

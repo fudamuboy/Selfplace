@@ -17,10 +17,13 @@ import client from '../../api/client';
 import Animated, { FadeInUp, FadeOutDown, FadeInDown } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { useT } from '../../i18n';
+
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore(state => state.user);
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
   const [cardUsedToday, setCardUsedToday] = React.useState(false);
   const [showToast, setShowToast] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState('');
@@ -37,6 +40,10 @@ export default function HomeScreen() {
   const [isHubDismissed, setIsHubDismissed] = React.useState(false);
   const [mascotMessage, setMascotMessage] = React.useState('');
 
+  React.useEffect(() => {
+    setMascotMessage(getMascotMessage(new Date().getHours(), emotionalContext, language));
+  }, [language]);
+
   const triggerToast = (message: string) => {
     setToastMessage(message);
     setShowToast(true);
@@ -45,7 +52,6 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   };
   
-
 
   const getLocalDate = () => {
     return new Date().toISOString().split('T')[0];
@@ -116,7 +122,8 @@ export default function HomeScreen() {
         setEmotionalContext(currentContext);
 
         // Calculate stress level
-        if (lastCheckIn.mood.toLowerCase().includes('stres') || lastCheckIn.mood.toLowerCase().includes('kaygı')) {
+        const lastMood = lastCheckIn.mood.toLowerCase();
+        if (['stres', 'stress', 'kaygı', 'anxious'].some(kw => lastMood.includes(kw))) {
           setStressLevel(0.8);
         } else {
           setStressLevel(0);
@@ -127,7 +134,7 @@ export default function HomeScreen() {
       }
 
       // Generate stable mascot message on focus load
-      const msg = getMascotMessage(new Date().getHours(), currentContext);
+      const msg = getMascotMessage(new Date().getHours(), currentContext, language);
       setMascotMessage(msg);
 
       // 3. Fetch Astrology Data
@@ -165,19 +172,18 @@ export default function HomeScreen() {
   const token = useAuthStore(state => state.token);
 
   // Use useFocusEffect to refresh state every time user returns to Home
-  // This ensures the card button locks instantly after returning from the selection screen
   const { useFocusEffect } = require('expo-router');
   useFocusEffect(
     React.useCallback(() => {
       if (token) {
         fetchData();
       }
-    }, [token])
+    }, [token, language])
   );
 
   const handleCardPress = () => {
     if (cardUsedToday) {
-      triggerToast(`Bugün kart hakkını kullandın ✨\nYarın tekrar bir kart seçebilirsin.`);
+      triggerToast(t('home.cardLimitNotice'));
       return;
     }
     router.push('/cards');
@@ -186,12 +192,19 @@ export default function HomeScreen() {
   const handleDismissHub = async () => {
     setIsHubDismissed(true);
     await AsyncStorage.setItem('relationship_onboarding_dismissed', 'true');
-    triggerToast("Bu alanı profil ayarlarından dilediğin zaman açabilirsin. 🌿");
+    triggerToast(t('home.sharedSpaceNotice'));
   };
 
 
   const renderRelationshipHub = () => {
     if (activeConnection) {
+      const getRoleLabel = (type: string) => {
+        if (type === 'partner') return t('connections.partnerRole');
+        if (type === 'family') return t('connections.familyRole');
+        if (type === 'best_friend') return t('connections.friendRole');
+        return t('connections.closeRole');
+      };
+
       return (
         <Animated.View entering={FadeInUp.delay(100)} style={styles.hubSection}>
           <TouchableOpacity
@@ -216,14 +229,20 @@ export default function HomeScreen() {
                     </Text>
                     <View style={[styles.typeBadge, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
                       <Text style={[styles.typeBadgeText, { color: currentTheme.colors.text.secondary }]}>
-                        {activeConnection.connectionType === 'partner' ? '💞 Partner' : activeConnection.connectionType === 'family' ? '🌿 Aile' : activeConnection.connectionType === 'best_friend' ? '🌟 Arkadaş' : '🤍 Yakın Kişi'}
+                        {getRoleLabel(activeConnection.connectionType)}
                       </Text>
                     </View>
                   </View>
                   <Text style={[styles.hubStatusText, { color: currentTheme.colors.text.secondary }]} numberOfLines={2}>
                     {connectionDailySync 
-                      ? `Bugün ilişkinizde ${connectionDailySync.emotional_weather.toLowerCase()} bir ritim hissediliyor 🌿` 
-                      : "Birlikte keşif alanınız aktif ✨"}
+                      ? (language === 'en' 
+                          ? `A ${(() => {
+                              const w = connectionDailySync.emotional_weather.toLowerCase();
+                              const m: Record<string, string> = { 'sakin': 'calm', 'dingin': 'serene', 'yumuşak': 'gentle', 'hassas': 'tender', 'derin': 'deep', 'hafif yoğun': 'mildly intense', 'yenileyici': 'renewing' };
+                              return m[w] || w;
+                            })()} rhythm is felt in your bond today 🌿` 
+                          : `Bugün ilişkinizde ${connectionDailySync.emotional_weather.toLowerCase()} bir ritim hissediliyor 🌿`)
+                      : (language === 'en' ? "Your shared space is active ✨" : "Birlikte keşif alanınız aktif ✨")}
                   </Text>
                 </View>
               </View>
@@ -237,7 +256,7 @@ export default function HomeScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="chatbubbles-outline" size={15} color={currentTheme.colors.primary} />
-                  <Text style={[styles.shortcutBtnText, { color: currentTheme.colors.text.secondary }]}>Ritüel</Text>
+                  <Text style={[styles.shortcutBtnText, { color: currentTheme.colors.text.secondary }]}>{t('navigation.rituals')}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.shortcutSeparator} />
@@ -248,7 +267,7 @@ export default function HomeScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="trail-sign-outline" size={15} color={currentTheme.colors.primary} />
-                  <Text style={[styles.shortcutBtnText, { color: currentTheme.colors.text.secondary }]}>Zaman Tüneli</Text>
+                  <Text style={[styles.shortcutBtnText, { color: currentTheme.colors.text.secondary }]}>{t('navigation.timeline')}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.shortcutSeparator} />
@@ -259,7 +278,7 @@ export default function HomeScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="sparkles-outline" size={15} color={currentTheme.colors.primary} />
-                  <Text style={[styles.shortcutBtnText, { color: currentTheme.colors.text.secondary }]}>Uyum</Text>
+                  <Text style={[styles.shortcutBtnText, { color: currentTheme.colors.text.secondary }]}>{t('navigation.harmony')}</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -287,8 +306,8 @@ export default function HomeScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.compactText, { color: currentTheme.colors.text.secondary }]}>
-                  <Text style={{ fontWeight: '600', color: currentTheme.colors.text.primary }}>💞 Birlikte Alan Aç </Text>
-                  · Partner ekleyerek ortak ritüeller keşfet.
+                  <Text style={{ fontWeight: '600', color: currentTheme.colors.text.primary }}>{t('home.openSharedSpace')} </Text>
+                  · {t('home.partnerInviteText')}
                 </Text>
               </View>
               <View style={styles.compactActionsContainer}>
@@ -297,7 +316,7 @@ export default function HomeScreen() {
                   onPress={() => router.push('/connections')}
                   style={[styles.compactCtaBtn, { borderColor: currentTheme.colors.primary + '22' }]}
                 >
-                  <Text style={[styles.compactCtaText, { color: currentTheme.colors.primary }]}>Aç</Text>
+                  <Text style={[styles.compactCtaText, { color: currentTheme.colors.primary }]}>{t('home.openBtn')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.7}
@@ -315,13 +334,21 @@ export default function HomeScreen() {
     );
   };
 
+  const getGreetingText = () => {
+    const h = new Date().getHours();
+    const name = user?.username || '';
+    if (h >= 5 && h < 12) return t('home.greetingMorning', { name });
+    if (h >= 12 && h < 18) return t('home.greetingAfternoon', { name });
+    return t('home.greetingEvening', { name });
+  };
+
   return (
     <GradientBackground>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.innerContent}>
         <View style={styles.header}>
-          <Text style={[styles.greeting, { color: currentTheme.colors.text.primary }]}>Merhaba {user?.username},</Text>
-          <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>Bugün kendin için bir şeyler yapmaya ne dersin?</Text>
+          <Text style={[styles.greeting, { color: currentTheme.colors.text.primary }]}>{getGreetingText()}</Text>
+          <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>{t('home.subtitle')}</Text>
         </View>
 
         <TouchableOpacity 
@@ -335,7 +362,7 @@ export default function HomeScreen() {
             emotionalContext={emotionalContext}
           />
           <Text style={[styles.mascotText, { color: currentTheme.colors.text.secondary }]}>
-            &quot;{mascotMessage || getMascotMessage(new Date().getHours(), emotionalContext)}&quot;
+            &quot;{mascotMessage || getMascotMessage(new Date().getHours(), emotionalContext, language)}&quot;
           </Text>
         </TouchableOpacity>
 
@@ -344,12 +371,12 @@ export default function HomeScreen() {
 
         <View style={styles.actions}>
           <CustomButton 
-            title="Günlük Check-in Yap" 
+            title={t('home.startCheckIn')} 
             onPress={() => router.push('/check-in')}
             variant="primary"
           />
           <CustomButton 
-            title={cardUsedToday ? "Bugünkü Kartını Çektin ✨" : "Bir Davet Kartı Çek"} 
+            title={cardUsedToday ? t('home.cardDrawnToday') : t('home.drawCard')} 
             onPress={handleCardPress}
             variant="secondary"
             disabled={cardUsedToday}
@@ -364,7 +391,7 @@ export default function HomeScreen() {
               style={styles.aiButtonGradient}
             >
               <Text style={[styles.aiButtonText, { color: currentTheme.colors.text.primary }]}>
-                Duygusal Rehberinle Konuş ✨
+                {t('home.startChat')}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -384,7 +411,7 @@ export default function HomeScreen() {
               />
               <View style={styles.energyHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary, fontSize: 16 }]}>✨ Bugünün Enerjisi</Text>
+                  <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary, fontSize: 16 }]}>{t('home.todaysEnergy')}</Text>
                 </View>
               </View>
               
@@ -396,10 +423,10 @@ export default function HomeScreen() {
                 {(astrologyData as any).generatedAt && (new Date().getTime() - new Date((astrologyData as any).generatedAt).getTime()) < 12 * 60 * 60 * 1000 ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#A78BFA', shadowColor: '#A78BFA', shadowOpacity: 0.8, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
-                    <Text style={{ fontSize: 12, color: '#A78BFA', fontWeight: '500', letterSpacing: 0.5 }}>Taze</Text>
+                    <Text style={{ fontSize: 12, color: '#A78BFA', fontWeight: '500', letterSpacing: 0.5 }}>{t('common.fresh')}</Text>
                   </View>
                 ) : <View />}
-                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Gökyüzüne Git →</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>{t('home.toSky')}</Text>
               </View>
             </TouchableOpacity>
           </Animated.View>
@@ -415,9 +442,9 @@ export default function HomeScreen() {
                 colors={['rgba(109, 40, 217, 0.05)', 'rgba(30, 27, 75, 0.2)']}
                 style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
               />
-              <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary, fontSize: 16, marginBottom: 8 }]}>✨ Bugünün Enerjisi</Text>
+              <Text style={[styles.energyTitle, { color: currentTheme.colors.text.primary, fontSize: 16, marginBottom: 8 }]}>{t('home.todaysEnergy')}</Text>
               <Text style={{ color: currentTheme.colors.text.secondary, fontStyle: 'italic', fontSize: 14 }}>
-                Bugün zihninin içinde hafif bir hareket olabilir. Yıldızlara göz at...
+                {language === 'en' ? "There may be a gentle breeze in your mind today. Take a glance at the stars..." : "Bugün zihninin içinde hafif bir hareket olabilir. Yıldızlara göz at..."}
               </Text>
             </TouchableOpacity>
           </Animated.View>

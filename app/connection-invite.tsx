@@ -9,16 +9,21 @@ import useThemeStore from '../store/useThemeStore';
 import { sendInvite } from '../api/relationshipApi';
 import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 
-const RELATIONSHIP_TYPES = [
-  { key: 'partner', label: 'Partner', icon: 'heart-outline', desc: 'Romantik birliktelikler için' },
-  { key: 'best_friend', label: 'En Yakın Arkadaş', icon: 'star-outline', desc: 'En güvendiğiniz dostunuz için' },
-  { key: 'family', label: 'Aile Üyesi', icon: 'home-outline', desc: 'Aile bireyleriniz için' },
-  { key: 'close_person', label: 'Yakın Kişi', icon: 'people-outline', desc: 'Diğer tüm yakın bağlar için' }
-];
+import { useT } from '../i18n';
 
 export default function ConnectionInviteScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const RELATIONSHIP_TYPES = [
+    { key: 'partner', label: isEn ? 'Partner' : 'Partner', icon: 'heart-outline', desc: isEn ? 'For romantic relationships' : 'Romantik birliktelikler için' },
+    { key: 'best_friend', label: isEn ? 'Closest Friend' : 'En Yakın Arkadaş', icon: 'star-outline', desc: isEn ? 'For your trusted friend' : 'En güvendiğiniz dostunuz için' },
+    { key: 'family', label: isEn ? 'Family Member' : 'Aile Üyesi', icon: 'home-outline', desc: isEn ? 'For family members' : 'Aile bireyleriniz için' },
+    { key: 'close_person', label: isEn ? 'Close Person' : 'Yakın Kişi', icon: 'people-outline', desc: isEn ? 'For all other close bonds' : 'Diğer tüm yakın bağlar için' }
+  ];
+
   const [email, setEmail] = useState('');
   const [connectionType, setConnectionType] = useState('partner');
   const [alias, setAlias] = useState('');
@@ -27,7 +32,7 @@ export default function ConnectionInviteScreen() {
 
   const handleSendInvite = async () => {
     if (!email) {
-      setModal({ visible: true, title: 'Hata', message: 'Lütfen davet etmek istediğiniz kişinin e-posta adresini girin.', success: false });
+      setModal({ visible: true, title: isEn ? 'Error' : 'Hata', message: isEn ? 'Please enter the email address of the person you want to invite.' : 'Lütfen davet etmek istediğiniz kişinin e-posta adresini girin.', success: false });
       return;
     }
 
@@ -36,15 +41,15 @@ export default function ConnectionInviteScreen() {
       await sendInvite(email, connectionType, alias);
       setModal({
         visible: true,
-        title: 'Davet Gönderildi ✨',
-        message: `${email} adresine bağlantı isteğiniz başarıyla iletildi. Karşı taraf kabul ettiğinde bağlantınız aktif olacaktır.`,
+        title: isEn ? 'Invite Sent ✨' : 'Davet Gönderildi ✨',
+        message: isEn ? `Connection request sent successfully to ${email}. Your connection will activate once accepted.` : `${email} adresine bağlantı isteğiniz başarıyla iletildi. Karşı taraf kabul ettiğinde bağlantınız aktif olacaktır.`,
         success: true
       });
     } catch (error: any) {
       setModal({
         visible: true,
-        title: 'Hata',
-        message: error.response?.data?.message || 'İstek gönderilirken bir hata oluştu. Lütfen bilgileri kontrol edip tekrar deneyin.',
+        title: isEn ? 'Error' : 'Hata',
+        message: error.response?.data?.message || (isEn ? 'An error occurred while sending the request. Please check the details and try again.' : 'İstek gönderilirken bir hata oluştu. Lütfen bilgileri kontrol edip tekrar deneyin.'),
         success: false
       });
     } finally {
@@ -59,7 +64,7 @@ export default function ConnectionInviteScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Bağlantı Daveti</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Connection Invite' : 'Bağlantı Daveti'}</Text>
         </View>
 
         <KeyboardAvoidingView 
@@ -73,15 +78,15 @@ export default function ConnectionInviteScreen() {
           >
             <View style={styles.formOuter}>
               <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-                Birlikte duygusal uyum kurmak istediğiniz kişinin e-posta adresini girin ve ilişkinizin türünü seçin.
+                {isEn ? 'Enter the email address of the person you want to build emotional harmony with and select your relationship type.' : 'Birlikte duygusal uyum kurmak istediğiniz kişinin e-posta adresini girin ve ilişkinizin türünü seçin.'}
               </Text>
 
               {/* Email Input */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>E-posta Adresi</Text>
+                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Email Address' : 'E-posta Adresi'}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
-                  placeholder="ornek@email.com"
+                  placeholder="example@email.com"
                   placeholderTextColor={currentTheme.colors.text.muted}
                   value={email}
                   onChangeText={setEmail}
@@ -93,10 +98,10 @@ export default function ConnectionInviteScreen() {
 
               {/* Alias Input */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Takma Ad / Nickname (Opsiyonel)</Text>
+                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Nickname (Optional)' : 'Takma Ad / Nickname (Opsiyonel)'}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
-                  placeholder="Onu nasıl çağırmak istersiniz?"
+                  placeholder={isEn ? 'How would you like to address them?' : 'Onu nasıl çağırmak istersiniz?'}
                   placeholderTextColor={currentTheme.colors.text.muted}
                   value={alias}
                   onChangeText={setAlias}
@@ -106,7 +111,7 @@ export default function ConnectionInviteScreen() {
 
               {/* Relationship Type Selector */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>İlişki Türü</Text>
+                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Relationship Type' : 'İlişki Türü'}</Text>
                 <View style={styles.typesContainer}>
                   {RELATIONSHIP_TYPES.map((type) => {
                     const isSelected = connectionType === type.key;
@@ -147,7 +152,7 @@ export default function ConnectionInviteScreen() {
 
               {/* Send Button */}
               <CustomButton
-                title="Davet Gönder"
+                title={isEn ? 'Send Invite' : 'Davet Gönder'}
                 onPress={handleSendInvite}
                 loading={loading}
                 style={{ marginTop: 24, width: '100%' }}

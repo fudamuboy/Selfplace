@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { GradientBackground } from '../components/GradientBackground';
 import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
+
+import { useT } from '../i18n';
 
 interface TestResult {
   id: number;
@@ -14,22 +16,46 @@ interface TestResult {
   created_at: string;
 }
 
+const COLOR_NAMES_MAP: Record<string, { tr: string; en: string }> = {
+  golden_amber: { tr: 'Altın Kehribar', en: 'Golden Amber' },
+  moon_blue: { tr: 'Ay Mavisi', en: 'Moon Blue' },
+  ember_orange: { tr: 'Kor Turuncusu', en: 'Ember Orange' },
+  sage_green: { tr: 'Adaçayı Yeşili', en: 'Sage Green' },
+  violet_mist: { tr: 'Menekşe Sisi', en: 'Violet Mist' }
+};
+
+const getColorFamilyLabel = (cf: any, isEn: boolean): string => {
+  if (!cf) return '';
+  const id = (cf.id || '').toLowerCase();
+  if (COLOR_NAMES_MAP[id]) {
+    return isEn ? COLOR_NAMES_MAP[id].en : COLOR_NAMES_MAP[id].tr;
+  }
+  const name = cf.name || '';
+  for (const item of Object.values(COLOR_NAMES_MAP)) {
+    if (item.en === name || item.tr === name) {
+      return isEn ? item.en : item.tr;
+    }
+  }
+  return name;
+};
+
 export default function PersonalityResultsScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
   
   const [history, setHistory] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [language]);
 
   const fetchHistory = async () => {
     try {
       const res = await client.get('/personality/history');
       if (res.data && res.data.success !== false) {
-        // We only care about the new 'journey' tests for the evolution timeline
         setHistory(res.data.journey || []);
       } else {
         setHistory([]);
@@ -42,9 +68,8 @@ export default function PersonalityResultsScreen() {
   };
 
   const calculateTimeDiff = (currentDateStr: string, index: number) => {
-    if (index >= history.length - 1) return null; // no previous test
+    if (index >= history.length - 1) return null;
     
-    // We compare with the NEXT item in the array (which is chronologically the PREVIOUS test, since it's sorted DESC)
     const prevDateStr = history[index + 1].created_at;
     const current = new Date(currentDateStr).getTime();
     const previous = new Date(prevDateStr).getTime();
@@ -52,26 +77,27 @@ export default function PersonalityResultsScreen() {
     const diffTime = Math.abs(current - previous);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 7) return `${diffDays} Gün Önce → Şimdi`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} Hafta Önce → Şimdi`;
-    return `${Math.floor(diffDays / 30)} Ay Önce → Şimdi`;
+    if (diffDays < 7) return isEn ? `${diffDays} Days Ago → Now` : `${diffDays} Gün Önce → Şimdi`;
+    if (diffDays < 30) return isEn ? `${Math.floor(diffDays / 7)} Weeks Ago → Now` : `${Math.floor(diffDays / 7)} Hafta Önce → Şimdi`;
+    return isEn ? `${Math.floor(diffDays / 30)} Months Ago → Now` : `${Math.floor(diffDays / 30)} Ay Önce → Şimdi`;
   };
 
   const renderEvolutionCard = (result: TestResult, index: number) => {
     const { archetype_name, color_family, dominant_shift } = result.result_data;
-    const date = new Date(result.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const date = new Date(result.created_at).toLocaleDateString(isEn ? 'en-US' : 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
     
     const colorHex = color_family?.hex || result.result_data.dominant_color || currentTheme.colors.primary;
     const timeFrameStr = calculateTimeDiff(result.created_at, index);
     const isLatest = index === 0;
     
-    // Calculate color transition string if there is a previous test
     let colorTransitionStr = null;
     if (index < history.length - 1 && color_family) {
         const prevResult = history[index + 1];
         const prevColorFamily = prevResult.result_data.color_family;
-        if (prevColorFamily && prevColorFamily.name !== color_family.name) {
-            colorTransitionStr = `${prevColorFamily.name} → ${color_family.name}`;
+        const prevColorName = getColorFamilyLabel(prevColorFamily, isEn);
+        const currColorName = getColorFamilyLabel(color_family, isEn);
+        if (prevColorName && currColorName && prevColorName !== currColorName) {
+            colorTransitionStr = `${prevColorName} → ${currColorName}`;
         }
     }
 
@@ -94,7 +120,6 @@ export default function PersonalityResultsScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* If this test has a drift reflection, render the Evrim Kartı attached below it */}
         {(dominant_shift || colorTransitionStr) && timeFrameStr && (
           <View style={[styles.driftCard, { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: currentTheme.colors.cardBorder }]}>
             <Text style={[styles.timeFrameText, { color: currentTheme.colors.text.secondary }]}>
@@ -135,27 +160,26 @@ export default function PersonalityResultsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Duygusal Evrim</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('personality.emotionalEvolution')}</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-          İç dünyandaki değişimler ve ruhunun zaman içindeki yansımaları.
+          {t('personality.evolutionSubtitle')}
         </Text>
 
         {hasNoResults ? (
           <Animated.View entering={FadeInDown.duration(800)} style={styles.emptyContainer}>
             <Ionicons name="leaf-outline" size={48} color={currentTheme.colors.text.muted} style={{ marginBottom: 16 }} />
             <Text style={[styles.emptyText, { color: currentTheme.colors.text.secondary }]}>
-              Henüz yeterince içsel iz oluşmadı 🌿
+              {isEn ? 'Not enough inner traces yet 🌿' : 'Henüz yeterince içsel iz oluşmadı 🌿'}
             </Text>
             <Text style={[styles.emptySubText, { color: currentTheme.colors.text.muted }]}>
-              Zamanla ruhunun değişen ritmini burada görebileceksin.
+              {isEn ? "Over time, you will see your soul's changing rhythm here." : 'Zamanla ruhunun değişen ritmini burada görebileceksin.'}
             </Text>
           </Animated.View>
         ) : (
           <View style={styles.timelineContainer}>
-            {/* Connection Line */}
             {history.length > 1 && (
               <View style={[styles.timelineLine, { backgroundColor: currentTheme.colors.cardBorder }]} />
             )}

@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useT } from '../i18n';
 
 interface Props {
   children: React.ReactNode;
@@ -20,11 +21,19 @@ export const PremiumGate: React.FC<Props> = ({
   requiredPlan,
   currentPlan,
   onUpgradePress,
-  title = "Premium Özellik ✨",
-  subtitle = "Bu özelliğe erişmek için planınızı yükseltin.",
+  title,
+  subtitle,
   containerStyle
 }) => {
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const defaultTitle = isEn ? "Premium Feature ✨" : "Premium Özellik ✨";
+  const defaultSubtitle = isEn ? "Upgrade your plan to unlock this feature." : "Bu özelliğe erişmek için planınızı yükseltin.";
+
+  const displayTitle = title || defaultTitle;
+  const displaySubtitle = subtitle || defaultSubtitle;
 
   const hasAccess = 
     currentPlan === 'signature' || 
@@ -46,7 +55,7 @@ export const PremiumGate: React.FC<Props> = ({
         {children}
       </View>
 
-      {/* Glassmorphic lock overlay, now rendering in normal flow (not absolute) so parent wrapper has natural height! */}
+      {/* Glassmorphic lock overlay */}
       <BlurView intensity={Platform.OS === 'ios' ? 35 : 85} tint="dark" style={styles.blurContainer}>
         <LinearGradient
           colors={['rgba(20, 15, 38, 0.65)', 'rgba(30, 20, 50, 0.85)']}
@@ -56,20 +65,20 @@ export const PremiumGate: React.FC<Props> = ({
             <Ionicons name="sparkles" size={24} color={planColor} />
           </View>
           
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{title}</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{displayTitle}</Text>
           
           <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: currentTheme.colors.cardBorder }]}>
-            <Text style={[styles.badgeText, { color: planColor }]}>{planLabel} Gerekli</Text>
+            <Text style={[styles.badgeText, { color: planColor }]}>{planLabel} {isEn ? 'Required' : 'Gerekli'}</Text>
           </View>
 
-          <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>{subtitle}</Text>
+          <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>{displaySubtitle}</Text>
           
           <TouchableOpacity 
             style={[styles.upgradeBtn, { backgroundColor: planColor }]}
             onPress={onUpgradePress}
             activeOpacity={0.8}
           >
-            <Text style={styles.upgradeBtnText}>Şimdi Yükselt</Text>
+            <Text style={styles.upgradeBtnText}>{isEn ? 'Upgrade Now' : 'Şimdi Yükselt'}</Text>
           </TouchableOpacity>
         </LinearGradient>
       </BlurView>

@@ -3,22 +3,27 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 
+import { useT } from '../i18n';
+
 interface NetworkErrorStateProps {
   message?: string;
   onRetry: () => void;
 }
 
 export const NetworkErrorState: React.FC<NetworkErrorStateProps> = ({
-  message = 'Bağlantı kısa süreliğine sessizleşti 🌙',
+  message,
   onRetry,
 }) => {
   const { currentTheme } = useThemeStore();
+  const { t } = useT();
+
+  const displayMessage = message || t('errors.network');
 
   return (
     <View style={styles.container}>
       <Ionicons name="cloud-offline-outline" size={64} color={currentTheme.colors.primary} style={styles.icon} />
       <Text style={[styles.message, { color: currentTheme.colors.text.primary }]}>
-        {message}
+        {displayMessage}
       </Text>
       <TouchableOpacity
         style={[styles.button, { backgroundColor: currentTheme.colors.button.primary }]}
@@ -26,7 +31,7 @@ export const NetworkErrorState: React.FC<NetworkErrorStateProps> = ({
         activeOpacity={0.8}
       >
         <Text style={[styles.buttonText, { color: currentTheme.colors.button.text }]}>
-          Tekrar Dene
+          {t('common.retry')}
         </Text>
       </TouchableOpacity>
     </View>

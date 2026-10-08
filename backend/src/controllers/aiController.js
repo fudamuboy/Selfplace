@@ -2,6 +2,7 @@ const db = require('../config/db');
 const OpenAI = require('openai');
 const { buildEmotionalContext, updateEmotionalContinuity } = require('../services/emotionalContextBuilder');
 const { extractCoupleMemory, updateIndividualBehavioralMemory, detectRelationshipResolutionState } = require('../services/coupleMemoryService');
+const { getLanguage } = require('../utils/languageResolver');
 // relationshipEventEngine (buildEventTrigger) removed — Conversation Director is the sole event pipeline.
 
 const openai = new OpenAI({
@@ -15,6 +16,8 @@ const openai = new OpenAI({
 exports.handleChat = async (req, res) => {
   const { message, conversationId } = req.body;
   const userId = req.user.id;
+  const rawLang = req.body?.language || req.headers['x-app-language'] || req.headers['accept-language'];
+  const language = (rawLang && (String(rawLang).toLowerCase().startsWith('en') || rawLang === 'en')) ? 'en' : 'tr';
 
   try {
     // 1. Get or create conversation
@@ -40,12 +43,11 @@ exports.handleChat = async (req, res) => {
     );
     let history = historyRes.rows.reverse();
 
-    // Intent detection for conversational repair (asking for clarification / confusion)
+    // Clarification intent detection for conversational repair
     let clarificationInstruction = '';
     const cleanMsg = message.toLowerCase().trim();
 
-    // Turkish clarification signals — expanded keyword set
-    const confusionKeywords = [
+    const confusionKeywordsTr = [
       'anlamadım', 'anlamadim',
       'ne demek', 'ne demek istiyorsun',
       'açıklar mısın', 'aciklar misin', 'biraz açıklar mısın',
@@ -54,18 +56,43 @@ exports.handleChat = async (req, res) => {
       'ne kastediyorsun', 'neyi kastediyorsun',
       'anlamadım bunu', 'bunu anlamadım',
       'anlıyorum', 'anlayamadım', 'anlayamadim',
-      'anlamadım', 'anlamiyorum',
+      'anlamıyorum', 'anlamiyorum',
       'yukarıdaki cümleyi açıklar mısın',
       'o cümleyi açıklar mısın',
     ];
+    const confusionKeywordsEn = [
+      "don't understand", "dont understand", "didn't understand", "didnt understand",
+      "what do you mean", "what does that mean",
+      "can you explain", "could you explain", "explain this",
+      "what did you mean", "i don't get it", "i dont get it",
+      "what are you trying to say"
+    ];
+    const isEn = language === 'en';
+    const confusionKeywords = isEn ? confusionKeywordsEn : confusionKeywordsTr;
     const isClarificationRequest = confusionKeywords.some(keyword => cleanMsg.includes(keyword));
 
     if (isClarificationRequest && history.length >= 2) {
-      // Find the last AI message in history (not necessarily index -2, could be further back)
       const lastAiMsg = [...history].reverse().find(h => h.sender === 'ai');
       if (lastAiMsg) {
         const lastAiText = lastAiMsg.message;
-        clarificationInstruction = `
+        clarificationInstruction = isEn ? `
+━━━━━━━━━━━━━━━━━━━
+⚠️ CONVERSATION REPAIR & REFRAMING MODE ACTIVE ⚠️
+━━━━━━━━━━━━━━━━━━━
+The user did not understand your previous reply and requested clarification.
+
+Previous AI message:
+"${lastAiText}"
+
+In this mode, you MUST:
+1. DO NOT CHANGE THE TOPIC. Stay in the exact same emotional atmosphere.
+2. Re-express this message in simpler, more natural, and more human English.
+3. Specifically clarify the unclear concept gently and clearly.
+4. Keep the response to 1-2 short, warm sentences.
+5. Use natural conversational openers like "What I meant was...", "In other words...", "I just meant that...".
+6. Never output generic filler like "Let me ask you a question" or "Let's discuss".
+━━━━━━━━━━━━━━━━━━━
+` : `
 ━━━━━━━━━━━━━━━━━━━
 ⚠️ KONUŞMAYI ONARMA & YENIDEN ÇERÇEVELEME MODU AKTIF ⚠️
 ━━━━━━━━━━━━━━━━━━━
@@ -225,9 +252,9 @@ Kural:
 
     // Run EKL in parallel with Living Context and Brain — zero added latency
     const [liveContext, brainRes, ekl] = await Promise.all([
-      getLivingContext(userId),
-      getBrainDirectives(userId, connectionId, message, history, plan, isDistressed),
-      getEntityKnowledge(message)
+      getLivingContext(userId, language),
+      getBrainDirectives(userId, connectionId, message, history, plan, isDistressed, language),
+      getEntityKnowledge(message, language)
     ]);
     const { directorDossier, eventIds, brainMetadata, brainState } = brainRes;
 
@@ -237,7 +264,19 @@ Kural:
       const locationLine = [ekl.city, ekl.district].filter(Boolean).join(' / ');
       if (ekl.confidence >= 0.80) {
         // High confidence — Brain should state facts directly
-        entityKnowledgeSection = `
+        entityKnowledgeSection = isEn ? `
+━━━━━━━━━━━━━━━━━━━
+ENTITY KNOWLEDGE LAYER
+━━━━━━━━━━━━━━━━━━━
+A verified entity was detected in the user's message.
+Confidence level is HIGH — use the information directly and with confidence.
+Example tone: "Located in ${locationLine || ekl.canonicalName}..."
+
+Entity: ${ekl.canonicalName} (${ekl.entityType})
+${locationLine ? `Location: ${locationLine}` : ''}
+Summary: ${ekl.summary}
+Source: ${ekl.sourceType} | Freshness: ${ekl.freshness} | Confidence: ${ekl.confidence}
+━━━━━━━━━━━━━━━━━━━` : `
 ━━━━━━━━━━━━━━━━━━━
 ENTITY KNOWLEDGE LAYER
 ━━━━━━━━━━━━━━━━━━━
@@ -252,7 +291,19 @@ Kaynak: ${ekl.sourceType} | Güncellik: ${ekl.freshness} | Güven: ${ekl.confide
 ━━━━━━━━━━━━━━━━━━━`;
       } else {
         // Medium confidence — Brain should use tentative language
-        entityKnowledgeSection = `
+        entityKnowledgeSection = isEn ? `
+━━━━━━━━━━━━━━━━━━━
+ENTITY KNOWLEDGE LAYER
+━━━━━━━━━━━━━━━━━━━
+A likely real-world entity was detected in the user's message.
+Confidence level is MEDIUM — present the information gently in tentative phrasing.
+Example tone: "I think you might be referring to ${ekl.canonicalName || 'this'}..."
+
+Entity: ${ekl.canonicalName || '(uncertain)'} (${ekl.entityType})
+${locationLine ? `Location (estimated): ${locationLine}` : ''}
+Summary: ${ekl.summary}
+Source: ${ekl.sourceType} | Freshness: ${ekl.freshness} | Confidence: ${ekl.confidence}
+━━━━━━━━━━━━━━━━━━━` : `
 ━━━━━━━━━━━━━━━━━━━
 ENTITY KNOWLEDGE LAYER
 ━━━━━━━━━━━━━━━━━━━
@@ -268,9 +319,33 @@ Kaynak: ${ekl.sourceType} | Güncellik: ${ekl.freshness} | Güven: ${ekl.confide
       }
     }
 
-    const systemPrompt = `# SELFPLACE — AI COMPANION WITH LIVING CONTEXT & EVENT INTELLIGENCE
+    const promptIntro = isEn
+      ? `# SELFPLACE — AI COMPANION WITH LIVING CONTEXT & EVENT INTELLIGENCE\n\nBased on the "SELFPLACE LIVE CONTEXT" data below, speak with the user in natural, warm, emotionally intelligent English:`
+      : `# SELFPLACE — AI COMPANION WITH LIVING CONTEXT & EVENT INTELLIGENCE\n\nAşağıdaki "SELFPLACE LIVE CONTEXT" verilerini kaynak alarak kullanıcıyla doğal, samimi bir Türkçe ile konuş:`;
 
-Aşağıdaki "SELFPLACE LIVE CONTEXT" verilerini kaynak alarak kullanıcıyla doğal, samimi bir Türkçe ile konuş:
+    const realityDirectives = isEn ? `
+━━━━━━━━━━━━━━━━━━━
+HALLUCINATION PREVENTION & REALITY DIRECTIVES
+━━━━━━━━━━━━━━━━━━━
+1. Base your responses only on the verified data in SELFPLACE LIVE CONTEXT and ENTITY KNOWLEDGE LAYER above. Do not invent any relationship events, arguments, tension, emotions, journal entries, memories, or people.
+2. Integrate Entity Knowledge Layer facts naturally into the conversation; never output raw JSON or technical keys.
+3. If a detail (such as how the partner is feeling) is not present in Live Context, do not guess; ask the user gently if needed.
+4. When mentioning the partner, do not use generic terms like "your friend" or "your partner" if a name is provided in Live Context (e.g. "Android"); always address them by name.
+` : `
+━━━━━━━━━━━━━━━━━━━
+HALÜSİNASYON ENGELLEME VE GERÇEKLİK KURALLARI (STRICT REALITY DIRECTIVES)
+━━━━━━━━━━━━━━━━━━━
+1. Yalnızca yukarıdaki "SELFPLACE LIVE CONTEXT" ve "ENTITY KNOWLEDGE LAYER" içinde sağlanan gerçek verileri temel al. Bu verilerde yer almayan hiçbir ilişki durumunu, tartışmayı, gerilimi, duyguyu, günlük girdisini, anıyı veya kişiyi kendin UYDURMA (hallucination kesinlikle yasaktır).
+2. Entity Knowledge Layer'dan gelen bilgileri doğal bir şekilde konuşmaya entegre et; asla ham JSON veya teknik başlık gösterme.
+3. Eğer bir bilgi (örneğin partnerin ne hissettiği, aranızda gerginlik olup olmadığı) Live Context içinde bulunmuyorsa, tahmin etme, uydurma; gerekirse kullanıcıya doğrudan ama nazikçe sor.
+4. Partnerden bahsederken "arkadaşın", "eşin" veya "ortağın" gibi jenerik kelimeler kullanma. Live Context'te partnerin adı belirtilmişse (örn: "Android"), ona mutlaka ismiyle hitap et.
+`;
+
+    const finalDirective = isEn
+      ? `You speak like a real person using natural daily English.\nAlways respond in natural, conversational English. Never output Turkish unless explicitly requested.`
+      : `You speak like a real person using natural daily Turkish.\nHer zaman günlük, doğal bir Türkçe ile yanıt ver.`;
+
+    const systemPrompt = `${promptIntro}
 
 ${liveContext}
 
@@ -280,32 +355,14 @@ ${entityKnowledgeSection}
 
 ${userProfileDirectives}
 
-━━━━━━━━━━━━━━━━━━━
-HALÜSİNASYON ENGELLEME VE GERÇEKLİK KURALLARI (STRICT REALITY DIRECTIVES)
-━━━━━━━━━━━━━━━━━━━
-1. Yalnızca yukarıdaki "SELFPLACE LIVE CONTEXT" ve "ENTITY KNOWLEDGE LAYER" içinde sağlanan gerçek verileri temel al. Bu verilerde yer almayan hiçbir ilişki durumunu, tartışmayı, gerilimi, duyguyu, günlük girdisini, anıyı veya kişiyi kendin UYDURMA (hallucination kesinlikle yasaktır).
-2. Entity Knowledge Layer'dan gelen bilgileri doğal bir şekilde konuşmaya entegre et; asla ham JSON veya teknik başlık gösterme.
-3. Eğer bir bilgi (örneğin partnerin ne hissettiği, aranızda gerginlik olup olmadığı) Live Context içinde bulunmuyorsa, tahmin etme, uydurma; gerekirse kullanıcıya doğrudan ama nazikçe sor.
-4. Partnerden bahsederken "arkadaşın", "eşin" veya "ortağın" gibi jenerik kelimeler kullanma. Live Context'te partnerin adı belirtilmişse (örn: "Android"), ona mutlaka ismiyle hitap et.
-5. Bilgi Öncelik Sıralaması:
-   1. Entity Knowledge Layer (doğrulanmış gerçek dünya bilgisi)
-   2. Canlı uygulama durumu (Live Context)
-   3. İlişki hafızası
-   4. Kayıtlı duygusal bellek
-   5. Mevcut konuşma geçmişi
-   6. Kendi yapay zeka çıkarımların
-
-━━━━━━━━━━━━━━━━━━━
-PROAKTİF FARKINDALIK (EVENT-DRIVEN CONVERSATION)
-━━━━━━━━━━━━━━━━━━━
-- Eğer Kronolojik İlişki Zaman Çizelgesi'nde (Timeline) yeni bir olay (örn: yeni bağlantı kurulması, partnerin testi bitirmesi, check-in yapması, yeni haftalık rapor oluşması) varsa ve bu henüz konuşulmadıysa, söze doğal bir şekilde bu olayla gir (Örn: "Android ile bağlandığınızı fark ettim bugün, çok sevindim ❤️" veya "Bugün ikiniz de yansımayı tamamlamışsınız, harika görünüyorsunuz.").
+${realityDirectives}
 
 ━━━━━━━━━━━━━━━━━━━
 CORE IDENTITY
 ━━━━━━━━━━━━━━━━━━━
 You are a thoughtful, kind, emotionally intelligent friend.
-You speak like a real person using natural daily Turkish.
-You NEVER use poetic metaphors, mystical language, or repetitive self-help scripts (e.g. "İçindeki ışık", "Evren", "Derin bir nefes al").
+${finalDirective}
+You NEVER use poetic metaphors, mystical language, or repetitive self-help scripts (e.g. "inner light", "the universe", "take a deep breath").
 
 STRICT LENGTH RULES:
 * Match the user's length (usually 1-3 short sentences).
@@ -314,10 +371,10 @@ STRICT LENGTH RULES:
 
 Rule 2: NO poetry, NO mysticism, NO horoscopes, NO therapy scripts. Keep it real.
 Rule 3: Match their energy.
-Rule 4: NEVER use generic "Evren" or "Işık" clichés.
+Rule 4: NEVER use generic "Universe" or "Light" clichés.
 
 ${clarificationInstruction}
-Her zaman günlük, doğal bir Türkçe ile yanıt ver.`;
+${finalDirective}`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -396,7 +453,7 @@ Her zaman günlük, doğal bir Türkçe ile yanıt ver.`;
 
   } catch (err) {
     console.error('[aiController] handleChat error:', err);
-    res.status(500).json({ message: 'AI şu an dinleyemiyor, lütfen birazdan tekrar dene.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'The AI can\'t listen right now. Please try again in a moment.' : 'AI şu an dinleyemiyor, lütfen birazdan tekrar dene.' });
   }
 };
 
@@ -463,7 +520,7 @@ exports.getReflections = async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('[aiController] getReflections error:', err);
-    res.status(500).json({ message: 'Yansımalar getirilemedi.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t load reflections.' : 'Yansımalar getirilemedi.' });
   }
 };
 
@@ -472,13 +529,17 @@ exports.getReflections = async (req, res) => {
  */
 exports.getGreeting = async (req, res) => {
   const userId = req.user.id;
+  const rawLang = req.body?.language || req.headers['x-app-language'] || req.headers['accept-language'];
+  const language = (rawLang && (String(rawLang).toLowerCase().startsWith('en') || rawLang === 'en')) ? 'en' : 'tr';
+  const isEn = language === 'en';
+
   try {
     const { isDistressed, hasPartner, connectionId, planType: plan } = await buildEmotionalContext(userId);
 
     const { getBrainDirectives, updateBrainState } = require('../services/conversationBrain');
     
     // Pass empty history, treat "selam" as the generic trigger
-    const { directorDossier, eventIds, brainMetadata, brainState } = await getBrainDirectives(userId, connectionId, "selam", [], plan, isDistressed);
+    const { directorDossier, eventIds, brainMetadata, brainState } = await getBrainDirectives(userId, connectionId, isEn ? "hello" : "selam", [], plan, isDistressed, language);
 
     // Save the Brain's state so it accurately registers it picked a greeting mode
     if (brainMetadata) {
@@ -486,9 +547,8 @@ exports.getGreeting = async (req, res) => {
     }
 
     const systemPrompt = `# SELFPLACE GREETING GENERATOR
-Aşağıdaki "CONVERSATION BRAIN DIRECTIVE" yönergelerine uyarak kullanıcıyı kısa, doğal ve samimi bir Türkçe ile karşıla.
-Terapist veya koç gibi değil, gerçek ve şefkatli bir arkadaş gibi konuş.
-Sadece 1-2 cümlelik kısa bir karşılama yaz.
+${isEn ? 'Greet the user in short, natural, warm ENGLISH according to the CONVERSATION BRAIN DIRECTIVE.' : 'Aşağıdaki "CONVERSATION BRAIN DIRECTIVE" yönergelerine uyarak kullanıcıyı kısa, doğal ve samimi bir Türkçe ile karşıla.'}
+Write a short 1-2 sentence greeting.
 
 ${directorDossier}`;
 
@@ -504,6 +564,6 @@ ${directorDossier}`;
 
   } catch (err) {
     console.error('[aiController] getGreeting error:', err);
-    res.json({ greeting: "Merhaba, seninleyim. Bugün aklından neler geçiyor? 🌿" });
+    res.json({ greeting: isEn ? "Hello, I'm right here with you. What is on your mind today? 🌿" : "Merhaba, seninleyim. Bugün aklından neler geçiyor? 🌿" });
   }
 };

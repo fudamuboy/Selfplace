@@ -1,4 +1,5 @@
 import { ThemeMode } from '../constants/themeModes';
+import { useLanguageStore } from '../store/useLanguageStore';
 
 export type MascotMood = 
   | 'happy' 
@@ -175,68 +176,116 @@ export const getMascotConfig = (
 /**
  * Message Pools
  */
-const MESSAGE_POOLS = {
-  MORNING: [
-    "Bugün kendin için küçük bir şey yapalım mı?",
-    "Yeni bir gün başladı 🌿",
-    "Buradayım, seni dinliyorum.",
-    "Günaydın, bugün senin günün olsun.",
-    "Sabahın tazeliği ruhuna iyi gelsin.",
-    "Yeni bir başlangıç için harika bir an."
-  ],
-  AFTERNOON: [
-    "Bugün nasıl hissediyorsun?",
-    "Küçük bir mola iyi gelebilir.",
-    "Bugün seni en çok ne etkiledi?",
-    "Nefes almayı unutma, buradayım.",
-    "Günün ortasında kendine nazik davran.",
-    "Seni neyin heyecanlandırdığını duymak isterim."
-  ],
-  EVENING: [
-    "Bugünün sende bıraktığı şey neydi?",
-    "Biraz içini dökmek ister misin?",
-    "Akşamın sakinliği sana iyi gelsin.",
-    "Günün yorgunluğunu beraber atalım mı?",
-    "Bu akşam kendine ayırdığın vakit çok değerli.",
-    "Gökyüzü kararırken içindeki ışığı hatırla."
-  ],
-  SUPPORTIVE: [
-    "Zor bir gün müydü? Yanındayım...",
-    "Her duygunun bir yeri var, burası güvenli.",
-    "Sadece nefes al, her şey geçecek.",
-    "Kendine biraz zaman tanı, acelemiz yok.",
-    "Şu an nasıl hissediyorsan, o hisse alan açalım.",
-    "Seni dinlemek için hep buradayım."
-  ],
-  NIGHT: [
-    "Huzurlu geceler...",
-    "Yıldızlar senin için parlıyor.",
-    "Dinlenme vaktin geldi, iyi uykular.",
-    "Günü geride bırak ve huzurla uyu."
-  ]
+/**
+ * Message Pools
+ */
+export const MESSAGE_POOLS = {
+  tr: {
+    MORNING: [
+      "Bugün kendin için küçük bir şey yapalım mı?",
+      "Yeni bir gün başladı 🌿",
+      "Buradayım, seni dinliyorum.",
+      "Günaydın, bugün senin günün olsun.",
+      "Sabahın tazeliği ruhuna iyi gelsin.",
+      "Yeni bir başlangıç için harika bir an."
+    ],
+    AFTERNOON: [
+      "Bugün nasıl hissediyorsun?",
+      "Küçük bir mola iyi gelebilir.",
+      "Bugün seni en çok ne etkiledi?",
+      "Nefes almayı unutma, buradayım.",
+      "Günün ortasında kendine nazik davran.",
+      "Seni neyin heyecanlandırdığını duymak isterim."
+    ],
+    EVENING: [
+      "Bugünün sende bıraktığı şey neydi?",
+      "Biraz içini dökmek ister misin?",
+      "Akşamın sakinliği sana iyi gelsin.",
+      "Günün yorgunluğunu beraber atalım mı?",
+      "Bu akşam kendine ayırdığın vakit çok değerli.",
+      "Gökyüzü kararırken içindeki ışığı hatırla."
+    ],
+    SUPPORTIVE: [
+      "Zor bir gün müydü? Yanındayım...",
+      "Her duygunun bir yeri var, burası güvenli.",
+      "Sadece nefes al, her şey geçecek.",
+      "Kendine biraz zaman tanı, acelemiz yok.",
+      "Şu an nasıl hissediyorsan, o hisse alan açalım.",
+      "Seni dinlemek için hep buradayım."
+    ],
+    NIGHT: [
+      "Huzurlu geceler...",
+      "Yıldızlar senin için parlıyor.",
+      "Dinlenme vaktin geldi, iyi uykular.",
+      "Günü geride bırak ve huzurla uyu."
+    ]
+  },
+  en: {
+    MORNING: [
+      "Shall we do something kind for yourself today?",
+      "A fresh new day has begun 🌿",
+      "I'm here, listening anytime.",
+      "Good morning, may today bring you peace.",
+      "Feel the morning breeze refresh your spirit.",
+      "A wonderful moment for a new start."
+    ],
+    AFTERNOON: [
+      "How are you feeling right now?",
+      "A little breather might feel nice.",
+      "What resonated with you most today?",
+      "Remember to breathe, I'm right here.",
+      "Be gentle with yourself this afternoon.",
+      "I'd love to hear what brings you joy."
+    ],
+    EVENING: [
+      "What stayed with you from today?",
+      "Would you like to pour out your thoughts?",
+      "May the quiet evening bring you ease.",
+      "Shall we unwind from today together?",
+      "Taking time for yourself tonight is precious.",
+      "As dusk falls, remember your inner light."
+    ],
+    SUPPORTIVE: [
+      "Was today a bit heavy? I'm right here with you...",
+      "Every emotion has a home here; you are safe.",
+      "Just breathe, this moment will pass.",
+      "Give yourself grace; there is no rush.",
+      "Let's make space for whatever you feel right now.",
+      "I am always here to listen."
+    ],
+    NIGHT: [
+      "Peaceful night...",
+      "The stars are shining softly for you.",
+      "Time to rest now; sleep well.",
+      "Let go of today and sleep in peace."
+    ]
+  }
 };
 
 let lastMessage: string = "";
 
 /**
- * Get a dynamic mascot message based on time and emotional context.
+ * Get a dynamic mascot message based on time, emotional context, and language.
  */
 export const getMascotMessage = (
   hour: number = new Date().getHours(),
-  context?: EmotionalContext
+  context?: EmotionalContext,
+  language?: 'tr' | 'en'
 ): string => {
+  const activeLang = language || (useLanguageStore?.getState?.()?.language as 'tr' | 'en') || 'tr';
+  const langPools = MESSAGE_POOLS[activeLang] || MESSAGE_POOLS.tr;
   let pool: string[] = [];
 
   if (context?.isDistressed) {
-    pool = MESSAGE_POOLS.SUPPORTIVE;
+    pool = langPools.SUPPORTIVE;
   } else if (hour >= 5 && hour < 11) {
-    pool = MESSAGE_POOLS.MORNING;
+    pool = langPools.MORNING;
   } else if (hour >= 11 && hour < 17) {
-    pool = MESSAGE_POOLS.AFTERNOON;
+    pool = langPools.AFTERNOON;
   } else if (hour >= 17 && hour < 22) {
-    pool = MESSAGE_POOLS.EVENING;
+    pool = langPools.EVENING;
   } else {
-    pool = MESSAGE_POOLS.NIGHT;
+    pool = langPools.NIGHT;
   }
 
   // Filter out the last message to avoid immediate repeats

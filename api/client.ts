@@ -1,6 +1,8 @@
 import axios from 'axios';
 import useAuthStore from '../store/useAuthStore';
+import { useLanguageStore } from '../store/useLanguageStore';
 import { Config } from '../constants/Config';
+import { t } from '../i18n';
 
 const client = axios.create({
   baseURL: Config.API_URL,
@@ -42,6 +44,9 @@ client.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const currentLang = useLanguageStore.getState().language || 'tr';
+  config.headers['Accept-Language'] = currentLang;
+  config.headers['x-app-language'] = currentLang;
 
   if (__DEV__) {
     const ts = new Date().toISOString();
@@ -97,7 +102,7 @@ client.interceptors.response.use(
     const isRecoverable = isNetworkError || isServerError || isTimeout;
 
     // Avoid retrying if session is expired
-    const isSessionExpired = status === 401 || status === 403 || (status === 404 && error.response?.data?.message === 'Kullanıcı bulunamadı.');
+    const isSessionExpired = status === 401 || status === 403 || (status === 404 && (error.response?.data?.message === 'Kullanıcı bulunamadı.' || error.response?.data?.message === 'User not found.'));
 
     if (config && isRecoverable && !isSessionExpired) {
       config.__retryCount = config.__retryCount || 0;
@@ -171,7 +176,15 @@ client.interceptors.response.use(
 
     // ── Network / no-response errors ────────────────────────────────────────
     if (!error.response) {
-      error.message = 'Bağlantı kurulamadı. Lütfen internet bağlantınızı kontrol edin.';
+      const currentLang = useLanguageStore.getState().language || 'tr';
+      error.message = currentLang === 'en'
+        ? 'Could not connect. Please check your internet connection.'
+        : 'Bağlantı kurulamadı. Lütfen internet bağlantınızı kontrol edin.';
+    } else {
+      // Screens display err.message; replace axios' technical English ("Request failed with status code …")
+      // with the backend's localized message, or a localized generic error.
+      const serverMessage = error.response?.data?.message;
+      error.message = typeof serverMessage === 'string' && serverMessage ? serverMessage : t('errors.generic');
     }
 
     // ── Dev-only diagnostics (NEVER shown to users) ─────────────────────────
@@ -196,7 +209,8 @@ const getRequestKey = (config: any) => {
   // run AFTER client.request() wrapper checks, meaning config.headers
   // is undefined here. Directly fetching the token guarantees isolation.
   const token = useAuthStore.getState().token || '';
-  return `${config.method || 'get'}:${config.url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}:${token}`;
+  const currentLang = useLanguageStore.getState().language || 'tr';
+  return `${config.method || 'get'}:${config.url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}:${token}:${currentLang}`;
 };
 
 const originalRequest = client.request.bind(client);

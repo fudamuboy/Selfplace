@@ -10,6 +10,9 @@ describe('Living Context & Event Engine Unit Tests', () => {
   let connectionId;
 
   before(async () => {
+    // Clean up any leftovers from previous runs
+    await db.query("DELETE FROM users WHERE username IN ('test_user_lce_1', 'test_user_lce_2')");
+
     // 1. Setup mock users
     const userRes = await db.query(
       `INSERT INTO users (username, email, password, birth_date) 

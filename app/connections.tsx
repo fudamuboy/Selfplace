@@ -7,9 +7,14 @@ import useThemeStore from '../store/useThemeStore';
 import { getConnections, respondToInvite, RelationshipConnection } from '../api/relationshipApi';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 
+import { useT } from '../i18n';
+
 export default function ConnectionsScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
   const [connections, setConnections] = useState<RelationshipConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,11 +55,11 @@ export default function ConnectionsScreen() {
 
   const getConnectionTypeLabel = (type: string) => {
     switch (type) {
-      case 'partner': return '💞 Partner';
-      case 'best_friend': return '🌟 En Yakın Arkadaş';
-      case 'family': return '🌿 Aile';
-      case 'close_person': return '🤍 Yakın Kişi';
-      default: return '🔗 Bağlantı';
+      case 'partner': return isEn ? '💞 Partner' : '💞 Partner';
+      case 'best_friend': return isEn ? '🌟 Best Friend' : '🌟 En Yakın Arkadaş';
+      case 'family': return isEn ? '🌿 Family' : '🌿 Aile';
+      case 'close_person': return isEn ? '🤍 Close Person' : '🤍 Yakın Kişi';
+      default: return isEn ? '🔗 Connection' : '🔗 Bağlantı';
     }
   };
 
@@ -69,7 +74,7 @@ export default function ConnectionsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Bağlantılar</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('connections.title')}</Text>
         </View>
 
         <ScrollView 
@@ -80,7 +85,7 @@ export default function ConnectionsScreen() {
           }
         >
           <Text style={[styles.description, { color: currentTheme.colors.text.secondary }]}>
-            Kendinize en yakın hissettiğiniz kişilerle duygusal bir köprü kurun. Selfplace, paylaşımlarınızı gizli tutarak aranızdaki bağı güçlendirir.
+            {isEn ? "Build an emotional bridge with those closest to you. Selfplace protects your privacy while strengthening your bond." : "Kendinize en yakın hissettiğiniz kişilerle duygusal bir köprü kurun. Selfplace, paylaşımlarınızı gizli tutarak aranızdaki bağı güçlendirir."}
           </Text>
 
           {/* New Invite CTA */}
@@ -94,8 +99,8 @@ export default function ConnectionsScreen() {
                 <Ionicons name="add" size={24} color="#FFF" />
               </View>
               <View style={styles.inviteCTATexts}>
-                <Text style={[styles.inviteCTATitle, { color: currentTheme.colors.text.primary }]}>Yeni Bağlantı Ekle</Text>
-                <Text style={[styles.inviteCTASub, { color: currentTheme.colors.text.muted }]}>E-posta adresiyle bir yakınınızı davet edin.</Text>
+                <Text style={[styles.inviteCTATitle, { color: currentTheme.colors.text.primary }]}>{t('connections.addConnection')}</Text>
+                <Text style={[styles.inviteCTASub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Invite a close person via email.' : 'E-posta adresiyle bir yakınınızı davet edin.'}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={currentTheme.colors.text.muted} />
@@ -108,7 +113,7 @@ export default function ConnectionsScreen() {
               {/* Incoming invites */}
               {incomingInvites.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Bekleyen Davetler ({incomingInvites.length})</Text>
+                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{t('connections.pendingInvites')} ({incomingInvites.length})</Text>
                   {incomingInvites.map((invite) => (
                     <View 
                       key={invite.id} 
@@ -123,7 +128,7 @@ export default function ConnectionsScreen() {
                             {invite.partner.username}
                           </Text>
                           <Text style={[styles.partnerType, { color: currentTheme.colors.text.muted }]}>
-                            {getConnectionTypeLabel(invite.connectionType)} olarak eklemek istiyor.
+                            {isEn ? `Wants to add you as ${getConnectionTypeLabel(invite.connectionType)}.` : `${getConnectionTypeLabel(invite.connectionType)} olarak eklemek istiyor.`}
                           </Text>
                         </View>
                       </View>
@@ -137,7 +142,7 @@ export default function ConnectionsScreen() {
                           {actionLoading === invite.id ? (
                             <ActivityIndicator size="small" color="#FFF" />
                           ) : (
-                            <Text style={styles.acceptBtnText}>Kabul Et</Text>
+                            <Text style={styles.acceptBtnText}>{t('connections.accept')}</Text>
                           )}
                         </TouchableOpacity>
 
@@ -146,7 +151,7 @@ export default function ConnectionsScreen() {
                           onPress={() => handleRespond(invite.id, 'reject')}
                           disabled={actionLoading !== null}
                         >
-                          <Text style={[styles.rejectBtnText, { color: currentTheme.colors.text.secondary }]}>Reddet</Text>
+                          <Text style={[styles.rejectBtnText, { color: currentTheme.colors.text.secondary }]}>{t('connections.reject')}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -156,12 +161,12 @@ export default function ConnectionsScreen() {
 
               {/* Active Connections */}
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Aktif Bağlantılar ({activeConnections.length})</Text>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{t('connections.activeConnections')} ({activeConnections.length})</Text>
                 {activeConnections.length === 0 ? (
                   <View style={[styles.emptyState, { borderColor: currentTheme.colors.cardBorder }]}>
                     <Ionicons name="heart-dislike-outline" size={48} color={currentTheme.colors.text.muted} />
                     <Text style={[styles.emptyText, { color: currentTheme.colors.text.muted }]}>
-                      Henüz aktif bir bağlantınız bulunmuyor.
+                      {t('connections.noActiveConnections')}
                     </Text>
                   </View>
                 ) : (
@@ -196,7 +201,7 @@ export default function ConnectionsScreen() {
               {/* Outgoing Invites */}
               {outgoingInvites.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Gönderilen Davetler ({outgoingInvites.length})</Text>
+                  <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Sent Invites' : 'Gönderilen Davetler'} ({outgoingInvites.length})</Text>
                   {outgoingInvites.map((invite) => (
                     <View 
                       key={invite.id} 
@@ -211,7 +216,7 @@ export default function ConnectionsScreen() {
                             {invite.partner.username}
                           </Text>
                           <Text style={[styles.partnerType, { color: currentTheme.colors.text.muted }]}>
-                            {getConnectionTypeLabel(invite.connectionType)} · Bekliyor...
+                            {getConnectionTypeLabel(invite.connectionType)} · {isEn ? 'Pending...' : 'Bekliyor...'}
                           </Text>
                         </View>
                         <Ionicons name="time-outline" size={20} color={currentTheme.colors.primary} />

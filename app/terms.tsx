@@ -5,9 +5,13 @@ import { GradientBackground } from '../components/GradientBackground';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 
+import { useT } from '../i18n';
+
 export default function TermsScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
 
   return (
     <GradientBackground>
@@ -16,82 +20,54 @@ export default function TermsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Kullanım Koşulları</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('settings.termsOfService')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.lastUpdated, { color: currentTheme.colors.text.muted }]}>Son güncelleme: 30 Nisan 2026</Text>
+          <Text style={[styles.lastUpdated, { color: currentTheme.colors.text.muted }]}>
+            {isEn ? 'Last updated: April 30, 2026' : 'Son güncelleme: 30 Nisan 2026'}
+          </Text>
           
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>1. Kabul Edilme</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>{isEn ? '1. Acceptance' : '1. Kabul Edilme'}</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Selfplace uygulamasını kullanarak, bu kullanım koşullarını kabul etmiş sayılırsınız. Eğer bu koşullardan herhangi birini kabul etmiyorsanız, uygulamayı kullanmamanız gerekir.
+              {isEn 
+                ? 'By using the Selfplace application, you agree to be bound by these terms. If you do not accept any of these terms, you must not use the application.' 
+                : 'Selfplace uygulamasını kullanarak, bu kullanım koşullarını kabul etmiş sayılırsınız. Eğer bu koşullardan herhangi birini kabul etmiyorsanız, uygulamayı kullanmamanız gerekir.'}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>2. Hizmet Tanımı ve Sınırlar</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>{isEn ? '2. Service Description & Boundaries' : '2. Hizmet Tanımı ve Sınırlar'}</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Selfplace, kullanıcıların günlük yansımalarını kaydetmelerine ve öz-farkındalıklarını artırmalarına yardımcı olan bir dijital günlük ve yansıma uygulamasıdır.
-              {"\n\n"}
-              <Text style={styles.bold}>ÖNEMLİ:</Text> Selfplace bir terapi, tıbbi teşhis, klinik tedavi veya profesyonel psikolojik danışmanlık hizmeti DEĞİLDİR. Uygulama içeriği ve AI tarafından üretilen içgörüler sadece bilgilendirme ve kişisel gelişim amaçlıdır.
+              {isEn 
+                ? 'Selfplace is a digital journal and reflection space helping users record feelings and foster self-awareness.\n\nIMPORTANT: Selfplace IS NOT a therapy, medical diagnosis, clinical treatment, or psychological counseling service. AI insights are provided solely for personal growth.'
+                : 'Selfplace, kullanıcıların günlük yansımalarını kaydetmelerine ve öz-farkındalıklarını artırmalarına yardımcı olan bir dijital günlük ve yansıma uygulamasıdır.\n\nÖNEMLİ: Selfplace bir terapi, tıbbi teşhis, klinik tedavi veya profesyonel psikolojik danışmanlık hizmeti DEĞİLDİR. Uygulama içeriği ve AI tarafından üretilen içgörüler sadece bilgilendirme ve kişisel gelişim amaçlıdır.'}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>3. Kullanıcı Hesapları</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>{isEn ? '3. Data & Privacy' : '3. Veri ve Gizlilik'}</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Uygulamayı kullanmak için bir hesap oluşturmanız gerekebilir. Hesap bilgilerinizin gizliliğini korumak sizin sorumluluğunuzdadır. Hesabınızın yetkisiz kullanımını fark ettiğinizde bize bildirmeniz gerekir.
+              {isEn 
+                ? 'Your reflections are private to you. Selfplace uses your data solely to generate insights and does not share it with third parties without your consent.' 
+                : 'Uygulamaya girdiğiniz notlar ve yansımalar size aittir. Selfplace, bu içerikleri sadece size hizmet sunmak ve kişiselleştirilmiş içgörüler üretmek için kullanır.'}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>4. Gizli Yansımalar ve İçerik</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>{isEn ? '4. Apple Standard EULA' : '4. Apple Standart Lisans Sözleşmesi (EULA)'}</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Uygulamaya girdiğiniz notlar ve yansımalar size aittir. Selfplace, bu içerikleri sadece size hizmet sunmak, analizler yapmak ve kişiselleştirilmiş içgörüler üretmek için kullanır. Verileriniz asla sizin rızanız olmadan üçüncü taraflarla paylaşılmaz.
+              {isEn 
+                ? "By using this application, you agree to Apple's Standard End User License Agreement (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                : "Bu uygulamayı kullanarak, Apple'ın Standart Son Kullanıcı Lisans Sözleşmesi'ne (EULA) tabi olduğunuzu kabul edersiniz: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>5. Yapay Zeka (AI) Kullanımı</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>{isEn ? '5. Contact' : '5. İletişim'}</Text>
             <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Uygulama, yansımalarınızı analiz etmek için AI teknolojilerini kullanır. AI tarafından üretilen sonuçlar bazen hatalı veya eksik olabilir. Bu içgörüleri hayatınızda uygularken her zaman kendi muhakemenizi kullanmalı ve gerektiğinde profesyonel destek almalısınız.
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>6. Veri ve Gizlilik</Text>
-            <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Verilerinizin işlenmesi ve korunması hakkında detaylı bilgi için lütfen Gizlilik Politikası sayfamızı inceleyin.
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>7. Hesap ve Veri Silme</Text>
-            <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              İstediğiniz zaman Ayarlar &gt; Gizlilik ve Veriler sekmesinden tüm verilerinizi silebilir veya hesabınızı tamamen kapatabilirsiniz. Bu işlem geri alınamaz.
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>8. Değişiklikler</Text>
-            <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Selfplace, bu kullanım koşullarını zaman zaman güncelleme hakkını saklı tutar. Önemli değişiklikler yapıldığında uygulama içinden bilgilendirme yapılacaktır.
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>9. Apple Standart Lisans Sözleşmesi (EULA)</Text>
-            <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Bu uygulamayı kullanarak, Apple&apos;ın Standart Son Kullanıcı Lisans Sözleşmesi&apos;ne (EULA) tabi olduğunuzu kabul edersiniz. Daha fazla bilgi için lütfen Apple&apos;ın resmi EULA sayfasını ziyaret edin: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.primary }]}>10. İletişim</Text>
-            <Text style={[styles.text, { color: currentTheme.colors.text.primary }]}>
-              Sorularınız ve geri bildirimleriniz için bize her zaman ulaşabilirsiniz:
-              {"\n"}selfplace.support@gmail.com
+              {isEn ? 'You can always reach out for questions and feedback:\nselfplace.support@gmail.com' : 'Sorularınız ve geri bildirimleriniz için bize her zaman ulaşabilirsiniz:\nselfplace.support@gmail.com'}
             </Text>
           </View>
 

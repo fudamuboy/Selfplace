@@ -14,10 +14,45 @@ import { NetworkErrorState } from '../components/NetworkErrorState';
 
 const { width } = Dimensions.get('window');
 
+import { useT } from '../i18n';
+
+const getZodiacSignLabel = (sign?: string, isEn: boolean = false): string => {
+  if (!sign) return isEn ? 'Sky' : 'Gökyüzü';
+  const trToEn: Record<string, string> = {
+    'Koç': 'Aries',
+    'Boğa': 'Taurus',
+    'İkizler': 'Gemini',
+    'Yengeç': 'Cancer',
+    'Aslan': 'Leo',
+    'Başak': 'Virgo',
+    'Terazi': 'Libra',
+    'Akrep': 'Scorpio',
+    'Yay': 'Sagittarius',
+    'Oğlak': 'Capricorn',
+    'Kova': 'Aquarius',
+    'Balık': 'Pisces',
+  };
+  return isEn ? (trToEn[sign] || sign) : sign;
+};
+
+const getElementLabel = (element?: string, isEn: boolean = false): string => {
+  if (!element) return '';
+  const trToEn: Record<string, string> = {
+    'Ateş': 'Fire',
+    'Toprak': 'Earth',
+    'Hava': 'Air',
+    'Su': 'Water',
+  };
+  const localized = isEn ? (trToEn[element] || element) : element;
+  return isEn ? `${localized} Sign` : `${localized} Grubu`;
+};
+
 export default function AstrologyFullScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
-  
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
   const [data, setData] = useState<any>(null);
   const [dailyData, setDailyData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +66,7 @@ export default function AstrologyFullScreen() {
       fetchData();
     });
     return unsubscribe;
-  }, []);
+  }, [language]);
 
   const parseStrengths = (strengths: any): string[] => {
     if (!strengths) return [];
@@ -72,7 +107,7 @@ export default function AstrologyFullScreen() {
       if (weeklyRes.status === 'rejected' && dailyRes.status === 'rejected') {
         const firstErr = weeklyRes.reason || dailyRes.reason;
         if (firstErr?.message !== 'SESSION_EXPIRED' && !firstErr?.isSessionExpiry) {
-          setError(firstErr?.message || 'Gökyüzü verileri yüklenirken bir hata oluştu.');
+          setError(firstErr?.message || (isEn ? 'An error occurred while loading sky insights.' : 'Gökyüzü verileri yüklenirken bir hata oluştu.'));
         }
       }
     } catch (err: any) {
@@ -110,9 +145,9 @@ export default function AstrologyFullScreen() {
     return (
       <GradientBackground>
         <View style={styles.centerContainer}>
-          <Text style={{ color: currentTheme.colors.text.muted }}>Gökyüzü şu an sessiz...</Text>
+          <Text style={{ color: currentTheme.colors.text.muted }}>{isEn ? 'The sky is quiet right now...' : 'Gökyüzü şu an sessiz...'}</Text>
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-            <Text style={{ color: currentTheme.colors.primary }}>Geri Dön</Text>
+            <Text style={{ color: currentTheme.colors.primary }}>{isEn ? 'Go Back' : 'Geri Dön'}</Text>
           </TouchableOpacity>
         </View>
       </GradientBackground>
@@ -120,7 +155,7 @@ export default function AstrologyFullScreen() {
   }
 
   const { zodiacProfile, activeEvents, aiGuidance } = data;
-  const hasZodiac = !!zodiacProfile;
+  const hasZodiac = !!zodiacProfile || (typeof aiGuidance === 'object' && aiGuidance !== null);
 
   return (
     <GradientBackground>
@@ -140,7 +175,7 @@ export default function AstrologyFullScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>Gökyüzü Enerjisi</Text>
+          <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Sky Energy' : 'Gökyüzü Enerjisi'}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -152,11 +187,11 @@ export default function AstrologyFullScreen() {
           />
           <Text style={styles.heroIcon}>✨</Text>
           <Text style={[styles.heroSign, { color: currentTheme.colors.text.primary }]}>
-            {zodiacProfile?.sign || 'Gökyüzü'}
+            {getZodiacSignLabel(zodiacProfile?.sign, isEn)}
           </Text>
           {hasZodiac && (
             <Text style={[styles.heroElement, { color: currentTheme.colors.text.muted }]}>
-              {zodiacProfile.element} Grubu
+              {getElementLabel(zodiacProfile.element, isEn)}
             </Text>
           )}
         </Animated.View>
@@ -166,7 +201,7 @@ export default function AstrologyFullScreen() {
             {/* Daily Whisper */}
             {dailyData && dailyData.whisperText && (
               <Animated.View entering={FadeInDown.delay(100).duration(800)} style={styles.guidanceContainer}>
-                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Bugünün Enerjisi</Text>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? "Today's Energy" : 'Bugünün Enerjisi'}</Text>
                 <Text style={[styles.dailyText, { color: currentTheme.colors.text.primary }]}>
                   {dailyData.whisperText}
                 </Text>
@@ -175,7 +210,7 @@ export default function AstrologyFullScreen() {
 
             {/* AI Synthesis Guidance (Weekly) */}
             <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.guidanceContainer}>
-              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Haftalık Enerji</Text>
+              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Weekly Energy' : 'Haftalık Enerji'}</Text>
               
               {typeof aiGuidance === 'string' ? (
                 <Text style={[styles.guidanceText, { color: currentTheme.colors.text.secondary }]}>
@@ -184,15 +219,15 @@ export default function AstrologyFullScreen() {
               ) : (
                 <View style={{ gap: 28 }}>
                   {[
-                    { key: 'GeneralTheme', title: 'Genel Tema', icon: '🌌' },
-                    { key: 'Love', title: 'Aşk & İlişkiler', icon: '❤️' },
-                    { key: 'Career', title: 'Kariyer & Odak', icon: '🎯' },
-                    { key: 'Money', title: 'Maddi Konular', icon: '🪙' },
-                    { key: 'SocialLife', title: 'Sosyal Yaşam', icon: '🤝' },
-                    { key: 'HealthEnergy', title: 'Sağlık & Enerji', icon: '🌿' },
-                    { key: 'AttentionAreas', title: 'Dikkat Edilmesi Gerekenler', icon: '⚠️' },
-                    { key: 'LuckyAreas', title: 'Şanslı Alanlar', icon: '🍀' },
-                    { key: 'WeeklyAdvice', title: 'Haftanın Tavsiyesi', icon: '💡' },
+                    { key: 'GeneralTheme', title: isEn ? 'General Theme' : 'Genel Tema', icon: '🌌' },
+                    { key: 'Love', title: isEn ? 'Love & Relationships' : 'Aşk & İlişkiler', icon: '❤️' },
+                    { key: 'Career', title: isEn ? 'Career & Focus' : 'Kariyer & Odak', icon: '🎯' },
+                    { key: 'Money', title: isEn ? 'Finances' : 'Maddi Konular', icon: '🪙' },
+                    { key: 'SocialLife', title: isEn ? 'Social Life' : 'Sosyal Yaşam', icon: '🤝' },
+                    { key: 'HealthEnergy', title: isEn ? 'Health & Energy' : 'Sağlık & Enerji', icon: '🌿' },
+                    { key: 'AttentionAreas', title: isEn ? 'Areas to Watch' : 'Dikkat Edilmesi Gerekenler', icon: '⚠️' },
+                    { key: 'LuckyAreas', title: isEn ? 'Lucky Areas' : 'Şanslı Alanlar', icon: '🍀' },
+                    { key: 'WeeklyAdvice', title: isEn ? "Weekly Advice" : 'Haftanın Tavsiyesi', icon: '💡' },
                   ].map((sec, idx) => {
                     if (!aiGuidance || !aiGuidance[sec.key]) return null;
                     return (
@@ -213,7 +248,7 @@ export default function AstrologyFullScreen() {
             {/* Current Sky Events */}
             {activeEvents && activeEvents.length > 0 && (
               <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.eventsContainer}>
-                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Şu Anki Gökyüzü</Text>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Current Sky Transits' : 'Şu Anki Gökyüzü'}</Text>
                 {activeEvents.map((event: any, idx: number) => (
                   <View key={idx} style={[styles.eventCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                     <View style={styles.eventHeader}>
@@ -229,20 +264,20 @@ export default function AstrologyFullScreen() {
             {/* Zodiac Profile Reminders */}
             {zodiacProfile && (
               <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.profileContainer}>
-                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>İçsel Doğanın Hatırlatıcısı</Text>
+                <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Inner Nature Reminders' : 'İçsel Doğanın Hatırlatıcısı'}</Text>
                 
                 <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Yönetici Gezegen</Text>
+                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Ruling Planet' : 'Yönetici Gezegen'}</Text>
                   <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>{zodiacProfile.ruling_planet}</Text>
                 </View>
 
                 <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Temel İhtiyacın</Text>
+                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Core Needs' : 'Temel İhtiyacın'}</Text>
                   <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>{zodiacProfile.core_needs}</Text>
                 </View>
 
                 <View style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>Güçlü Yönlerin</Text>
+                  <Text style={[styles.profileCardTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Key Strengths' : 'Güçlü Yönlerin'}</Text>
                   <Text style={[styles.profileCardText, { color: currentTheme.colors.text.secondary }]}>
                     {parseStrengths(zodiacProfile.strengths).join(' • ') || 'N/A'}
                   </Text>
@@ -254,13 +289,13 @@ export default function AstrologyFullScreen() {
         ) : (
           <Animated.View entering={FadeInDown.delay(200).duration(800)} style={[styles.profileCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder, padding: 24, alignItems: 'center' }]}>
             <Text style={{ color: currentTheme.colors.text.secondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>
-              Doğum tarihini eklediğinde gökyüzü yorumların ve yıldız haritan burada görünecek. ✨
+              {isEn ? 'When you add your birth date, your sky insights and star chart will appear here. ✨' : 'Doğum tarihini eklediğinde gökyüzü yorumların ve yıldız haritan burada görünecek. ✨'}
             </Text>
             <TouchableOpacity 
               onPress={() => router.push('/(tabs)/profile')}
               style={{ backgroundColor: currentTheme.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 }}
             >
-              <Text style={{ color: '#FFF', fontWeight: '700' }}>Profilimi Güncelle</Text>
+              <Text style={{ color: '#FFF', fontWeight: '700' }}>{isEn ? 'Update Profile' : 'Profilimi Güncelle'}</Text>
             </TouchableOpacity>
           </Animated.View>
         )}

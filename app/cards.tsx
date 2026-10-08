@@ -106,13 +106,17 @@ const Particle = ({ color, delay }: { color: string; delay: number }) => {
   );
 };
 
+import { useT } from '../i18n';
+
 // ─── Single Card Face (Back) ─────────────────────────────────────────────────
 const CardBack = ({
   index,
   theme,
+  isEn,
 }: {
   index: number;
   theme: any;
+  isEn: boolean;
 }) => {
   const BACK_PATTERNS = ['✦', '◈', '⬡'];
   return (
@@ -141,7 +145,7 @@ const CardBack = ({
         <View style={[styles.cardBackDot, { backgroundColor: theme.colors.primary + '40' }]} />
         <View style={[styles.cardBackSubtext]}>
           <Text style={{ color: theme.colors.primary + '88', fontSize: 10, letterSpacing: 2 }}>
-            SENİN İÇİN
+            {isEn ? 'FOR YOU' : 'SENİN İÇİN'}
           </Text>
         </View>
       </View>
@@ -207,12 +211,13 @@ const FlipCard = (props: {
   hasSelection: boolean;
   data: any;
   theme: any;
+  isEn: boolean;
   onSelect: () => void;
   onFlipComplete: () => void;
   floatDelay: number;
 }) => {
-  const { index, scrollX, selected, hasSelection, data, theme, onSelect, floatDelay } = props;
-  const flip = useSharedValue(0); // 0 = back, 1 = front
+  const { index, scrollX, selected, hasSelection, data, theme, isEn, onSelect, floatDelay } = props;
+  const flip = useSharedValue(0);
   const floatY = useSharedValue(0);
   const internalScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
@@ -230,7 +235,6 @@ const FlipCard = (props: {
     }
   }, [flipped]);
 
-  // Idle float animation
   useEffect(() => {
     floatY.value = withDelay(
       floatDelay,
@@ -256,13 +260,10 @@ const FlipCard = (props: {
     );
   }, []);
 
-  // React to selection state
   useEffect(() => {
     if (selected) {
-      // Stop floating, scale up, then flip
       floatY.value = withTiming(0, { duration: 400 });
       internalScale.value = withSpring(1.08, { damping: 14, stiffness: 120 });
-      // Delay flip slightly for feel
       flip.value = withDelay(
         200,
         withTiming(1, { duration: 800, easing: Easing.inOut(Easing.cubic) }, (finished) => {
@@ -272,10 +273,8 @@ const FlipCard = (props: {
         })
       );
     } else if (hasSelection && !selected) {
-      // Fade out non-selected
       internalScale.value = withTiming(0.82, { duration: 500 });
     } else if (!hasSelection) {
-      // Reset
       internalScale.value = withSpring(1);
       if (flip.value === 1) {
         flip.value = withTiming(0, { duration: 600 });
@@ -285,7 +284,6 @@ const FlipCard = (props: {
     }
   }, [selected, hasSelection]);
 
-  // Animated card container with dynamic scaling based on scroll position (Bug 5)
   const containerStyle = useAnimatedStyle(() => {
     const inputRange = [
       (index - 1) * SNAP_INTERVAL,
@@ -293,7 +291,6 @@ const FlipCard = (props: {
       (index + 1) * SNAP_INTERVAL,
     ];
 
-    // Scaling and opacity for carousel effect (Bug 5)
     const scale = interpolate(
       scrollX.value,
       inputRange,
@@ -317,7 +314,6 @@ const FlipCard = (props: {
     };
   });
 
-  // Front & back flip styles
   const backStyle = useAnimatedStyle(() => ({
     transform: [
       { perspective: 1000 },
@@ -347,7 +343,6 @@ const FlipCard = (props: {
 
   return (
     <Animated.View style={[styles.cardWrapper, containerStyle]}>
-      {/* Glow halo */}
       <Animated.View
         style={[
           styles.cardGlow,
@@ -359,7 +354,6 @@ const FlipCard = (props: {
         ]}
       />
 
-      {/* Particle burst on reveal */}
       {showParticles && (
         <View style={styles.particleContainer} pointerEvents="none">
           {particles.map((_, i) => (
@@ -375,12 +369,10 @@ const FlipCard = (props: {
           disabled={hasSelection}
           style={{ width: '100%', height: '100%' }}
         >
-          {/* BACK face */}
           <Animated.View style={[styles.cardInner, backStyle]}>
-            <CardBack index={index} theme={theme} />
+            <CardBack index={index} theme={theme} isEn={isEn} />
           </Animated.View>
 
-          {/* FRONT face */}
           <Animated.View style={[styles.cardInner, frontStyle]}>
             <CardFront data={data} theme={theme} />
           </Animated.View>
@@ -390,7 +382,7 @@ const FlipCard = (props: {
   );
 };
 
-// ─── Pagination Dots (Bug 4) ──────────────────────────────────────────────────
+// ─── Pagination Dots ──────────────────────────────────────────────────────────
 const PaginationDot = ({ i, scrollX, theme }: { i: number; scrollX: SharedValue<number>; theme: any }) => {
   const dotStyle = useAnimatedStyle(() => {
     const inputRange = [
@@ -448,15 +440,29 @@ export default function CardsScreen() {
   const [modal, setModal] = useState({ visible: false, title: '', message: '' });
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
   const scrollX = useSharedValue(0);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Öz-Şefkat': return '💜';
-      case 'Alan Aç': return '🌙';
-      case 'Küçük Cesaret': return '🌱';
-      case 'Farkındalık': return '✨';
-      case 'Nefes': return '🫧';
+      // Categories arrive localized from the API, so match both languages
+      case 'Öz-Şefkat':
+      case 'Self-Compassion': return '💜';
+      case 'Alan Aç':
+      case 'Make Space': return '🌙';
+      case 'Küçük Cesaret':
+      case 'Small Courage': return '🌱';
+      case 'Farkındalık':
+      case 'Mindfulness': return '✨';
+      case 'Nefes':
+      case 'Breath': return '🫧';
+      case 'Hafiflik':
+      case 'Lightness': return '🎈';
+      case 'Derinleş':
+      case 'Deepen': return '🌊';
+      case 'Dinlenme':
+      case 'Rest': return '🛌';
       default: return '🌸';
     }
   };
@@ -467,7 +473,6 @@ export default function CardsScreen() {
 
   const fetchCards = async () => {
     try {
-      // Stop immediately if there is no token (e.g. mid-logout)
       const token = useAuthStore.getState().token;
       if (!token) {
         setLoading(false);
@@ -476,7 +481,6 @@ export default function CardsScreen() {
 
       const res = await client.get(`/cards/interactive?localDate=${getLocalDate()}`);
       const data = res.data;
-      // Handle both old (array) and new (object) backend formats
       const fetchedCards = Array.isArray(data) ? data : (data.cards || []);
       const isSel = Array.isArray(data) ? false : !!data.alreadySelected;
 
@@ -493,15 +497,11 @@ export default function CardsScreen() {
         setSelectedIndex(0);
       }
     } catch (error: any) {
-      // Session expired — global handler (API client + layout) takes over.
-      // Do NOT show fallback cards or retry; just stop quietly.
       if (error?.isSessionExpiry) {
         setLoading(false);
         return;
       }
-      // Any other network/server error → show fresh local fallback cards
-      // (avoids repeating recently shown prompts via AsyncStorage recency tracking)
-      const fallback = await pickFallbackCards(3);
+      const fallback = await pickFallbackCards(3, isEn);
       setCards(fallback);
     } finally {
       setLoading(false);
@@ -518,7 +518,6 @@ export default function CardsScreen() {
     },
   });
 
-  // Header shimmer
   const shimmer = useSharedValue(0);
   useEffect(() => {
     shimmer.value = withRepeat(
@@ -558,12 +557,10 @@ export default function CardsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
-      // Session expired — global handler redirects; don't navigate back ourselves
       if (err?.isSessionExpiry) {
         setSubmitting(false);
         return;
       }
-      // Any other error: gracefully back out without crashing
       router.back();
     } finally {
       setSubmitting(false);
@@ -584,34 +581,33 @@ export default function CardsScreen() {
         {/* ── Header ── */}
         <View style={styles.header}>
           <Animated.Text style={[styles.headerEyebrow, { color: currentTheme.colors.primary }, shimmerStyle]}>
-            Davet Kartın
+            {isEn ? 'Your Invitation Card' : 'Davet Kartın'}
           </Animated.Text>
           <Text style={[styles.headerTitle, { color: currentTheme.colors.text.primary }]}>
-            {alreadySelected ? 'Bugünkü Davetin ✨' : 'Bir kart seç'}
+            {alreadySelected ? (isEn ? "Today's Invitation ✨" : 'Bugünkü Davetin ✨') : (isEn ? 'Pick a Card' : 'Bir kart seç')}
           </Text>
           <Text style={[styles.headerSubtitle, { color: currentTheme.colors.text.secondary }]}>
             {loading 
-              ? 'Kartların hazırlanıyor...' 
+              ? (isEn ? 'Preparing cards...' : 'Kartların hazırlanıyor...') 
               : alreadySelected
-                ? 'Bugün kendin için seçtiğin küçük adım burada.'
+                ? (isEn ? 'Your gentle step for today is right here.' : 'Bugün kendin için seçtiğin küçük adım burada.')
                 : selectedIndex === null
-                  ? 'Sana özel bir davet seni bekliyor'
-                  : 'Senin için bir şey bulduk ✨'}
+                  ? (isEn ? 'A personal invitation awaits you' : 'Sana özel bir davet seni bekliyor')
+                  : (isEn ? 'Found something special for you ✨' : 'Senin için bir şey bulduk ✨')}
           </Text>
           {!alreadySelected && selectedIndex === null && (
             <Text style={[styles.helperText, { color: currentTheme.colors.text.muted }]}>
-              Her gün yalnızca 1 kart seçebilirsin ✨
+              {isEn ? 'You can pick 1 card per day ✨' : 'Her gün yalnızca 1 kart seçebilirsin ✨'}
             </Text>
           )}
         </View>
 
         {loading ? (
           <View style={[styles.carouselContainer, { justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ color: currentTheme.colors.text.muted }}>Yükleniyor...</Text>
+            <Text style={{ color: currentTheme.colors.text.muted }}>{t('common.loading')}</Text>
           </View>
         ) : (
           <>
-            {/* ── Carousel Row (Bug 1, 2, 5) ── */}
             <View style={styles.carouselContainer}>
               <Animated.ScrollView
                 horizontal
@@ -623,7 +619,7 @@ export default function CardsScreen() {
                 snapToAlignment="center"
                 contentContainerStyle={styles.carouselContent}
                 // @ts-ignore
-                clipChildren={false} // Bug 2
+                clipChildren={false}
               >
                 {cards.map((card, i) => (
                   <FlipCard
@@ -634,6 +630,7 @@ export default function CardsScreen() {
                     hasSelection={selectedIndex !== null}
                     data={card}
                     theme={currentTheme}
+                    isEn={isEn}
                     onSelect={() => handleSelect(i)}
                     onFlipComplete={() => {}}
                     floatDelay={i * 400}
@@ -642,21 +639,18 @@ export default function CardsScreen() {
               </Animated.ScrollView>
             </View>
 
-            {/* ── Pagination Dots (Bug 4) ── */}
             {selectedIndex === null && (
               <PaginationDots count={cards.length} scrollX={scrollX} theme={currentTheme} />
             )}
           </>
         )}
 
-        {/* ── Hint text ── */}
         {selectedIndex === null && (
           <Text style={[styles.hintText, { color: currentTheme.colors.text.muted }]}>
-            Sezgilerine güven — doğru kart seni bulur
+            {isEn ? 'Trust your intuition — the right card will reach you' : 'Sezgilerine güven — doğru kart seni bulur'}
           </Text>
         )}
 
-        {/* ── Bottom actions ── */}
         <View style={styles.bottomActions}>
           {selectedIndex !== null && (
             <>
@@ -666,14 +660,14 @@ export default function CardsScreen() {
                 style={[styles.primaryActionBtn, { backgroundColor: currentTheme.colors.primary }]}
               >
                 <Text style={[styles.primaryActionText, { color: currentTheme.colors.button.text }]}>
-                  {submitting ? 'Kaydediliyor...' : alreadySelected ? 'Tamam' : 'Tamamladım ✨'}
+                  {submitting ? (isEn ? 'Saving...' : 'Kaydediliyor...') : alreadySelected ? (isEn ? 'Done' : 'Tamam') : (isEn ? 'Completed ✨' : 'Tamamladım ✨')}
                 </Text>
               </TouchableOpacity>
 
               {!alreadySelected && (
                 <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
                   <Text style={[styles.resetText, { color: currentTheme.colors.text.secondary }]}>
-                    ← Başka bir kart seç
+                    {isEn ? '← Pick another card' : '← Başka bir kart seç'}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -683,7 +677,7 @@ export default function CardsScreen() {
           {selectedIndex === null && (
             <TouchableOpacity onPress={() => router.back()} style={styles.laterBtn}>
               <Text style={[styles.laterText, { color: currentTheme.colors.text.muted }]}>
-                Daha sonra dönerim
+                {isEn ? 'Return later' : 'Daha sonra dönerim'}
               </Text>
             </TouchableOpacity>
           )}
@@ -696,7 +690,7 @@ export default function CardsScreen() {
         message={modal.message}
         onClose={() => {
           setModal({ ...modal, visible: false });
-          if (modal.title === 'Harika ✨') router.back();
+          if (modal.title === 'Harika ✨' || modal.title === 'Great ✨') router.back();
         }}
       />
     </GradientBackground>

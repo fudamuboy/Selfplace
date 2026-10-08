@@ -55,6 +55,7 @@ requiredEnvs.forEach(env => {
 const { runMigrations } = require('./src/config/migrations');
 const { validateSchema } = require('./src/config/schemaValidator');
 const db = require('./src/config/db');
+const { getLanguage } = require('./src/utils/languageResolver');
 
 // Middleware
 app.use(cors());
@@ -142,7 +143,7 @@ app.use((err, req, res, next) => {
   console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 
   res.status(500).json({ 
-    message: 'Sunucu tarafında bir hata oluştu.', 
+    message: getLanguage(req) === 'en' ? 'Something went wrong on our side.' : 'Sunucu tarafında bir hata oluştu.', 
     error: isProd ? null : err.message,
     stack: isProd ? null : err.stack
   });

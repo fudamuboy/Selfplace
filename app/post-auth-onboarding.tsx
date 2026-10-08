@@ -9,6 +9,7 @@ import useNotificationStore from '../store/useNotificationStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { MascotBlob } from '../components/MascotBlob';
+import { useT } from '../i18n';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { 
   useSharedValue, 
@@ -21,48 +22,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
-
-const THEMES = [
-  {
-    step: 1,
-    colors: ['#0F111A', '#1A1625', '#2E1B4B'],
-    accent: '#8B7CFF',
-    cardBackground: 'rgba(224, 218, 255, 0.94)',
-    cardBorder: 'rgba(139, 124, 255, 0.25)',
-    textColor: '#1E1B2E',
-    subTextColor: '#5A6075',
-    mascotColor: 'purple' as const,
-    mood: 'neutral' as const,
-    title: 'Yolculuğunu sana göre\nşekillendirelim',
-    subtitle: 'Küçük tercihlerle Selfplace\ndaha kişisel hissedebilir.',
-  },
-  {
-    step: 2,
-    colors: ['#0F111A', '#2D1B2E', '#4A2D3C'],
-    accent: '#FFD166',
-    cardBackground: 'rgba(255, 245, 215, 0.94)',
-    cardBorder: 'rgba(255, 209, 102, 0.25)',
-    textColor: '#1E1B2E',
-    subTextColor: '#5A6075',
-    mascotColor: 'yellow' as const,
-    mood: 'happy' as const,
-    title: 'Sana nazikçe\nhatırlatalım',
-    subtitle: 'Sadece seçtiğin zamanda,\nhuzurunu bozmadan küçük\nbir bildirim.',
-  },
-  {
-    step: 3,
-    colors: ['#0F111A', '#0C1621', '#1A2A3A'],
-    accent: '#55E6C1',
-    cardBackground: 'rgba(215, 255, 240, 0.94)',
-    cardBorder: 'rgba(85, 230, 193, 0.25)',
-    textColor: '#1E1B2E',
-    subTextColor: '#5A6075',
-    mascotColor: 'green' as const,
-    mood: 'happy' as const,
-    title: 'Hazırsın',
-    subtitle: 'Bu alan tamamen senin.\nKendine ayıracağın küçük\nbir anla başlayabilirsin.',
-  }
-];
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -118,6 +77,50 @@ export default function PostAuthOnboardingScreen() {
   const [step, setStep] = useState(1);
   const router = useRouter();
   const { setPostAuthOnboardingCompleted } = useAuthStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const THEMES = [
+    {
+      step: 1,
+      colors: ['#0F111A', '#1A1625', '#2E1B4B'],
+      accent: '#8B7CFF',
+      cardBackground: 'rgba(224, 218, 255, 0.94)',
+      cardBorder: 'rgba(139, 124, 255, 0.25)',
+      textColor: '#1E1B2E',
+      subTextColor: '#5A6075',
+      mascotColor: 'purple' as const,
+      mood: 'neutral' as const,
+      title: isEn ? 'Let us shape your journey\nfor you' : 'Yolculuğunu sana göre\nşekillendirelim',
+      subtitle: isEn ? 'With small choices, Selfplace\ncan feel much more personal.' : 'Küçük tercihlerle Selfplace\ndaha kişisel hissedebilir.',
+    },
+    {
+      step: 2,
+      colors: ['#0F111A', '#2D1B2E', '#4A2D3C'],
+      accent: '#FFD166',
+      cardBackground: 'rgba(255, 245, 215, 0.94)',
+      cardBorder: 'rgba(255, 209, 102, 0.25)',
+      textColor: '#1E1B2E',
+      subTextColor: '#5A6075',
+      mascotColor: 'yellow' as const,
+      mood: 'happy' as const,
+      title: isEn ? 'Let us remind you\ngently' : 'Sana nazikçe\nhatırlatalım',
+      subtitle: isEn ? 'Only at your chosen time,\na gentle notification without disturbing your peace.' : 'Sadece seçtiğin zamanda,\nhuzurunu bozmadan küçük\nbir bildirim.',
+    },
+    {
+      step: 3,
+      colors: ['#0F111A', '#0C1621', '#1A2A3A'],
+      accent: '#55E6C1',
+      cardBackground: 'rgba(215, 255, 240, 0.94)',
+      cardBorder: 'rgba(85, 230, 193, 0.25)',
+      textColor: '#1E1B2E',
+      subTextColor: '#5A6075',
+      mascotColor: 'green' as const,
+      mood: 'happy' as const,
+      title: isEn ? 'You are ready' : 'Hazırsın',
+      subtitle: isEn ? 'This space is entirely yours.\nYou can begin with a small moment dedicated to yourself.' : 'Bu alan tamamen senin.\nKendine ayıracağın küçük\nbir anla başlayabilirsin.',
+    }
+  ];
 
   const { 
     remindersEnabled, 
@@ -234,8 +237,8 @@ export default function PostAuthOnboardingScreen() {
               <>
                 <View style={styles.controlRow}>
                   <View style={{ flex: 1, paddingRight: 10 }}>
-                    <Text style={[styles.cardLabel, { color: currentThemeData.textColor }]}>Günlük Hatırlatıcı</Text>
-                    <Text style={[styles.cardSubLabel, { color: currentThemeData.subTextColor }]}>Kendine ayıracağın o vakti sana hatırlatalım.</Text>
+                    <Text style={[styles.cardLabel, { color: currentThemeData.textColor }]}>{isEn ? 'Daily Reminder' : 'Günlük Hatırlatıcı'}</Text>
+                    <Text style={[styles.cardSubLabel, { color: currentThemeData.subTextColor }]}>{isEn ? 'Let us remind you of that time to take for yourself.' : 'Kendine ayıracağın o vakti sana hatırlatalım.'}</Text>
                   </View>
                   <Switch 
                     value={remindersEnabled} 
@@ -248,8 +251,8 @@ export default function PostAuthOnboardingScreen() {
 
                 <View style={styles.divider} />
 
-                <Text style={[styles.cardLabel, { color: currentThemeData.textColor, marginBottom: 12 }]}>Günlük Hedefin</Text>
-                <Text style={[styles.cardSubLabel, { color: currentThemeData.subTextColor, marginBottom: 16 }]}>Günde kaç dakika kendine ayırmak istersin?</Text>
+                <Text style={[styles.cardLabel, { color: currentThemeData.textColor, marginBottom: 12 }]}>{isEn ? 'Daily Goal' : 'Günlük Hedefin'}</Text>
+                <Text style={[styles.cardSubLabel, { color: currentThemeData.subTextColor, marginBottom: 16 }]}>{isEn ? 'How many minutes per day would you like to dedicate to yourself?' : 'Günde kaç dakika kendine ayırmak istersin?'}</Text>
                 
                 <View style={styles.goalRow}>
                   {[5, 10, 15].map(val => (
@@ -269,7 +272,7 @@ export default function PostAuthOnboardingScreen() {
                       <Text style={[
                         styles.goalText, 
                         dailyGoal === val ? { color: '#FFF', fontWeight: '700' } : { color: '#4B5563' }
-                      ]}>{val} dk</Text>
+                      ]}>{val} {isEn ? 'min' : 'dk'}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -279,8 +282,8 @@ export default function PostAuthOnboardingScreen() {
             {step === 2 && (
               <View style={styles.controlRow}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
-                  <Text style={[styles.cardLabel, { color: currentThemeData.textColor }]}>Bildirim İzni</Text>
-                  <Text style={[styles.cardSubLabel, { color: currentThemeData.subTextColor }]}>Zihnini dinlendirme vaktin geldiğinde sana fısıldayalım.</Text>
+                  <Text style={[styles.cardLabel, { color: currentThemeData.textColor }]}>{isEn ? 'Notification Permission' : 'Bildirim İzni'}</Text>
+                  <Text style={[styles.cardSubLabel, { color: currentThemeData.subTextColor }]}>{isEn ? 'Let us whisper softly when it is time to rest your mind.' : 'Zihnini dinlendirme vaktin geldiğinde sana fısıldayalım.'}</Text>
                 </View>
                 <Switch 
                   value={remindersEnabled} 
@@ -298,7 +301,7 @@ export default function PostAuthOnboardingScreen() {
                    <Ionicons name="heart" size={22} color={currentThemeData.accent} />
                 </View>
                 <Text style={[styles.welcomeText, { color: currentThemeData.textColor }]}>
-                  Selfplace&apos;e hoş geldin, seni burada görmek çok güzel.
+                  {isEn ? "Welcome to Selfplace, so lovely to see you here." : "Selfplace'e hoş geldin, seni burada görmek çok güzel."}
                 </Text>
               </View>
             )}
@@ -312,13 +315,13 @@ export default function PostAuthOnboardingScreen() {
             style={[styles.ctaButton, buttonStyle]}
           >
             <Text style={styles.ctaText}>
-              {step === 3 ? "Uygulamaya Gir" : step === 2 ? "İzin Ver ve Devam Et" : "Devam Et"}
+              {step === 3 ? (isEn ? "Enter App" : "Uygulamaya Gir") : step === 2 ? (isEn ? "Allow & Continue" : "İzin Ver ve Devam Et") : (isEn ? "Continue" : "Devam Et")}
             </Text>
           </AnimatedPressable>
 
           {step === 2 && (
             <TouchableOpacity onPress={() => handleNext()} style={styles.skipBtn}>
-              <Text style={styles.skipText}>Şimdi Değil</Text>
+              <Text style={styles.skipText}>{isEn ? "Not Now" : "Şimdi Değil"}</Text>
             </TouchableOpacity>
           )}
 

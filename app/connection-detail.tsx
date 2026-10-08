@@ -80,15 +80,17 @@ const getGardenBackground = (state: string): [string, string, ...string[]] => {
   }
 };
 
-const getGardenStateName = (state: string): string => {
+import { useT } from '../i18n';
+
+const getGardenStateName = (state: string, isEn: boolean = false): string => {
   switch (state) {
-    case 'spring_bloom': return 'Bahar Çiçeklenmesi 🌸';
-    case 'peaceful_garden': return 'Huzurlu Bahçe ☀️';
-    case 'warm_sunset': return 'Sıcak Gün Batımı 🌅';
-    case 'silent_winter': return 'Sessiz Kış ❄️';
-    case 'rainy_reflection': return 'Yağmurlu Yansıma 🌧️';
-    case 'healing_rain': return 'Şifalı Yağmur 🌈';
-    default: return 'Gelişen Bahçe 🌱';
+    case 'spring_bloom': return isEn ? 'Spring Bloom 🌸' : 'Bahar Çiçeklenmesi 🌸';
+    case 'peaceful_garden': return isEn ? 'Peaceful Garden ☀️' : 'Huzurlu Bahçe ☀️';
+    case 'warm_sunset': return isEn ? 'Warm Sunset 🌅' : 'Sıcak Gün Batımı 🌅';
+    case 'silent_winter': return isEn ? 'Silent Winter ❄️' : 'Sessiz Kış ❄️';
+    case 'rainy_reflection': return isEn ? 'Rainy Reflection 🌧️' : 'Yağmurlu Yansıma 🌧️';
+    case 'healing_rain': return isEn ? 'Healing Rain 🌈' : 'Şifalı Yağmur 🌈';
+    default: return isEn ? 'Growing Garden 🌱' : 'Gelişen Bahçe 🌱';
   }
 };
 
@@ -195,7 +197,7 @@ const FloatingParticles = () => {
   );
 };
 
-const renderGardenFlora = (flowersCount: number = 0, treeHeight: number = 10, starsCount: number = 0) => {
+const renderGardenFlora = (flowersCount: number = 0, treeHeight: number = 10, starsCount: number = 0, isEn: boolean = false) => {
   const flowers = Array.from({ length: Math.min(12, flowersCount) });
   const stars = Array.from({ length: Math.min(8, starsCount) });
   
@@ -229,7 +231,7 @@ const renderGardenFlora = (flowersCount: number = 0, treeHeight: number = 10, st
           color="#34D399" 
           style={{ opacity: 0.95 }} 
         />
-        <Text style={styles.treeLabel}>Bağ Ağacı</Text>
+        <Text style={styles.treeLabel}>{isEn ? 'Connection Tree' : 'Bağ Ağacı'}</Text>
       </View>
 
       {/* Ground flowers representing rituals consistency */}
@@ -241,7 +243,7 @@ const renderGardenFlora = (flowersCount: number = 0, treeHeight: number = 10, st
             size={12} 
             color={i % 2 === 0 ? '#F472B6' : '#FB7185'} 
             style={[
-              styles.gardenFlowerIcon,
+              styles.gardenFlowerIcon, 
               { 
                 bottom: 2, 
                 left: 15 + (i * 20) % 250, 
@@ -255,11 +257,11 @@ const renderGardenFlora = (flowersCount: number = 0, treeHeight: number = 10, st
   );
 };
 
-const RELATIONSHIP_TYPES = [
-  { key: 'partner', label: '💞 Partner' },
-  { key: 'best_friend', label: '🌟 En Yakın Arkadaş' },
-  { key: 'family', label: '🌿 Aile' },
-  { key: 'close_person', label: '🤍 Yakın Kişi' }
+const getRelationshipTypesList = (isEn: boolean) => [
+  { key: 'partner', label: isEn ? '💞 Partner' : '💞 Partner' },
+  { key: 'best_friend', label: isEn ? '🌟 Closest Friend' : '🌟 En Yakın Arkadaş' },
+  { key: 'family', label: isEn ? '🌿 Family' : '🌿 Aile' },
+  { key: 'close_person', label: isEn ? '🤍 Close Person' : '🤍 Yakın Kişi' }
 ];
 
 export default function ConnectionDetailScreen() {
@@ -269,6 +271,8 @@ export default function ConnectionDetailScreen() {
 
   const { currentTheme } = useThemeStore();
   const { planType, setPlanType } = useAuthStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
   
   const [connection, setConnection] = useState<RelationshipConnection | null>(null);
   const [privacy, setPrivacy] = useState<RelationshipPrivacySettings | null>(null);
@@ -466,10 +470,10 @@ export default function ConnectionDetailScreen() {
       const insightData = await getConnectionInsight(connectionId, true);
       setInsightText(insightData.insightText);
       setInsightDate(insightData.generatedAt);
-      showToast('İlişki analizi güncellendi ✨');
+      showToast(isEn ? 'Relationship analysis updated ✨' : 'İlişki analizi güncellendi ✨');
     } catch (error) {
       console.warn('[ConnectionDetail] Error refreshing insight:', error);
-      showToast('İçgörü şu an güncellenemedi.');
+      showToast(isEn ? 'Insight could not be updated.' : 'İçgörü şu an güncellenemedi.');
     } finally {
       // Restore the card scale and fade new insights in smoothly
       Animated.parallel([
@@ -514,13 +518,13 @@ export default function ConnectionDetailScreen() {
         } catch (_) {}
       }
 
-      showToast('Günlük uyum sentezlendi 🌤️');
+      showToast(isEn ? 'Daily harmony synthesized 🌤️' : 'Günlük uyum sentezlendi 🌤️');
     } catch (error: any) {
       console.warn('[ConnectionDetail] Error generating daily sync:', error);
       if (error.response?.status === 402 || error.response?.status === 403 || error.response?.data?.isPremiumLocked) {
         setPremiumGate('daily-sync');
       } else {
-        showToast('Günlük uyum sentezi şu an yapılamadı.');
+        showToast(isEn ? 'Daily harmony synthesis could not be generated right now.' : 'Günlük uyum sentezi şu an yapılamadı.');
       }
     } finally {
       setDailySyncLoading(false);
@@ -541,10 +545,10 @@ export default function ConnectionDetailScreen() {
     try {
       const res = await updatePrivacySettings(connectionId, updatedApiSettings);
       setPrivacy(res.settings);
-      showToast('Gizlilik sınırları güncellendi.');
+      showToast(isEn ? 'Privacy boundaries updated.' : 'Gizlilik sınırları güncellendi.');
     } catch (error) {
       console.warn('[ConnectionDetail] Error updating privacy:', error);
-      showToast('Ayarlar güncellenirken bir sorun oluştu.');
+      showToast(isEn ? 'A problem occurred while updating settings.' : 'Ayarlar güncellenirken bir sorun oluştu.');
     }
   };
 
@@ -555,7 +559,7 @@ export default function ConnectionDetailScreen() {
       router.replace('/connections');
     } catch (error) {
       console.warn('[ConnectionDetail] Error disconnecting:', error);
-      showToast('Bağlantı kesilemedi.');
+      showToast(isEn ? 'Could not disconnect.' : 'Bağlantı kesilemedi.');
     }
   };
 
@@ -563,11 +567,11 @@ export default function ConnectionDetailScreen() {
     try {
       await updateSettings(connectionId, { alias: editAlias, connectionType: editType });
       setEditModalVisible(false);
-      showToast('Bağlantı güncellendi.');
+      showToast(isEn ? 'Connection updated.' : 'Bağlantı güncellendi.');
       loadAllData();
     } catch (error) {
       console.warn('[ConnectionDetail] Error updating settings:', error);
-      showToast('Bağlantı güncellenemedi.');
+      showToast(isEn ? 'Connection could not be updated.' : 'Bağlantı güncellenemedi.');
     }
   };
 
@@ -577,49 +581,70 @@ export default function ConnectionDetailScreen() {
 
   const getConnectionTypeLabel = (type: string) => {
     switch (type) {
-      case 'partner': return '💞 Partner';
-      case 'best_friend': return '🌟 En Yakın Arkadaş';
-      case 'family': return '🌿 Aile';
-      case 'close_person': return '🤍 Yakın Kişi';
-      default: return '🔗 Bağlantı';
+      case 'partner': return isEn ? '💞 Partner' : '💞 Partner';
+      case 'best_friend': return isEn ? '🌟 Closest Friend' : '🌟 En Yakın Arkadaş';
+      case 'family': return isEn ? '🌿 Family' : '🌿 Aile';
+      case 'close_person': return isEn ? '🤍 Close Person' : '🤍 Yakın Kişi';
+      default: return isEn ? '🔗 Connection' : '🔗 Bağlantı';
     }
   };
 
   const getWeatherGradient = (weather: string): [string, string, ...string[]] => {
     switch (weather) {
-      case 'Sakin': return ['#0f172a', '#1e293b', '#334155'];
-      case 'Dingin': return ['#0b0f19', '#111827', '#1f2937'];
-      case 'Yumuşak': return ['#1e1b4b', '#312e81', '#4338ca'];
-      case 'Hassas': return ['#3b0764', '#581c87', '#701a75'];
-      case 'Derin': return ['#022c22', '#064e3b', '#0f766e'];
-      case 'Hafif Yoğun': return ['#2e1065', '#db2777', '#f97316'];
-      case 'Yenileyici': return ['#064e3b', '#0f766e', '#0d9488'];
+      case 'Sakin':
+      case 'Calm': return ['#0f172a', '#1e293b', '#334155'];
+      case 'Dingin':
+      case 'Serene': return ['#0b0f19', '#111827', '#1f2937'];
+      case 'Yumuşak':
+      case 'Gentle': return ['#1e1b4b', '#312e81', '#4338ca'];
+      case 'Hassas':
+      case 'Tender': return ['#3b0764', '#581c87', '#701a75'];
+      case 'Derin':
+      case 'Deep': return ['#022c22', '#064e3b', '#0f766e'];
+      case 'Hafif Yoğun':
+      case 'Mildly Intense': return ['#2e1065', '#db2777', '#f97316'];
+      case 'Yenileyici':
+      case 'Renewing': return ['#064e3b', '#0f766e', '#0d9488'];
       default: return [currentTheme.colors.card, 'rgba(255,255,255,0.02)'];
     }
   };
 
   const getAtmosphereChips = (weather: string) => {
     switch (weather) {
-      case 'Sakin': return ['Sakinlik', 'Denge', 'Sabır'];
-      case 'Dingin': return ['Sessizlik', 'Huzur', 'Derin Bağ'];
-      case 'Yumuşak': return ['Şefkat', 'Gözlem', 'Yumuşaklık'];
-      case 'Hassas': return ['Duyarlılık', 'Empati', 'İletişim'];
-      case 'Derin': return ['Zihinsel Uyum', 'Süreklilik', 'Samimiyet'];
-      case 'Hafif Yoğun': return ['Paylaşım', 'Özen', 'Farkındalık'];
-      case 'Yenileyici': return ['Tazelik', 'Karşılıklı Destek', 'Neşe'];
-      default: return ['Empati', 'Anlayış', 'Destek'];
+      case 'Sakin':
+      case 'Calm': return isEn ? ['Calmness', 'Balance', 'Patience'] : ['Sakinlik', 'Denge', 'Sabır'];
+      case 'Dingin':
+      case 'Serene': return isEn ? ['Stillness', 'Peace', 'Deep Bond'] : ['Sessizlik', 'Huzur', 'Derin Bağ'];
+      case 'Yumuşak':
+      case 'Gentle': return isEn ? ['Compassion', 'Observation', 'Softness'] : ['Şefkat', 'Gözlem', 'Yumuşaklık'];
+      case 'Hassas':
+      case 'Tender': return isEn ? ['Sensitivity', 'Empathy', 'Communication'] : ['Duyarlılık', 'Empati', 'İletişim'];
+      case 'Derin':
+      case 'Deep': return isEn ? ['Mind Harmony', 'Continuity', 'Intimacy'] : ['Zihinsel Uyum', 'Süreklilik', 'Samimiyet'];
+      case 'Hafif Yoğun':
+      case 'Mildly Intense': return isEn ? ['Sharing', 'Care', 'Awareness'] : ['Paylaşım', 'Özen', 'Farkındalık'];
+      case 'Yenileyici':
+      case 'Renewing': return isEn ? ['Freshness', 'Mutual Support', 'Joy'] : ['Tazelik', 'Karşılıklı Destek', 'Neşe'];
+      default: return isEn ? ['Empathy', 'Understanding', 'Support'] : ['Empati', 'Anlayış', 'Destek'];
     }
   };
 
   const getWeatherIcon = (weather: string) => {
     switch (weather) {
-      case 'Sakin': return 'sunny-outline';
-      case 'Dingin': return 'moon-outline';
-      case 'Yumuşak': return 'sparkles-outline';
-      case 'Hassas': return 'rose-outline';
-      case 'Derin': return 'water-outline';
-      case 'Hafif Yoğun': return 'thunderstorm-outline';
-      case 'Yenileyici': return 'leaf-outline';
+      case 'Sakin':
+      case 'Calm': return 'sunny-outline';
+      case 'Dingin':
+      case 'Serene': return 'moon-outline';
+      case 'Yumuşak':
+      case 'Gentle': return 'sparkles-outline';
+      case 'Hassas':
+      case 'Tender': return 'rose-outline';
+      case 'Derin':
+      case 'Deep': return 'water-outline';
+      case 'Hafif Yoğun':
+      case 'Mildly Intense': return 'thunderstorm-outline';
+      case 'Yenileyici':
+      case 'Renewing': return 'leaf-outline';
       default: return 'cloud-outline';
     }
   };
@@ -656,33 +681,33 @@ export default function ConnectionDetailScreen() {
           {/* Header Info Card */}
           <View style={[styles.infoCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>İlişki Türü:</Text>
+              <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Relation Type:' : 'İlişki Türü:'}</Text>
               <Text style={[styles.infoValue, { color: currentTheme.colors.text.primary }]}>
                 {getConnectionTypeLabel(connection.connectionType)}
               </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>E-posta:</Text>
+              <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Email:' : 'E-posta:'}</Text>
               <Text style={[styles.infoValue, { color: currentTheme.colors.text.primary }]}>{connection.partner.email}</Text>
             </View>
           </View>
 
           {/* Signature Exclusive: Ruhsal Alanınız (Your Emotional Space) */}
           <>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>🌌 Ruhsal Alanınız</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>{isEn ? '🌌 Emotional Space' : '🌌 Ruhsal Alanınız'}</Text>
             <PremiumGate
               requiredPlan="signature"
               currentPlan={planType}
               onUpgradePress={() => setUpgradeModalVisible(true)}
-              title="Ruhsal Alanınız ✨"
-              subtitle="Signature ile açılır ✨"
+              title={isEn ? "Emotional Space ✨" : "Ruhsal Alanınız ✨"}
+              subtitle={isEn ? "Unlocked with Signature ✨" : "Signature ile açılır ✨"}
               containerStyle={{ marginBottom: 28 }}
             >
               {(() => {
                 const activeSync = dailySync || {
-                  emotional_aura: "Gizemli Uyum 🔮",
-                  relationship_rhythm: "Yumuşak Akış 🌊",
-                  connection_state: "Derinleşen Bağlar ✨",
+                  emotional_aura: isEn ? "Mystic Harmony 🔮" : "Gizemli Uyum 🔮",
+                  relationship_rhythm: isEn ? "Gentle Flow 🌊" : "Yumuşak Akış 🌊",
+                  connection_state: isEn ? "Deepening Bonds ✨" : "Derinleşen Bağlar ✨",
                   emotional_closeness: 80
                 };
                 return (
@@ -695,7 +720,7 @@ export default function ConnectionDetailScreen() {
                     <View style={styles.auraHeader}>
                       <Ionicons name="infinite-outline" size={24} color={currentTheme.colors.primary} />
                       <View>
-                        <Text style={[styles.auraLabel, { color: currentTheme.colors.text.secondary }]}>Duygusal Aura</Text>
+                        <Text style={[styles.auraLabel, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Emotional Aura' : 'Duygusal Aura'}</Text>
                         <Text style={[styles.auraValue, { color: currentTheme.colors.text.primary }]}>
                           {activeSync.emotional_aura}
                         </Text>
@@ -705,7 +730,7 @@ export default function ConnectionDetailScreen() {
                     <View style={styles.auraGrid}>
                       <View style={styles.auraGridItem}>
                         <Ionicons name="pulse" size={16} color={currentTheme.colors.accent} />
-                        <Text style={[styles.auraGridLabel, { color: currentTheme.colors.text.muted }]}>İlişki Ritmi</Text>
+                        <Text style={[styles.auraGridLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Relationship Rhythm' : 'İlişki Ritmi'}</Text>
                         <Text style={[styles.auraGridValue, { color: currentTheme.colors.text.primary }]} numberOfLines={1}>
                           {activeSync.relationship_rhythm}
                         </Text>
@@ -713,7 +738,7 @@ export default function ConnectionDetailScreen() {
                       
                       <View style={styles.auraGridItem}>
                         <Ionicons name="git-commit-outline" size={16} color={currentTheme.colors.primary} />
-                        <Text style={[styles.auraGridLabel, { color: currentTheme.colors.text.muted }]}>Bağlantı Durumu</Text>
+                        <Text style={[styles.auraGridLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Connection State' : 'Bağlantı Durumu'}</Text>
                         <Text style={[styles.auraGridValue, { color: currentTheme.colors.text.primary }]} numberOfLines={1}>
                           {activeSync.connection_state}
                         </Text>
@@ -722,9 +747,9 @@ export default function ConnectionDetailScreen() {
 
                     <View style={styles.closenessRow}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <Text style={[styles.closenessLabel, { color: currentTheme.colors.text.secondary }]}>Duygusal Yakınlık</Text>
+                        <Text style={[styles.closenessLabel, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Emotional Closeness' : 'Duygusal Yakınlık'}</Text>
                         <Text style={[styles.closenessValue, { color: currentTheme.colors.primary }]}>
-                          %{activeSync.emotional_closeness}
+                          {isEn ? `${activeSync.emotional_closeness}%` : `%${activeSync.emotional_closeness}`}
                         </Text>
                       </View>
                       <View style={[styles.closenessTrack, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
@@ -746,19 +771,19 @@ export default function ConnectionDetailScreen() {
           </>
 
           {/* Phase 2: Daily Emotional Sync (Atmospheric weather & energy system) */}
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Günlük Duygusal Uyum 🌤️</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Daily Emotional Harmony 🌤️' : 'Günlük Duygusal Uyum 🌤️'}</Text>
           
           <PremiumGate
             requiredPlan="plus"
             currentPlan={planType}
             onUpgradePress={() => setPremiumGate('daily-sync')}
-            subtitle="Günlük uyum analizi, duygusal hava durumu ve ilişki enerjisi analizlerini açmak için Plus'a yükseltin."
+            subtitle={isEn ? "Upgrade to Plus to unlock daily harmony analysis, emotional weather, and relationship energy." : "Günlük uyum analizi, duygusal hava durumu ve ilişki enerjisi analizlerini açmak için Plus'a yükseltin."}
             containerStyle={{ marginBottom: 28 }}
           >
             {dailySyncLoading ? (
               <View style={[styles.syncCardMock, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                 <ActivityIndicator size="small" color={currentTheme.colors.primary} />
-                <Text style={[styles.syncLoadingText, { color: currentTheme.colors.text.secondary }]}>Duygusal kalıplarınız birleştiriliyor...</Text>
+                <Text style={[styles.syncLoadingText, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Harmonizing your emotional patterns...' : 'Duygusal kalıplarınız birleştiriliyor...'}</Text>
               </View>
             ) : dailySync ? (
               <LinearGradient
@@ -771,9 +796,10 @@ export default function ConnectionDetailScreen() {
                     styles.emotionalOrb,
                     {
                       transform: [{ scale: syncOrbScale }],
-                      backgroundColor: dailySync.emotional_weather === 'Hafif Yoğun' 
-                        ? 'rgba(244, 63, 94, 0.18)' 
-                        : dailySync.emotional_weather === 'Hassas'
+                      // emotional_weather arrives localized (TR or EN) from the API
+                      backgroundColor: ['Hafif Yoğun', 'Mildly Intense'].includes(dailySync.emotional_weather)
+                        ? 'rgba(244, 63, 94, 0.18)'
+                        : ['Hassas', 'Tender'].includes(dailySync.emotional_weather)
                         ? 'rgba(236, 72, 153, 0.18)'
                         : 'rgba(167, 139, 250, 0.18)'
                     }
@@ -786,13 +812,13 @@ export default function ConnectionDetailScreen() {
                       <Ionicons name={getWeatherIcon(dailySync.emotional_weather) as any} size={22} color="#FFF" />
                     </View>
                     <View>
-                      <Text style={styles.weatherLabel}>İlişki Atmosferi</Text>
+                      <Text style={styles.weatherLabel}>{isEn ? 'Relationship Atmosphere' : 'İlişki Atmosferi'}</Text>
                       <Text style={styles.weatherStateText}>{dailySync.emotional_weather}</Text>
                     </View>
                   </View>
 
                   <View style={styles.energyBadge}>
-                    <Text style={styles.energyLabelText}>İlişki Enerjisi</Text>
+                    <Text style={styles.energyLabelText}>{isEn ? 'Relationship Energy' : 'İlişki Enerjisi'}</Text>
                     <Text style={styles.energyValueText}>{dailySync.relationship_energy}</Text>
                   </View>
                 </View>
@@ -808,7 +834,7 @@ export default function ConnectionDetailScreen() {
                   onPress={handleGenerateDailySync}
                 >
                   <Ionicons name="refresh-outline" size={14} color="#FFF" />
-                  <Text style={styles.syncRefreshBtnText}>Sentezi Yenile</Text>
+                  <Text style={styles.syncRefreshBtnText}>{isEn ? 'Refresh Harmony' : 'Sentezi Yenile'}</Text>
                 </TouchableOpacity>
 
               </LinearGradient>
@@ -816,13 +842,13 @@ export default function ConnectionDetailScreen() {
               <View style={[styles.syncCardMock, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                 <Ionicons name="cloudy-outline" size={36} color={currentTheme.colors.text.muted} style={{ marginBottom: 12 }} />
                 <Text style={[styles.syncCardMockText, { color: currentTheme.colors.text.secondary }]}>
-                  Bugünün duygusal sentezi henüz yapılmadı.
+                  {isEn ? "Today's emotional harmony has not been synthesized yet." : "Bugünün duygusal sentezi henüz yapılmadı."}
                 </Text>
                 <TouchableOpacity 
                   style={[styles.generateBtn, { backgroundColor: currentTheme.colors.primary }]}
                   onPress={handleGenerateDailySync}
                 >
-                  <Text style={styles.generateBtnText}>Uyum Sentezi Yap</Text>
+                  <Text style={styles.generateBtnText}>{isEn ? 'Synthesize Harmony' : 'Uyum Sentezi Yap'}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -830,13 +856,13 @@ export default function ConnectionDetailScreen() {
 
           {/* Signature Exclusive: İlişki Bahçesi (Relationship Garden) */}
           <>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>🌱 İlişki Bahçesi</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>{isEn ? '🌱 Relationship Garden' : '🌱 İlişki Bahçesi'}</Text>
             <PremiumGate
               requiredPlan="signature"
               currentPlan={planType}
               onUpgradePress={() => setUpgradeModalVisible(true)}
-              title="İlişki Bahçesi 🌱"
-              subtitle="Signature ile açılır ✨"
+              title={isEn ? "Relationship Garden 🌱" : "İlişki Bahçesi 🌱"}
+              subtitle={isEn ? "Unlocked with Signature ✨" : "Signature ile açılır ✨"}
               containerStyle={{ marginBottom: 28 }}
             >
               {(() => {
@@ -864,17 +890,17 @@ export default function ConnectionDetailScreen() {
                       </View>
 
                       {/* Sky/Flora visualization */}
-                      {renderGardenFlora(activeGarden.flowersCount, activeGarden.treeHeight, activeGarden.starsUnlocked)}
+                      {renderGardenFlora(activeGarden.flowersCount, activeGarden.treeHeight, activeGarden.starsUnlocked, isEn)}
 
                       {/* Overlay text detail */}
                       <View style={styles.gardenTextPanel}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <View>
-                            <Text style={styles.gardenStateTitle}>{getGardenStateName(activeGarden.gardenState)}</Text>
-                            <Text style={styles.gardenSubtext}>Ritüel ve paylaşımlarla büyüyen ortak alanınız</Text>
+                            <Text style={styles.gardenStateTitle}>{getGardenStateName(activeGarden.gardenState, isEn)}</Text>
+                            <Text style={styles.gardenSubtext}>{isEn ? 'Your shared sanctuary flourishing through rituals and mutual care' : 'Ritüel ve paylaşımlarla büyüyen ortak alanınız'}</Text>
                           </View>
                           <View style={styles.gardenLevelBadge}>
-                            <Text style={styles.gardenLevelText}>Seviye {activeGarden.growthLevel}</Text>
+                            <Text style={styles.gardenLevelText}>{isEn ? `Level ${activeGarden.growthLevel}` : `Seviye ${activeGarden.growthLevel}`}</Text>
                           </View>
                         </View>
                       </View>
@@ -886,12 +912,12 @@ export default function ConnectionDetailScreen() {
           </>
 
           {/* Phase 3: Uyum Fısıltıları (Insight Feed) */}
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Uyum Fısıltıları 🌿</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Harmony Whispers 🌿' : 'Uyum Fısıltıları 🌿'}</Text>
           <PremiumGate
             requiredPlan="plus"
             currentPlan={planType}
             onUpgradePress={() => setPremiumGate('whispers')}
-            subtitle="Günün 3 hafif duygusal uyum tavsiyesini açmak için Plus'a yükseltin."
+            subtitle={isEn ? "Upgrade to Plus to unlock 3 gentle daily emotional harmony whispers." : "Günün 3 hafif duygusal uyum tavsiyesini açmak için Plus'a yükseltin."}
             containerStyle={{ marginBottom: 28 }}
           >
             <View style={[styles.whisperContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
@@ -907,7 +933,7 @@ export default function ConnectionDetailScreen() {
               ) : (
                 <View style={styles.whisperEmpty}>
                   <Text style={[styles.whisperEmptyText, { color: currentTheme.colors.text.muted }]}>
-                    Bugün için henüz uyum fısıltısı üretilmemiş. Yukarıdaki uyum sentezini yapın.
+                    {isEn ? 'No harmony whispers generated yet for today. Synthesize harmony above.' : 'Bugün için henüz uyum fısıltısı üretilmemiş. Yukarıdaki uyum sentezini yapın.'}
                   </Text>
                 </View>
               )}
@@ -915,7 +941,7 @@ export default function ConnectionDetailScreen() {
           </PremiumGate>
 
           {/* Phase 2: Navigation Links (Rituals & Timeline) */}
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Ortak Keşif Alanı 🌿</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Shared Discovery Space 🌿' : 'Ortak Keşif Alanı 🌿'}</Text>
           <View style={styles.exploreGrid}>
             
             {/* Shared Rituals Button */}
@@ -933,8 +959,8 @@ export default function ConnectionDetailScreen() {
               <View style={[styles.exploreIconBg, { backgroundColor: 'rgba(167, 139, 250, 0.15)' }]}>
                 <Ionicons name="chatbubbles-outline" size={22} color="#A78BFA" />
               </View>
-              <Text style={[styles.exploreBtnTitle, { color: currentTheme.colors.text.primary }]}>Günlük Ritüel</Text>
-              <Text style={[styles.exploreBtnSub, { color: currentTheme.colors.text.muted }]}>Günün empati sorusuna yanıt verin</Text>
+              <Text style={[styles.exploreBtnTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Daily Ritual' : 'Günlük Ritüel'}</Text>
+              <Text style={[styles.exploreBtnSub, { color: currentTheme.colors.text.muted }]}>{isEn ? "Reflect on today's empathy prompt together" : 'Günün empati sorusuna yanıt verin'}</Text>
               {planType === 'free' && <Ionicons name="lock-closed" size={12} color={currentTheme.colors.text.muted} style={styles.lockBadge} />}
             </TouchableOpacity>
 
@@ -953,8 +979,8 @@ export default function ConnectionDetailScreen() {
               <View style={[styles.exploreIconBg, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
                 <Ionicons name="trail-sign-outline" size={22} color="#FBBF24" />
               </View>
-              <Text style={[styles.exploreBtnTitle, { color: currentTheme.colors.text.primary }]}>Zaman Tüneli</Text>
-              <Text style={[styles.exploreBtnSub, { color: currentTheme.colors.text.muted }]}>İlişki kilometre taşlarını takip edin</Text>
+              <Text style={[styles.exploreBtnTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Time Tunnel' : 'Zaman Tüneli'}</Text>
+              <Text style={[styles.exploreBtnSub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Track your relationship milestones and shared moments' : 'İlişki kilometre taşlarını takip edin'}</Text>
               {planType === 'free' && <Ionicons name="lock-closed" size={12} color={currentTheme.colors.text.muted} style={styles.lockBadge} />}
             </TouchableOpacity>
 
@@ -964,20 +990,20 @@ export default function ConnectionDetailScreen() {
 
           {/* Signature Exclusive: Anı Kristalleri (Memory Crystals) */}
           <>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>💎 Anı Kristalleri</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.mascot.start }]}>{isEn ? '💎 Memory Crystals' : '💎 Anı Kristalleri'}</Text>
             <PremiumGate
               requiredPlan="signature"
               currentPlan={planType}
               onUpgradePress={() => setUpgradeModalVisible(true)}
-              title="Anı Kristalleri 💎"
-              subtitle="Signature ile açılır ✨"
+              title={isEn ? "Memory Crystals 💎" : "Anı Kristalleri 💎"}
+              subtitle={isEn ? "Unlocked with Signature ✨" : "Signature ile açılır ✨"}
               containerStyle={{ marginBottom: 28 }}
             >
               {(() => {
                 const activeCrystals = (crystals && crystals.length > 0) ? crystals : [
-                  { id: 1, summary: 'İlk kırılgan anılarınız burada parlayacak... 💎', created_at: new Date().toISOString(), symbol: 'heart' },
-                  { id: 2, summary: 'Birlikte aşacağınız yollar... 🌟', created_at: new Date().toISOString(), symbol: 'sparkles' },
-                  { id: 3, summary: 'Duygusal bağın yansıması... ✨', created_at: new Date().toISOString(), symbol: 'star' }
+                  { id: 1, summary: isEn ? 'Your first vulnerable memories will glow here... 💎' : 'İlk kırılgan anılarınız burada parlayacak... 💎', created_at: new Date().toISOString(), symbol: 'heart' },
+                  { id: 2, summary: isEn ? 'Journeys and paths you cross together... 🌟' : 'Birlikte aşacağınız yollar... 🌟', created_at: new Date().toISOString(), symbol: 'sparkles' },
+                  { id: 3, summary: isEn ? 'Gentle reflection of your emotional bond... ✨' : 'Duygusal bağın yansıması... ✨', created_at: new Date().toISOString(), symbol: 'star' }
                 ];
                 return (
                   <View style={styles.crystalsContainer}>
@@ -1005,7 +1031,7 @@ export default function ConnectionDetailScreen() {
                               {crystal.summary}
                             </Text>
                             <Text style={[styles.crystalDate, { color: currentTheme.colors.text.muted }]}>
-                              {new Date(crystal.created_at).toLocaleDateString('tr-TR')}
+                              {new Date(crystal.created_at).toLocaleDateString(isEn ? 'en-US' : 'tr-TR')}
                             </Text>
                           </LinearGradient>
                         </View>
@@ -1018,17 +1044,17 @@ export default function ConnectionDetailScreen() {
           </>
 
           {/* AI Empathy Insight section */}
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Derin Uyum Analizi ✨</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Deep Harmony Analysis ✨' : 'Derin Uyum Analizi ✨'}</Text>
           <PremiumGate
             requiredPlan="plus"
             currentPlan={planType}
             onUpgradePress={() => setPremiumGate('advanced-ai')}
-            title="Derin Uyum Analizi ✨"
-            subtitle="Plus ile açılır ✨"
+            title={isEn ? "Deep Harmony Analysis ✨" : "Derin Uyum Analizi ✨"}
+            subtitle={isEn ? "Unlocked with Plus ✨" : "Plus ile açılır ✨"}
             containerStyle={{ marginBottom: 28 }}
           >
             {(() => {
-              const activeInsightText = insightText || "İletişim tarzınız ve duygusal dalgalanmalarınız analiz edilerek burada derin uyum tavsiyeleri oluşturulur.";
+              const activeInsightText = insightText || (isEn ? "Your communication style and emotional rhythms are analyzed here to offer deep harmony guidance." : "İletişim tarzınız ve duygusal dalgalanmalarınız analiz edilerek burada derin uyum tavsiyeleri oluşturulur.");
               const activeInsightDate = insightDate || new Date().toISOString();
               return (
                 <Animated.View style={[
@@ -1058,7 +1084,7 @@ export default function ConnectionDetailScreen() {
                     <View style={styles.insightLoadingBox}>
                       <ActivityIndicator size="small" color={currentTheme.colors.primary} />
                       <Text style={[styles.insightLoadingText, { color: currentTheme.colors.text.secondary }]}>
-                        Duygusal ritimleriniz analiz ediliyor...
+                        {isEn ? 'Analyzing emotional rhythms...' : 'Duygusal ritimleriniz analiz ediliyor...'}
                       </Text>
                     </View>
                   ) : (
@@ -1080,7 +1106,7 @@ export default function ConnectionDetailScreen() {
                       
                       {insightDate && (
                         <Text style={[styles.insightDate, { color: currentTheme.colors.text.muted }]}>
-                          Güncellendi: {new Date(activeInsightDate).toLocaleDateString('tr-TR')} · {new Date(activeInsightDate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                          {isEn ? 'Updated: ' : 'Güncellendi: '}{new Date(activeInsightDate).toLocaleDateString(isEn ? 'en-US' : 'tr-TR')} · {new Date(activeInsightDate).toLocaleTimeString(isEn ? 'en-US' : 'tr-TR', { hour: '2-digit', minute: '2-digit' })}
                         </Text>
                       )}
 
@@ -1096,7 +1122,7 @@ export default function ConnectionDetailScreen() {
                           style={styles.premiumButtonInner}
                         >
                           <Ionicons name="sparkles" size={16} color="#FFF" style={styles.refreshIcon} />
-                          <Text style={styles.refreshBtnText}>Uyum Analizini Yenile</Text>
+                          <Text style={styles.refreshBtnText}>{isEn ? 'Refresh Harmony Analysis' : 'Uyum Analizini Yenile'}</Text>
                         </LinearGradient>
                       </TouchableOpacity>
                     </Animated.View>
@@ -1107,9 +1133,9 @@ export default function ConnectionDetailScreen() {
           </PremiumGate>
 
           {/* Privacy settings */}
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Gizlilik ve Sınırlar 🛡️</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Privacy and Boundaries 🛡️' : 'Gizlilik ve Sınırlar 🛡️'}</Text>
           <Text style={[styles.privacyDesc, { color: currentTheme.colors.text.muted }]}>
-            İlişki alanınızı kendinize göre koruyun. Paylaşmak istemediğiniz veya analize dahil olmasını tercih etmediğiniz alanları kapatarak, sessizce güvende kalabilirsiniz. Değişiklikler anında yansır.
+            {isEn ? 'Protect your relationship space on your own terms. Keep areas you prefer not to include in analysis private and secure. Changes take effect immediately.' : 'İlişki alanınızı kendinize göre koruyun. Paylaşmak istemediğiniz veya analize dahil olmasını tercih etmediğiniz alanları kapatarak, sessizce güvende kalabilirsiniz. Değişiklikler anında yansır.'}
           </Text>
 
           <View style={[styles.switchContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
@@ -1118,9 +1144,9 @@ export default function ConnectionDetailScreen() {
               <View style={styles.switchTexts}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="heart-outline" size={16} color={currentTheme.colors.primary} />
-                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Duygusal Akışın</Text>
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Emotional Check-ins' : 'Duygusal Akışın'}</Text>
                 </View>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Günlük mood check-in’lerini analiz dışında tut</Text>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Exclude daily mood check-ins from analysis' : 'Günlük mood check-in’lerini analiz dışında tut'}</Text>
               </View>
               <Switch
                 value={privacy.exclude_checkins}
@@ -1136,9 +1162,9 @@ export default function ConnectionDetailScreen() {
               <View style={styles.switchTexts}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="book-outline" size={16} color={currentTheme.colors.primary} />
-                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Kişisel Günlüğün</Text>
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Personal Journal' : 'Kişisel Günlüğün'}</Text>
                 </View>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Günlük yazılarının duygusal izlerini analize dahil etme</Text>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Exclude journal entries from relationship analysis' : 'Günlük yazılarının duygusal izlerini analize dahil etme'}</Text>
               </View>
               <Switch
                 value={privacy.exclude_journals}
@@ -1154,9 +1180,9 @@ export default function ConnectionDetailScreen() {
               <View style={styles.switchTexts}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="sparkles-outline" size={16} color={currentTheme.colors.primary} />
-                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Ruhsal Kart Tercihlerin</Text>
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Action Card Choices' : 'Ruhsal Kart Tercihlerin'}</Text>
                 </View>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Seçtiğin eylem kartlarını gizli tut</Text>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Keep chosen reflection cards private' : 'Seçtiğin eylem kartlarını gizli tut'}</Text>
               </View>
               <Switch
                 value={privacy.exclude_cards}
@@ -1172,9 +1198,9 @@ export default function ConnectionDetailScreen() {
               <View style={styles.switchTexts}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="chatbubble-ellipses-outline" size={16} color={currentTheme.colors.primary} />
-                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>AI Sohbet Kalıpları</Text>
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'AI Companion Conversations' : 'AI Sohbet Kalıpları'}</Text>
                 </View>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Yapay zeka arkadaşınla dertleşmelerini analizden hariç tut</Text>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Exclude AI companion chats from analysis' : 'Yapay zeka arkadaşınla dertleşmelerini analizden hariç tut'}</Text>
               </View>
               <Switch
                 value={privacy.exclude_ai_chat}
@@ -1190,9 +1216,9 @@ export default function ConnectionDetailScreen() {
               <View style={styles.switchTexts}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="color-palette-outline" size={16} color={currentTheme.colors.primary} />
-                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>DISC Kişilik Yapın</Text>
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'DISC Personality Profile' : 'DISC Kişilik Yapın'}</Text>
                 </View>
-                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Kişilik rengi ve analizlerini sınırların içinde sakla</Text>
+                <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Keep personality traits and color within boundaries' : 'Kişilik rengi ve analizlerini sınırların içinde sakla'}</Text>
               </View>
               <Switch
                 value={privacy.exclude_personality}
@@ -1210,7 +1236,7 @@ export default function ConnectionDetailScreen() {
             onPress={() => setDisconnectModalVisible(true)}
           >
             <Ionicons name="heart-dislike-outline" size={20} color="#F87171" style={styles.disconnectIcon} />
-            <Text style={styles.disconnectText}>Bağlantıyı Kes</Text>
+            <Text style={styles.disconnectText}>{isEn ? 'Disconnect Connection' : 'Bağlantıyı Kes'}</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -1224,7 +1250,7 @@ export default function ConnectionDetailScreen() {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: currentTheme.colors.background[1], borderColor: currentTheme.colors.glow }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: currentTheme.colors.text.primary }]}>Bağlantıyı Düzenle</Text>
+                <Text style={[styles.modalTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Edit Connection' : 'Bağlantıyı Düzenle'}</Text>
                 <TouchableOpacity onPress={() => setEditModalVisible(false)}>
                   <Ionicons name="close" size={24} color={currentTheme.colors.text.secondary} />
                 </TouchableOpacity>
@@ -1232,20 +1258,20 @@ export default function ConnectionDetailScreen() {
 
               <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Takma Ad</Text>
+                  <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Nickname' : 'Takma Ad'}</Text>
                   <TextInput
                     style={[styles.input, { backgroundColor: currentTheme.colors.card, color: currentTheme.colors.text.primary, borderColor: currentTheme.colors.cardBorder }]}
                     value={editAlias}
                     onChangeText={setEditAlias}
-                    placeholder="Bir takma ad girin"
+                    placeholder={isEn ? 'Enter a nickname' : 'Bir takma ad girin'}
                     placeholderTextColor={currentTheme.colors.text.muted}
                   />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>İlişki Türü</Text>
+                  <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Relationship Type' : 'İlişki Türü'}</Text>
                   <View style={styles.modalTypesGrid}>
-                    {RELATIONSHIP_TYPES.map((type: { key: string; label: string }) => {
+                    {getRelationshipTypesList(isEn).map((type: { key: string; label: string }) => {
                       const isSelected = editType === type.key;
                       return (
                         <TouchableOpacity
@@ -1269,7 +1295,7 @@ export default function ConnectionDetailScreen() {
                 </View>
 
                 <CustomButton 
-                  title="Güncelle" 
+                  title={isEn ? 'Update' : 'Güncelle'} 
                   onPress={handleUpdateSettings} 
                   style={{ marginTop: 24 }}
                 />
@@ -1281,11 +1307,11 @@ export default function ConnectionDetailScreen() {
         {/* Disconnect confirmation modal */}
         <CustomModal
           visible={disconnectModalVisible}
-          title="Bağlantıyı Kes 💔"
-          message={`${partnerDisplayName} ile aranızdaki duygusal bağı koparmak istediğinize emin misiniz? Bu işlem her iki taraftaki tüm ilişki yansımalarını silecektir.`}
+          title={isEn ? "Disconnect 💔" : "Bağlantıyı Kes 💔"}
+          message={isEn ? `Are you sure you want to disconnect from ${partnerDisplayName}? This will erase relationship reflections for both parties.` : `${partnerDisplayName} ile aranızdaki duygusal bağı koparmak istediğinize emin misiniz? Bu işlem her iki taraftaki tüm ilişki yansımalarını silecektir.`}
           onClose={() => setDisconnectModalVisible(false)}
           onConfirm={handleDisconnect}
-          confirmText="Bağlantıyı Kes"
+          confirmText={isEn ? "Disconnect" : "Bağlantıyı Kes"}
         />
 
         {/* Subscription details upgrade modal */}

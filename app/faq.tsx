@@ -9,7 +9,13 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const FAQ_DATA = [
+import { useT } from '../i18n';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const FAQ_DATA_TR = [
   {
     question: 'Selfplace terapi uygulaması mı?',
     answer: 'Hayır, Selfplace bir terapi, tıbbi teşhis veya tedavi aracı değildir. Selfplace, kişisel yansımalarınızı kaydetmenize, duygularınızı takip etmenize ve AI destekli içgörülerle kendinizi daha iyi anlamanıza yardımcı olan bir öz-farkındalık aracıdır. Ciddi bir psikolojik sorun yaşıyorsanız lütfen bir uzmana danışın.'
@@ -28,7 +34,26 @@ const FAQ_DATA = [
   }
 ];
 
-function FAQItem({ item, theme }: { item: typeof FAQ_DATA[0], theme: any }) {
+const FAQ_DATA_EN = [
+  {
+    question: 'Is Selfplace a therapy app?',
+    answer: 'No, Selfplace is not a therapy, diagnosis, or clinical medical tool. Selfplace is a self-awareness sanctuary helping you record personal reflections, track feelings, and understand yourself deeper with AI insights. If you are experiencing severe psychological distress, please consult a professional.'
+  },
+  {
+    question: 'Where is my data stored?',
+    answer: 'Your data is stored securely in modern cloud databases using encryption. Your personal records are never shared with third-party advertisers. You can delete all your data or permanently delete your account at any time.'
+  },
+  {
+    question: 'How is AI utilized?',
+    answer: 'AI is used solely to process your check-in reflections and journal notes to offer weekly insights and thoughtful feedback. AI processes your data only to improve your personal experience and does not train public models on your data.'
+  },
+  {
+    question: 'How do I turn off reminders?',
+    answer: 'You can toggle off daily reminders directly in Settings under Notifications, or manage system notification permissions from your device settings.'
+  }
+];
+
+function FAQItem({ item, theme }: { item: { question: string; answer: string }, theme: any }) {
   const [expanded, setExpanded] = useState(false);
 
   const toggle = () => {
@@ -63,6 +88,10 @@ function FAQItem({ item, theme }: { item: typeof FAQ_DATA[0], theme: any }) {
 export default function FAQScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const faqData = isEn ? FAQ_DATA_EN : FAQ_DATA_TR;
 
   return (
     <GradientBackground>
@@ -71,24 +100,24 @@ export default function FAQScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Yardım & SSS</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('settings.faq')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-            Selfplace hakkında merak ettiğin temel soruların cevaplarını burada bulabilirsin.
+            {isEn ? 'Find answers to common questions about Selfplace here.' : 'Selfplace hakkında merak ettiğin temel soruların cevaplarını burada bulabilirsin.'}
           </Text>
 
-          {FAQ_DATA.map((item, index) => (
+          {faqData.map((item, index) => (
             <FAQItem key={index} item={item} theme={currentTheme} />
           ))}
 
           <View style={styles.contactBox}>
             <Text style={[styles.contactText, { color: currentTheme.colors.text.muted }]}>
-              Başka bir sorun mu var?
+              {isEn ? 'Have another question?' : 'Başka bir sorun mu var?'}
             </Text>
             <TouchableOpacity onPress={() => router.back()}>
-              <Text style={[styles.contactLink, { color: currentTheme.colors.primary }]}>Bize ulaşın</Text>
+              <Text style={[styles.contactLink, { color: currentTheme.colors.primary }]}>{t('settings.contactUs')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

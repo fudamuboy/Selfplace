@@ -2,6 +2,8 @@ const db = require('../config/db');
 const OpenAI = require('openai');
 const { getInsightFeed } = require('../services/emotionalContextBuilder');
 const { generateRitualReflection } = require('../services/aiService');
+const { getLanguage } = require('../utils/languageResolver');
+const { getWeatherPresentation, getEnergyPresentation } = require('../utils/relationshipEnums');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -41,7 +43,7 @@ exports.sendInvite = async (req, res) => {
   const requesterId = req.user.id;
 
   if (!email || !connectionType) {
-    return res.status(400).json({ message: 'E-posta adresi ve ilişki türü gereklidir.' });
+    return res.status(400).json({ message: getLanguage(req) === 'en' ? 'Email address and relationship type are required.' : 'E-posta adresi ve ilişki türü gereklidir.' });
   }
 
   try {
@@ -55,7 +57,7 @@ exports.sendInvite = async (req, res) => {
       );
       if (parseInt(activeCountRes.rows[0].count) >= 1) {
         return res.status(409).json({
-          message: 'Ücretsiz planda yalnızca 1 aktif bağlantı kurabilirsiniz. Sınırsız bağlantı için planınızı Selfplace Plus\'a yükseltin.',
+          message: getLanguage(req) === 'en' ? 'The free plan includes 1 active connection. Upgrade to Selfplace Plus for unlimited connections.' : 'Ücretsiz planda yalnızca 1 aktif bağlantı kurabilirsiniz. Sınırsız bağlantı için planınızı Selfplace Plus\'a yükseltin.',
           isLimitReached: true
         });
       }
@@ -64,14 +66,14 @@ exports.sendInvite = async (req, res) => {
     // 1. Find the recipient user
     const recipientRes = await db.query('SELECT id, username FROM users WHERE email = $1', [email.trim().toLowerCase()]);
     if (recipientRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Bu e-posta adresine sahip bir kullanıcı bulunamadı.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'No user was found with this email address.' : 'Bu e-posta adresine sahip bir kullanıcı bulunamadı.' });
     }
 
     const recipientId = recipientRes.rows[0].id;
 
     // 2. Prevent self-invite
     if (recipientId === requesterId) {
-      return res.status(400).json({ message: 'Kendinize bağlantı isteği gönderemezsiniz.' });
+      return res.status(400).json({ message: getLanguage(req) === 'en' ? 'You can\'t send a connection request to yourself.' : 'Kendinize bağlantı isteği gönderemezsiniz.' });
     }
 
     // 3. Check existing connection (any direction)
@@ -85,13 +87,13 @@ exports.sendInvite = async (req, res) => {
     if (checkRes.rows.length > 0) {
       const conn = checkRes.rows[0];
       if (conn.status === 'active') {
-        return res.status(400).json({ message: 'Bu kullanıcıyla zaten aktif bir bağlantınız var.' });
+        return res.status(400).json({ message: getLanguage(req) === 'en' ? 'You already have an active connection with this user.' : 'Bu kullanıcıyla zaten aktif bir bağlantınız var.' });
       }
       if (conn.status === 'pending') {
         if (conn.requester_id === requesterId) {
-          return res.status(400).json({ message: 'Bu kullanıcıya zaten beklemede olan bir isteğiniz var.' });
+          return res.status(400).json({ message: getLanguage(req) === 'en' ? 'You already have a pending request to this user.' : 'Bu kullanıcıya zaten beklemede olan bir isteğiniz var.' });
         } else {
-          return res.status(400).json({ message: 'Bu kullanıcıdan zaten beklemede olan bir istek aldınız. Lütfen kabul edin.' });
+          return res.status(400).json({ message: getLanguage(req) === 'en' ? 'This user has already sent you a request. Please accept it.' : 'Bu kullanıcıdan zaten beklemede olan bir istek aldınız. Lütfen kabul edin.' });
         }
       }
       // If rejected or disconnected, we can update it or delete and re-create. Let's delete the old record.
@@ -115,13 +117,13 @@ exports.sendInvite = async (req, res) => {
     );
 
     res.status(201).json({
-      message: 'Bağlantı isteği başarıyla gönderildi.',
+      message: getLanguage(req) === 'en' ? 'Connection request sent.' : 'Bağlantı isteği başarıyla gönderildi.',
       connectionId
     });
 
   } catch (err) {
     console.error('[relationshipController] sendInvite error:', err);
-    res.status(500).json({ message: 'İstek gönderilemedi. Lütfen tekrar deneyin.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t send the request. Please try again.' : 'İstek gönderilemedi. Lütfen tekrar deneyin.' });
   }
 };
 
@@ -173,7 +175,7 @@ exports.getConnections = async (req, res) => {
     res.json(formatted);
   } catch (err) {
     console.error('[relationshipController] getConnections error:', err);
-    res.status(500).json({ message: 'Bağlantılar yüklenemedi.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t load connections.' : 'Bağlantılar yüklenemedi.' });
   }
 };
 
@@ -187,7 +189,7 @@ exports.respondInvite = async (req, res) => {
   const userId = req.user.id;
 
   if (!['accept', 'reject'].includes(action)) {
-    return res.status(400).json({ message: 'Geçersiz işlem.' });
+    return res.status(400).json({ message: getLanguage(req) === 'en' ? 'Invalid action.' : 'Geçersiz işlem.' });
   }
 
   try {
@@ -198,7 +200,7 @@ exports.respondInvite = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Bağlantı isteği bulunamadı veya yetkiniz yok.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Connection request not found, or you don\'t have permission.' : 'Bağlantı isteği bulunamadı veya yetkiniz yok.' });
     }
 
     if (action === 'accept') {
@@ -211,7 +213,7 @@ exports.respondInvite = async (req, res) => {
         );
         if (parseInt(activeCountRes.rows[0].count) >= 1) {
           return res.status(409).json({
-            message: 'Ücretsiz planda yalnızca 1 aktif bağlantı kurabilirsiniz. Sınırsız bağlantı için planınızı yükseltin.',
+            message: getLanguage(req) === 'en' ? 'The free plan includes 1 active connection. Upgrade your plan for unlimited connections.' : 'Ücretsiz planda yalnızca 1 aktif bağlantı kurabilirsiniz. Sınırsız bağlantı için planınızı yükseltin.',
             isLimitReached: true
           });
         }
@@ -226,8 +228,8 @@ exports.respondInvite = async (req, res) => {
 
       // Create shared timeline entry for the connection
       await db.query(
-        `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr)
-         VALUES ($1, 'created', 'İlk Bağlantı Kuruldu 🌿', 'Selfplace üzerinde duygusal uyum yolculuğunuz başladı.')`,
+        `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr, title_en, description_en)
+         VALUES ($1, 'created', 'İlk Bağlantı Kuruldu 🌿', 'Selfplace üzerinde duygusal uyum yolculuğunuz başladı.', 'First Connection Established 🌿', 'Your emotional harmony journey began on Selfplace.')`,
         [connectionId]
       );
 
@@ -243,7 +245,7 @@ exports.respondInvite = async (req, res) => {
         console.error('[relationshipController] trackEvent (recipient) error:', err.message)
       );
 
-      return res.json({ message: 'Bağlantı başarıyla kabul edildi.' });
+      return res.json({ message: getLanguage(req) === 'en' ? 'Connection accepted.' : 'Bağlantı başarıyla kabul edildi.' });
     } else {
       await db.query(
         `UPDATE relationship_connections 
@@ -251,12 +253,12 @@ exports.respondInvite = async (req, res) => {
          WHERE id = $1`,
         [connectionId]
       );
-      return res.json({ message: 'Bağlantı isteği reddedildi.' });
+      return res.json({ message: getLanguage(req) === 'en' ? 'Connection request declined.' : 'Bağlantı isteği reddedildi.' });
     }
 
   } catch (err) {
     console.error('[relationshipController] respondInvite error:', err);
-    res.status(500).json({ message: 'İşlem tamamlanamadı.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t complete the action.' : 'İşlem tamamlanamadı.' });
   }
 };
 
@@ -276,7 +278,7 @@ exports.updateSettings = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Bağlantı bulunamadı.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Connection not found.' : 'Bağlantı bulunamadı.' });
     }
 
     const conn = checkRes.rows[0];
@@ -303,7 +305,7 @@ exports.updateSettings = async (req, res) => {
     }
 
     if (updateFields.length === 0) {
-      return res.status(400).json({ message: 'Güncellenecek alan belirtilmedi.' });
+      return res.status(400).json({ message: getLanguage(req) === 'en' ? 'No fields to update were provided.' : 'Güncellenecek alan belirtilmedi.' });
     }
 
     params.push(connectionId);
@@ -314,11 +316,11 @@ exports.updateSettings = async (req, res) => {
       params
     );
 
-    res.json({ message: 'Bağlantı ayarları güncellendi.' });
+    res.json({ message: getLanguage(req) === 'en' ? 'Connection settings updated.' : 'Bağlantı ayarları güncellendi.' });
 
   } catch (err) {
     console.error('[relationshipController] updateSettings error:', err);
-    res.status(500).json({ message: 'Ayarlar güncellenemedi.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t update settings.' : 'Ayarlar güncellenemedi.' });
   }
 };
 
@@ -338,16 +340,16 @@ exports.disconnect = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Bağlantı bulunamadı veya silme yetkiniz yok.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Connection not found, or you don\'t have permission to remove it.' : 'Bağlantı bulunamadı veya silme yetkiniz yok.' });
     }
 
     // Hard delete to automatically cascade delete insights, privacy settings, relationship_context
     await db.query('DELETE FROM relationship_connections WHERE id = $1', [connectionId]);
 
-    res.json({ message: 'Bağlantı başarıyla kesildi.' });
+    res.json({ message: getLanguage(req) === 'en' ? 'Connection removed.' : 'Bağlantı başarıyla kesildi.' });
   } catch (err) {
     console.error('[relationshipController] disconnect error:', err);
-    res.status(500).json({ message: 'Bağlantı kesilemedi.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t remove the connection.' : 'Bağlantı kesilemedi.' });
   }
 };
 
@@ -380,7 +382,7 @@ exports.getPrivacySettings = async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[relationshipController] getPrivacySettings error:', err);
-    res.status(500).json({ message: 'Gizlilik ayarları getirilemedi.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t load privacy settings.' : 'Gizlilik ayarları getirilemedi.' });
   }
 };
 
@@ -400,7 +402,7 @@ exports.updatePrivacySettings = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Bağlantı bulunamadı.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Connection not found.' : 'Bağlantı bulunamadı.' });
     }
 
     const result = await db.query(
@@ -427,12 +429,12 @@ exports.updatePrivacySettings = async (req, res) => {
     );
 
     res.json({
-      message: 'Gizlilik sınırları güncellendi.',
+      message: getLanguage(req) === 'en' ? 'Privacy boundaries updated.' : 'Gizlilik sınırları güncellendi.',
       settings: result.rows[0]
     });
   } catch (err) {
     console.error('[relationshipController] updatePrivacySettings error:', err);
-    res.status(500).json({ message: 'Gizlilik ayarları güncellenemedi.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t update privacy settings.' : 'Gizlilik ayarları güncellenemedi.' });
   }
 };
 
@@ -458,7 +460,7 @@ exports.getInsight = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
     const conn = checkRes.rows[0];
@@ -565,11 +567,15 @@ exports.getInsight = async (req, res) => {
     }
 
     // 5. Query recent insight to see if we can serve a cached version
+    const rawLang = req.headers['x-app-language'] || req.headers['accept-language'] || req.query.lang;
+    const isEn = (rawLang && String(rawLang).toLowerCase().startsWith('en'));
+    const lang = isEn ? 'en' : 'tr';
+
     const cachedInsight = await db.query(
-      `SELECT * FROM relationship_insights 
-       WHERE connection_id = $1 AND for_user_id = $2 
+      `SELECT insight_text, generated_at, language FROM relationship_insights 
+       WHERE connection_id = $1 AND for_user_id = $2 AND language = $3 AND language IS NOT NULL
        ORDER BY generated_at DESC LIMIT 1`,
-      [connectionId, userId]
+      [connectionId, userId, lang]
     );
 
     const forceRefresh = req.query.refresh === 'true';
@@ -577,15 +583,15 @@ exports.getInsight = async (req, res) => {
       const insight = cachedInsight.rows[0];
       // 24 hour fresh cache window
       const isFresh = (new Date() - new Date(insight.generated_at)) < 24 * 60 * 60 * 1000;
-      if (isFresh) {
+      if (isFresh && insight.language === lang) {
         return res.json({ insightText: insight.insight_text, generatedAt: insight.generated_at });
       }
     }
 
     // 6. Generate new AI insight
-    const connectionTypeStr = conn.connection_type === 'partner' ? 'Partner' :
-                              conn.connection_type === 'best_friend' ? 'En Yakın Arkadaş' :
-                              conn.connection_type === 'family' ? 'Aile Üyesi' : 'Yakın Kişi';
+    const connectionTypeStr = conn.connection_type === 'partner' ? (isEn ? 'Partner' : 'Partner') :
+                              conn.connection_type === 'best_friend' ? (isEn ? 'Closest Friend' : 'En Yakın Arkadaş') :
+                              conn.connection_type === 'family' ? (isEn ? 'Family Member' : 'Aile Üyesi') : (isEn ? 'Close Person' : 'Yakın Kişi');
 
     const systemPrompt = `You are "Selfplace", a highly emotionally intelligent and gentle relational empathy guide.
 You are generating a private, reflective empathy insight for user "${myUsername}" regarding their connection with "${partnerName}" (Relationship Type: ${connectionTypeStr}).
@@ -595,15 +601,15 @@ CRITICAL SAFETY & PRIVACY RULES:
 2. NEVER compare the users competitively or score them against each other.
 3. NEVER take sides or judge their actions. Avoid blame completely.
 4. DO NOT diagnose their relationship, tell them what to do, or suggest breaking up/connecting more dependency.
-5. The guidance must feel gentle, poetic, warm, non-invasive, and focus on fostering mutual empathy and understanding.
-6. Speak in Turkish. Keep it concise, warm, and comforting (exactly 3-4 sentences max).
+5. The guidance must feel gentle, warm, non-invasive, and focus on fostering mutual empathy and understanding.
+6. Speak in ${isEn ? 'ENGLISH' : 'TURKISH'}. Keep it concise, warm, and comforting (exactly 3-4 sentences max).
 
 Use the following profiles to synthesize communication insights:
 ${myDossier}
 
 ${partnerDossier}
 
-Guide the user on how they can approach their interaction style, respect each other's emotional space, and bridge any compatibility differences based on their profiles. Example: "Her iki taraf da farklı şekillerde dinlenmek isteyebilir. Biri daha doğrudan konuşmaya ihtiyaç duyarken, diğeri sessizce hislerini sindirmeyi seçebilir. Bu farklılıklar bir mesafe değil, birbirinizi daha derinden tanımak için birer davettir."`;
+Guide the user on how they can approach their interaction style, respect each other's emotional space, and bridge any compatibility differences based on their profiles in ${isEn ? 'ENGLISH' : 'TURKISH'}.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -615,10 +621,10 @@ Guide the user on how they can approach their interaction style, respect each ot
 
     // Save insight to DB
     const insertInsight = await db.query(
-      `INSERT INTO relationship_insights (connection_id, for_user_id, insight_text) 
-       VALUES ($1, $2, $3) 
+      `INSERT INTO relationship_insights (connection_id, for_user_id, insight_text, language) 
+       VALUES ($1, $2, $3, $4) 
        RETURNING generated_at`,
-      [connectionId, userId, insightText]
+      [connectionId, userId, insightText, lang]
     );
 
     res.json({
@@ -628,7 +634,7 @@ Guide the user on how they can approach their interaction style, respect each ot
 
   } catch (err) {
     console.error('[relationshipController] getInsight error:', err);
-    res.status(500).json({ message: 'İlişki içgörüsü şu an üretilemiyor, lütfen daha sonra tekrar deneyin.' });
+    res.status(500).json({ message: getLanguage(req) === 'en' ? 'The relationship insight can\'t be generated right now. Please try again later.' : 'İlişki içgörüsü şu an üretilemiyor, lütfen daha sonra tekrar deneyin.' });
   }
 };
 
@@ -639,8 +645,8 @@ Guide the user on how they can approach their interaction style, respect each ot
 exports.getDailySync = async (req, res) => {
   const connectionId = req.params.id;
   const userId = req.user.id;
-
-
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   try {
     // 1. Verify active connection
@@ -651,29 +657,29 @@ exports.getDailySync = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
-    // 2. Query today's sync
+    // 2. Query today's sync for this language
     const todaySync = await db.query(
-      'SELECT * FROM relationship_daily_syncs WHERE connection_id = $1 AND synced_date = CURRENT_DATE',
-      [connectionId]
+      'SELECT * FROM relationship_daily_syncs WHERE connection_id = $1 AND synced_date = CURRENT_DATE AND language_code = $2',
+      [connectionId, lang]
     );
 
     const isSig = await isSignatureConnection(connectionId);
-
 
     if (todaySync.rows.length > 0) {
       const row = todaySync.rows[0];
       // If the connection has Signature but the stored daily sync is missing signature fields,
       // let's force re-generate it. Otherwise, return the cached sync.
       if (isSig && !row.emotional_aura) {
-
         // Force regeneration to fill Signature fields
       } else {
-
-        return res.json(row);
+        return res.json({
+          ...row,
+          emotional_weather: getWeatherPresentation(row.emotional_weather, lang),
+          relationship_energy: getEnergyPresentation(row.relationship_energy, lang),
+        });
       }
     }
 
@@ -682,11 +688,11 @@ exports.getDailySync = async (req, res) => {
     const countRes = await db.query('SELECT COUNT(*) FROM relationship_daily_syncs WHERE connection_id = $1', [connectionId]);
     const syncCount = parseInt(countRes.rows[0].count);
 
-
     if (plan === 'free' && syncCount >= 3) {
-
       return res.status(402).json({
-        message: 'Ücretsiz planda günlük uyum limiti doldu. Sınırsız günlük uyum, hava durumu ve zengin analizler için Selfplace Plus\'a geçebilirsiniz.',
+        message: isEn 
+          ? 'Daily sync limit reached on free plan. Upgrade to Selfplace Plus for unlimited daily sync, weather and deep insights.'
+          : 'Ücretsiz planda günlük uyum limiti doldu. Sınırsız günlük uyum, hava durumu ve zengin analizler için Selfplace Plus\'a geçebilirsiniz.',
         isPremiumLocked: true
       });
     }
@@ -694,7 +700,7 @@ exports.getDailySync = async (req, res) => {
     // 4. Gather user profile & check-in patterns (privacy aware)
     const conn = checkRes.rows[0];
     const isRequester = conn.requester_id === userId;
-    const partnerId = isRequester ? conn.recipient_id : conn.requester_id;
+    const partnerId = isRequester ? conn.recipient_id : conn.requester_alias;
 
     const privacyRes = await db.query(
       'SELECT * FROM relationship_privacy_settings WHERE connection_id = $1',
@@ -715,7 +721,7 @@ exports.getDailySync = async (req, res) => {
       userBMoods = moods.rows.map(r => r.mood);
     }
 
-    let userAPersonality = 'Bilinmiyor';
+    let userAPersonality = isEn ? 'Unknown' : 'Bilinmiyor';
     if (!myPrivacy.exclude_personality) {
       const p = await db.query(
         "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
@@ -724,10 +730,10 @@ exports.getDailySync = async (req, res) => {
       if (p.rows.length > 0) {
         const row = p.rows[0];
         const data = row.result_data;
-        userAPersonality = row.test_type === 'journey' ? (data.color_family?.name || 'Bilinmiyor') : data.title;
+        userAPersonality = row.test_type === 'journey' ? (data.color_family?.name || (isEn ? 'Unknown' : 'Bilinmiyor')) : data.title;
       }
     }
-    let userBPersonality = 'Bilinmiyor';
+    let userBPersonality = isEn ? 'Unknown' : 'Bilinmiyor';
     if (!partnerPrivacy.exclude_personality) {
       const p = await db.query(
         "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
@@ -736,31 +742,31 @@ exports.getDailySync = async (req, res) => {
       if (p.rows.length > 0) {
         const row = p.rows[0];
         const data = row.result_data;
-        userBPersonality = row.test_type === 'journey' ? (data.color_family?.name || 'Bilinmiyor') : data.title;
+        userBPersonality = row.test_type === 'journey' ? (data.color_family?.name || (isEn ? 'Unknown' : 'Bilinmiyor')) : data.title;
       }
     }
 
     // Gather recent ritual answers for context if allowed
     let ritualAnswersText = '';
     const myRituals = await db.query(
-      `SELECT r.prompt_tr, resp.response_text FROM relationship_rituals r
+      `SELECT r.prompt_tr, r.prompt_en, resp.response_text FROM relationship_rituals r
        JOIN relationship_ritual_responses resp ON r.id = resp.ritual_id
        WHERE r.connection_id = $1 AND resp.user_id = $2 AND resp.include_in_synthesis = true
        ORDER BY r.created_at DESC LIMIT 2`,
       [connectionId, userId]
     );
     if (myRituals.rows.length > 0) {
-      ritualAnswersText += `User A recent reflection answers:\n` + myRituals.rows.map(r => `- Q: "${r.prompt_tr}" -> A: "${r.response_text}"`).join('\n');
+      ritualAnswersText += `User A recent reflection answers:\n` + myRituals.rows.map(r => `- Q: "${isEn ? (r.prompt_en || r.prompt_tr) : r.prompt_tr}" -> A: "${r.response_text}"`).join('\n');
     }
     const partnerRituals = await db.query(
-      `SELECT r.prompt_tr, resp.response_text FROM relationship_rituals r
+      `SELECT r.prompt_tr, r.prompt_en, resp.response_text FROM relationship_rituals r
        JOIN relationship_ritual_responses resp ON r.id = resp.ritual_id
        WHERE r.connection_id = $1 AND resp.user_id = $2 AND resp.include_in_synthesis = true
        ORDER BY r.created_at DESC LIMIT 2`,
       [connectionId, partnerId]
     );
     if (partnerRituals.rows.length > 0) {
-      ritualAnswersText += `\nUser B recent reflection answers:\n` + partnerRituals.rows.map(r => `- Q: "${r.prompt_tr}" -> A: "${r.response_text}"`).join('\n');
+      ritualAnswersText += `\nUser B recent reflection answers:\n` + partnerRituals.rows.map(r => `- Q: "${isEn ? (r.prompt_en || r.prompt_tr) : r.prompt_tr}" -> A: "${r.response_text}"`).join('\n');
     }
 
     // 5. Gather historical memory and Daily Sync logs for continuity
@@ -774,7 +780,7 @@ exports.getDailySync = async (req, res) => {
     const pastSyncs = pastSyncsRes.rows;
 
     const pastEventsRes = await db.query(
-      `SELECT event_type, title_tr, description_tr, created_at 
+      `SELECT event_type, title_tr, title_en, description_tr, description_en, created_at 
        FROM relationship_timeline 
        WHERE connection_id = $1 
        ORDER BY created_at DESC LIMIT 3`,
@@ -793,32 +799,39 @@ exports.getDailySync = async (req, res) => {
 
     let historyContext = '';
     if (pastSyncs.length > 0) {
-      historyContext += `### GEÇMİŞ GÜNLÜK UYUMLAR (En sonuncudan eskiye doğru):\n`;
+      historyContext += `### PAST DAILY SYNCS:\n`;
       pastSyncs.forEach((s, index) => {
         const dateStr = s.synced_date instanceof Date ? s.synced_date.toISOString().split('T')[0] : String(s.synced_date);
-        historyContext += `- Gün ${index + 1} (${dateStr}): Hava: ${s.emotional_weather}, Enerji: ${s.relationship_energy}`;
+        historyContext += `- Day ${index + 1} (${dateStr}): Weather: ${getWeatherPresentation(s.emotional_weather, lang)}, Energy: ${getEnergyPresentation(s.relationship_energy, lang)}`;
         if (s.emotional_aura) {
-          historyContext += `, Aura: ${s.emotional_aura}, Durum: ${s.connection_state}, Ritim: ${s.relationship_rhythm}, Yakınlık: %${s.emotional_closeness}`;
+          historyContext += `, Aura: ${s.emotional_aura}, State: ${s.connection_state}, Rhythm: ${s.relationship_rhythm}, Closeness: %${s.emotional_closeness}`;
         }
         historyContext += `\n`;
       });
     } else {
-      historyContext += `### GEÇMİŞ GÜNLÜK UYUM: Yok (İlişki yeni veya ilk defa sentezleniyor)\n`;
+      historyContext += `### PAST DAILY SYNC: None (New relationship or first synthesis)\n`;
     }
 
     if (pastEvents.length > 0) {
-      historyContext += `### SON İLİŞKİ KİLOMETRE TAŞLARI / OLAYLAR:\n`;
+      historyContext += `### RECENT RELATIONSHIP MILESTONES:\n`;
       pastEvents.forEach(e => {
-        historyContext += `- [${e.event_type}] ${e.title_tr}: ${e.description_tr || ''}\n`;
+        historyContext += `- [${e.event_type}] ${isEn ? (e.title_en || e.title_tr) : e.title_tr}: ${isEn ? (e.description_en || e.description_tr || '') : (e.description_tr || '')}\n`;
       });
     }
 
     if (pastCrystals.length > 0) {
-      historyContext += `### BİRİKEN DUYGUSAL ANI KRİSTALLERİ (Derin Paylaşımlar):\n`;
+      historyContext += `### ACCUMULATED EMOTIONAL MEMORY CRYSTALS:\n`;
       pastCrystals.forEach(c => {
         historyContext += `- "${c.summary}" (${c.symbol})\n`;
       });
     }
+
+    const weatherOptions = isEn 
+      ? "'Calm', 'Serene', 'Gentle', 'Tender', 'Deep', 'Mildly Intense', 'Renewing'"
+      : "'Sakin', 'Dingin', 'Yumuşak', 'Hassas', 'Derin', 'Hafif Yoğun', 'Yenileyici'";
+    const energyOptions = isEn
+      ? "'Peaceful', 'Balanced', 'Soft', 'Renewing', 'Distant', 'Deep', 'Emotional'"
+      : "'Huzurlu', 'Dengeli', 'Yumuşak', 'Yenileniyor', 'Mesafeli', 'Derin', 'Duygusal'";
 
     let systemPrompt;
     if (isSig) {
@@ -828,46 +841,39 @@ User A Moods: [${userAMoods.join(', ')}], Personality: ${userAPersonality}
 User B Moods: [${userBMoods.join(', ')}], Personality: ${userBPersonality}
 ${ritualAnswersText}
 
-Burada ise çiftin son günlerdeki ilişki geçmişi bulunmaktadır. Bu geçmişi ve sürekliliği kesinlikle göz önünde bulundurmalısın:
+Recent relationship history:
 ${historyContext}
 
 CRITICAL RULES FOR EMOTIONAL CONTINUITY AND INERTIA (SLOW DRIFT):
 1. The emotional weather, relationship energy, emotional aura, connection state, and rhythm MUST NOT jump randomly. They must evolve progressively.
-2. If past syncs exist, maintain atmospheric inertia. Keep the values identical or very close to yesterday's values (Gün 1) unless there is a clear, strong shift in today's moods/rituals (e.g. resolving a long silence, sharing deep vulnerability, or sudden tension).
-3. Transitions require multiple days of consistent signals. E.g., don't jump from a quiet, cold aura directly to spring bloom in one day. Ensure the transitions feel like a gradual emotional drift.
-4. If there is no previous history, initialize them to balanced, gentle starting values.
+2. If past syncs exist, maintain atmospheric inertia. Keep the values identical or very close to yesterday's values unless there is a clear shift.
+3. If there is no previous history, initialize them to balanced, gentle starting values.
 
-Synthesize a single JSON object. Since this is a Signature tier connection, you must return additional emotional aura, rhythm, and state dimensions.
+Synthesize a single JSON object in ${isEn ? 'ENGLISH' : 'TURKISH'}. Since this is a Signature tier connection, you must return additional emotional aura, rhythm, and state dimensions.
 The object must contain exactly:
-- "emotionalWeather": An atmospheric state choosing from: 'Sakin', 'Dingin', 'Yumuşak', 'Hassas', 'Derin', 'Hafif Yoğun', 'Yenileyici'.
-- "relationshipEnergy": An atmospheric state choosing from: 'Huzurlu', 'Dengeli', 'Yumuşak', 'Yenileniyor', 'Mesafeli', 'Derin', 'Duygusal'.
-- "generatedText": A warm, poetic, gentle 2-sentence Turkish guidance text guiding how they can support each other today. Do not diagnose, judge, or blame. Avoid percentages or competitive metrics. Example: "Bugün birbirinizin sessiz anlarına alan açmak dinlendirici olabilir. İkinizin de sakinleşmek için biraz zamana ihtiyacı var."
-- "emotionalAura": A short, beautiful poetic emotional aura description in Turkish with emotional symbols (e.g. "Sessiz Yakınlık 🌙", "Karşılıklı Şefkat 🌸", "Yumuşak Bağlar ✨").
-- "connectionState": A short state text describing the current stage of their connection in Turkish (e.g. "Derinleşen Güven ✨", "Yavaş Uyum 🌿", "Sakin Akış 🌊").
-- "relationshipRhythm": A rhythm summary in Turkish (e.g. "Birlikte Büyüyen Enerji 🌿", "Dengeli Akış 💫", "Yavaş Dalgalanma 🌊").
-- "emotionalCloseness": An integer between 0 and 100 representing emotional closeness, computed based on vulnerability and affection. It should drift slowly (e.g. max +/- 10 points change from yesterday's value).
+- "emotionalWeather": An atmospheric state choosing from: ${weatherOptions}.
+- "relationshipEnergy": An atmospheric state choosing from: ${energyOptions}.
+- "generatedText": A warm, gentle 2-sentence ${isEn ? 'English' : 'Turkish'} guidance text guiding how they can support each other today. Do not diagnose, judge, or blame. Avoid percentages or competitive metrics.
+- "emotionalAura": A short, beautiful emotional aura description in ${isEn ? 'English (e.g. Quiet Intimacy 🌙, Mutual Warmth 🌸)' : 'Turkish (e.g. Sessiz Yakınlık 🌙, Karşılıklı Şefkat 🌸)'}.
+- "connectionState": A short state text describing the current stage of their connection in ${isEn ? 'English (e.g. Deepening Trust ✨, Slow Harmony 🌿)' : 'Turkish (e.g. Derinleşen Güven ✨, Yavaş Uyum 🌿)'}.
+- "relationshipRhythm": A rhythm summary in ${isEn ? 'English (e.g. Growing Together 🌿, Balanced Flow 💫)' : 'Turkish (e.g. Birlikte Büyüyen Enerji 🌿, Dengeli Akış 💫)'}.
+- "emotionalCloseness": An integer between 0 and 100 representing emotional closeness, computed based on vulnerability and affection.
 
 Respond ONLY with valid JSON.`;
     } else {
       systemPrompt = `You are "Selfplace", a relationship empathy guide. 
-Analyze these aggregate communication patterns (no raw journals or chats are present):
+Analyze these aggregate communication patterns:
 User A Moods: [${userAMoods.join(', ')}], Personality: ${userAPersonality}
 User B Moods: [${userBMoods.join(', ')}], Personality: ${userBPersonality}
 ${ritualAnswersText}
 
-Burada ise çiftin son günlerdeki ilişki geçmişi bulunmaktadır. Bu geçmişi ve sürekliliği kesinlikle göz önünde bulundurmalısın:
+Recent relationship history:
 ${historyContext}
 
-CRITICAL RULES FOR EMOTIONAL CONTINUITY AND INERTIA (SLOW DRIFT):
-1. The emotional weather and relationship energy MUST NOT jump randomly. They must evolve progressively.
-2. If past syncs exist, maintain atmospheric inertia. Keep the values identical or very close to yesterday's values (Gün 1) unless there is a clear, strong shift in today's moods/rituals.
-3. Transitions require multiple days of consistent signals.
-4. If there is no previous history, initialize them to balanced, gentle starting values.
-
-Synthesize a single JSON object. The object must contain exactly:
-- "emotionalWeather": An atmospheric state choosing from: 'Sakin', 'Dingin', 'Yumuşak', 'Hassas', 'Derin', 'Hafif Yoğun', 'Yenileyici'.
-- "relationshipEnergy": An atmospheric state choosing from: 'Huzurlu', 'Dengeli', 'Yumuşak', 'Yenileniyor', 'Mesafeli', 'Derin', 'Duygusal'.
-- "generatedText": A warm, poetic, gentle 2-sentence Turkish guidance text guiding how they can support each other today. Do not diagnose, judge, or blame. Avoid percentages or competitive metrics. Example: "Bugün birbirinizin sessiz anlarına alan açmak dinlendirici olabilir. İkinizin de sakinleşmek için biraz zamana ihtiyacı var."
+Synthesize a single JSON object in ${isEn ? 'ENGLISH' : 'TURKISH'}. The object must contain exactly:
+- "emotionalWeather": An atmospheric state choosing from: ${weatherOptions}.
+- "relationshipEnergy": An atmospheric state choosing from: ${energyOptions}.
+- "generatedText": A warm, gentle 2-sentence ${isEn ? 'English' : 'Turkish'} guidance text guiding how they can support each other today.
 
 Respond ONLY with valid JSON.`;
     }
@@ -880,13 +886,15 @@ Respond ONLY with valid JSON.`;
     });
 
     const parsed = JSON.parse(completion.choices[0].message.content);
+    const finalWeather = getWeatherPresentation(parsed.emotionalWeather, lang);
+    const finalEnergy = getEnergyPresentation(parsed.relationshipEnergy, lang);
 
-    // Save daily sync
+    // Save daily sync with language_code
     const insertRes = await db.query(
       `INSERT INTO relationship_daily_syncs 
-       (connection_id, generated_text, emotional_weather, relationship_energy, emotional_aura, connection_state, relationship_rhythm, emotional_closeness)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (connection_id, synced_date) DO UPDATE SET
+       (connection_id, generated_text, emotional_weather, relationship_energy, emotional_aura, connection_state, relationship_rhythm, emotional_closeness, language_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (connection_id, synced_date, language_code) DO UPDATE SET
          generated_text = EXCLUDED.generated_text,
          emotional_weather = EXCLUDED.emotional_weather,
          relationship_energy = EXCLUDED.relationship_energy,
@@ -898,39 +906,47 @@ Respond ONLY with valid JSON.`;
       [
         connectionId, 
         parsed.generatedText, 
-        parsed.emotionalWeather, 
-        parsed.relationshipEnergy,
+        finalWeather, 
+        finalEnergy,
         parsed.emotionalAura || null,
         parsed.connectionState || null,
         parsed.relationshipRhythm || null,
-        parsed.emotionalCloseness || null
+        parsed.emotionalCloseness || null,
+        lang
       ]
     );
 
+    const savedRow = insertRes.rows[0];
+
     // Add event to timeline if weather changed
     const lastSync = await db.query(
-      'SELECT emotional_weather FROM relationship_daily_syncs WHERE connection_id = $1 AND synced_date < CURRENT_DATE ORDER BY synced_date DESC LIMIT 1',
-      [connectionId]
+      'SELECT emotional_weather FROM relationship_daily_syncs WHERE connection_id = $1 AND synced_date < CURRENT_DATE AND language_code = $2 ORDER BY synced_date DESC LIMIT 1',
+      [connectionId, lang]
     );
-    if (lastSync.rows.length === 0 || lastSync.rows[0].emotional_weather !== parsed.emotionalWeather) {
-      await db.query(
-        `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr)
-         VALUES ($1, 'weather_change', 'Duygusal Hava Değişti 🌤️', 'İlişki atmosferiniz bugün "${parsed.emotionalWeather}" durumuna evrildi.')`,
-        [connectionId]
+    if (lastSync.rows.length === 0 || lastSync.rows[0].emotional_weather !== finalWeather) {
+      const { trackEvent } = require('../services/eventEngine');
+      trackEvent(userId, 'weather_change', 'minor', {
+        weather: getWeatherPresentation(finalWeather, 'tr'),
+        weatherEn: getWeatherPresentation(finalWeather, 'en')
+      }, null, null, connectionId).catch(err =>
+        console.error('[relationshipController] trackEvent weather_change error:', err.message)
       );
     }
 
-
-    res.json(insertRes.rows[0]);
+    res.json({
+      ...savedRow,
+      emotional_weather: getWeatherPresentation(savedRow.emotional_weather, lang),
+      relationship_energy: getEnergyPresentation(savedRow.relationship_energy, lang),
+    });
 
   } catch (err) {
     console.error('[relationshipController] getDailySync error:', err);
     console.error('DAILY SYNC UNHANDLED ERROR:', err.message);
-    res.status(500).json({ message: 'Günlük uyum verisi oluşturulamadı.' });
+    res.status(500).json({ message: isEn ? 'Could not generate daily sync.' : 'Günlük uyum verisi oluşturulamadı.' });
   }
 };
 
-const RITUAL_PROMPTS = [
+const RITUAL_PROMPTS_TR = [
   "Bugün partnerinizde/yakınınızda en çok takdir ettiğiniz küçük şey neydi?",
   "Son zamanlarda zihninizi en çok meşgul eden ve onunla paylaşmak istediğiniz konu nedir?",
   "Bugün kendinizi onun yanında tam anlamıyla duyulmuş ve anlaşılmış hissettiniz mi?",
@@ -940,6 +956,18 @@ const RITUAL_PROMPTS = [
   "Bugün birbirinizin duygusal alanına ne kadar saygı gösterebildiniz?"
 ];
 
+const RITUAL_PROMPTS_EN = [
+  "What was a small thing you appreciated most about your partner/companion today?",
+  "What has been occupying your mind lately that you would like to share with them?",
+  "Did you feel truly heard and understood in their presence today?",
+  "Which recent moment in your connection made you feel safest and most at peace?",
+  "Which moment you shared or experienced together today made you smile?",
+  "Is there a word of gratitude you feel towards them that you often forget to speak aloud?",
+  "How well were you able to honor each other's emotional space today?"
+];
+
+const RITUAL_PROMPTS = RITUAL_PROMPTS_TR;
+
 /**
  * Get active rituals for a connection
  * GET /api/relationships/:id/rituals
@@ -947,6 +975,8 @@ const RITUAL_PROMPTS = [
 exports.getRituals = async (req, res) => {
   const connectionId = req.params.id;
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   try {
     // 1. Verify active connection
@@ -961,12 +991,12 @@ exports.getRituals = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
     const plan = await getUserPlan(userId);
     if (plan === 'free') {
-      return res.status(402).json({ message: 'İlişki ritüelleri premium bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: isEn ? 'Relationship rituals is a premium feature.' : 'İlişki ritüelleri premium bir özelliktir.', isPremiumLocked: true });
     }
 
     // Get today's ritual prompt
@@ -977,17 +1007,21 @@ exports.getRituals = async (req, res) => {
     );
 
     if (ritual.rows.length === 0) {
-      const promptIndex = new Date().getDate() % RITUAL_PROMPTS.length;
-      const prompt = RITUAL_PROMPTS[promptIndex];
+      const promptIndex = new Date().getDate() % RITUAL_PROMPTS_TR.length;
+      const promptTr = RITUAL_PROMPTS_TR[promptIndex];
+      const promptEn = RITUAL_PROMPTS_EN[promptIndex];
       const insert = await db.query(
-        'INSERT INTO relationship_rituals (connection_id, prompt_tr) VALUES ($1, $2) RETURNING *',
-        [connectionId, prompt]
+        'INSERT INTO relationship_rituals (connection_id, prompt_tr, prompt_en) VALUES ($1, $2, $3) RETURNING *',
+        [connectionId, promptTr, promptEn]
       );
       ritual = insert;
     }
 
     const ritualId = ritual.rows[0].id;
-    const promptText = ritual.rows[0].prompt_tr;
+    const promptIdx = RITUAL_PROMPTS_TR.indexOf(ritual.rows[0].prompt_tr);
+    const promptText = isEn 
+      ? (ritual.rows[0].prompt_en || (promptIdx !== -1 ? RITUAL_PROMPTS_EN[promptIdx] : RITUAL_PROMPTS_EN[new Date().getDate() % RITUAL_PROMPTS_EN.length]))
+      : ritual.rows[0].prompt_tr;
 
     // Get my response
     const myResponseRes = await db.query(
@@ -1009,14 +1043,20 @@ exports.getRituals = async (req, res) => {
       prompt: promptText,
       myResponse: myResponseRes.rows[0] || null,
       partnerResponded: partnerResponseRes.rows.length > 0,
-      relationshipReflection: ritual.rows[0].relationship_reflection || null,
-      emotionalClimate: ritual.rows[0].emotional_climate || null,
-      gentleSuggestion: ritual.rows[0].gentle_suggestion || null
+      relationshipReflection: isEn
+        ? (ritual.rows[0].relationship_reflection_en || ritual.rows[0].relationship_reflection || null)
+        : (ritual.rows[0].relationship_reflection || ritual.rows[0].relationship_reflection_en || null),
+      emotionalClimate: isEn
+        ? (ritual.rows[0].emotional_climate_en || ritual.rows[0].emotional_climate || null)
+        : (ritual.rows[0].emotional_climate || ritual.rows[0].emotional_climate_en || null),
+      gentleSuggestion: isEn
+        ? (ritual.rows[0].gentle_suggestion_en || ritual.rows[0].gentle_suggestion || null)
+        : (ritual.rows[0].gentle_suggestion || ritual.rows[0].gentle_suggestion_en || null)
     });
 
   } catch (err) {
     console.error('[relationshipController] getRituals error:', err);
-    res.status(500).json({ message: 'Ritüeller yüklenemedi.' });
+    res.status(500).json({ message: isEn ? 'Could not load rituals.' : 'Ritüeller yüklenemedi.' });
   }
 };
 
@@ -1029,9 +1069,11 @@ exports.respondToRitual = async (req, res) => {
   const ritualId = req.params.ritualId;
   const { responseText, includeInSynthesis } = req.body;
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   if (!responseText || responseText.trim() === '') {
-    return res.status(400).json({ message: 'Cevap alanı boş olamaz.' });
+    return res.status(400).json({ message: getLanguage(req) === 'en' ? 'The answer can\'t be empty.' : 'Cevap alanı boş olamaz.' });
   }
 
   try {
@@ -1042,7 +1084,7 @@ exports.respondToRitual = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
     // Insert response
@@ -1067,10 +1109,9 @@ exports.respondToRitual = async (req, res) => {
     );
 
     if (partnerResp.rows.length > 0) {
-      await db.query(
-        `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr)
-         VALUES ($1, 'ritual_done', 'Ortak Ritüel Tamamlandı ✨', 'Günün duygusal yansımasını iki taraf da tamamlayarak empati bağını pekiştirdi.')`,
-        [connectionId]
+      const { trackEvent } = require('../services/eventEngine');
+      trackEvent(userId, 'ritual_done', 'minor', {}, null, null, connectionId).catch(err =>
+        console.error('[relationshipController] trackEvent ritual_done error:', err.message)
       );
 
       // Check if both opted in for synthesis
@@ -1081,34 +1122,53 @@ exports.respondToRitual = async (req, res) => {
         try {
           // Fetch ritual prompt
           const ritualRes = await db.query(
-            'SELECT prompt_tr FROM relationship_rituals WHERE id = $1',
+            'SELECT prompt_tr, prompt_en FROM relationship_rituals WHERE id = $1',
             [ritualId]
           );
           
           if (ritualRes.rows.length > 0) {
-            const promptText = ritualRes.rows[0].prompt_tr;
+            const promptText = isEn 
+              ? (ritualRes.rows[0].prompt_en || ritualRes.rows[0].prompt_tr) 
+              : ritualRes.rows[0].prompt_tr;
             
             // Trigger AI synthesis reflection
             const reflection = await generateRitualReflection(
               promptText,
               responseText.trim(),
-              partnerResp.rows[0].response_text
+              partnerResp.rows[0].response_text,
+              lang
             );
 
             if (reflection) {
-              await db.query(
-                `UPDATE relationship_rituals
-                 SET relationship_reflection = $1,
-                     emotional_climate = $2,
-                     gentle_suggestion = $3
-                 WHERE id = $4`,
-                [
-                  reflection.relationship_reflection,
-                  reflection.emotional_climate,
-                  reflection.gentle_suggestion,
-                  ritualId
-                ]
-              );
+              if (isEn) {
+                await db.query(
+                  `UPDATE relationship_rituals
+                   SET relationship_reflection_en = $1,
+                       emotional_climate_en = $2,
+                       gentle_suggestion_en = $3
+                   WHERE id = $4`,
+                  [
+                    reflection.relationship_reflection,
+                    reflection.emotional_climate,
+                    reflection.gentle_suggestion,
+                    ritualId
+                  ]
+                );
+              } else {
+                await db.query(
+                  `UPDATE relationship_rituals
+                   SET relationship_reflection = $1,
+                       emotional_climate = $2,
+                       gentle_suggestion = $3
+                   WHERE id = $4`,
+                  [
+                    reflection.relationship_reflection,
+                    reflection.emotional_climate,
+                    reflection.gentle_suggestion,
+                    ritualId
+                  ]
+                );
+              }
 
               // Check if Signature connection and AI detected a memory crystal
               const isSig = await isSignatureConnection(connectionId);
@@ -1132,7 +1192,7 @@ exports.respondToRitual = async (req, res) => {
     }
 
     res.json({
-      message: 'Ritüel cevabınız kaydedildi.',
+      message: getLanguage(req) === 'en' ? 'Your ritual answer has been saved.' : 'Ritüel cevabınız kaydedildi.',
       response: insertRes.rows[0]
     });
 
@@ -1157,13 +1217,20 @@ exports.getTimeline = async (req, res) => {
       [connectionId, userId]
     );
 
+    const lang = getLanguage(req);
+    const isEn = lang === 'en';
+
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
     const plan = await getUserPlan(userId);
+
     if (plan === 'free') {
-      return res.status(402).json({ message: 'İlişki zaman tüneli premium bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({
+        message: isEn ? 'The relationship time tunnel is a premium feature.' : 'İlişki zaman tüneli premium bir özelliktir.',
+        isPremiumLocked: true
+      });
     }
 
     // 2. Fetch timeline
@@ -1172,11 +1239,90 @@ exports.getTimeline = async (req, res) => {
       [connectionId]
     );
 
-    res.json(result.rows);
+    const rows = result.rows.map(row => {
+      if (!isEn) return row;
+      let title = row.title_en || row.title_tr;
+      let desc = row.description_en || row.description_tr;
+      if (!row.title_en) {
+        if (row.event_type === 'created' || row.event_type === 'CONNECTION_CREATED') {
+          title = 'First Connection Established 🌿';
+          desc = (desc || '')
+            .replace('Selfplace üzerinde bağ kurdu.', 'connected on Selfplace.')
+            .replace('Selfplace üzerinde bir araya geldi.', 'connected on Selfplace.')
+            .replace(' ve ', ' and ');
+        } else if (row.event_type === 'weather_change') {
+        title = 'Emotional Weather Changed 🌤️';
+        desc = (desc || '')
+          .replace('Yeni atmosfer:', 'New atmosphere:')
+          .replace('Hafif Yoğun', 'Mildly Intense')
+          .replace('Durgun', 'Calm')
+          .replace('Hassas', 'Sensitive')
+          .replace('Güneşli', 'Sunny')
+          .replace('Bulutlu', 'Cloudy')
+          .replace('Yumuşak', 'Gentle');
+      } else if (row.event_type === 'ritual_done') {
+        title = 'Shared Ritual Completed ✨';
+        desc = (desc || '').replace('Bugünün ritüelinde derinleşildi:', "Deepened in today's ritual:");
+      } else if (row.event_type === 'garden_level_up') {
+        title = 'Relationship Garden Leveled Up 🌱';
+        desc = (desc || '')
+          .replace('Bahçeniz Seviye', 'Your garden reached Level')
+          .replace('oldu. Tebrikler!', 'congratulations!')
+          .replace('İlişki bahçeniz büyüme göstererek Seviye', 'Your relationship garden grew to Level')
+          .replace('oldu! Ortak çabalarınız meyvelerini veriyor.', '! Your shared efforts are bearing fruit.');
+      } else if (row.event_type === 'level_up') {
+        title = 'Relationship Level Milestone 🎉';
+        desc = 'Your connection has reached a new depth.';
+      } else if (row.event_type === 'CHECKIN_COMPLETED') {
+        title = 'Emotion Shared 💭';
+        desc = (desc || '').replace('günlük duygu durumunu paylaştı.', 'shared their daily emotional check-in.');
+      } else if (row.event_type === 'PERSONALITY_COMPLETED') {
+        title = 'Personality Test Completed 🧩';
+        desc = (desc || '').replace('içsel kimlik arketipi testini tamamladı.', 'completed the inner identity archetype test.');
+      } else if (row.event_type === 'JOURNAL_SHARED') {
+        title = 'Journal Shared 📖';
+        desc = (desc || '').replace('hislerini günlüğe yazarak paylaştı.', 'shared their feelings in a journal entry.');
+      } else if (row.event_type === 'INVITATION_ACCEPTED') {
+        title = 'Invitation Card Accepted 💌';
+        desc = (desc || '').replace('dünkü davet kartı sorusunu yanıtlayarak tamamladı.', 'answered and completed the invitation card.');
+      } else if (row.event_type === 'WEEKLY_INSIGHT_GENERATED') {
+        title = 'Weekly Insight Ready ✨';
+        desc = "This week's emotional synthesis for your relationship has been generated.";
+      } else if (row.event_type === 'GOAL_COMPLETED') {
+        title = 'Shared Goal Completed 🎉';
+        desc = 'A shared goal has been successfully completed.';
+      } else if (row.event_type === 'MOOD_IMPROVED') {
+        title = 'Atmosphere Clearing ☀️';
+        desc = 'The energy and closeness in the relationship atmosphere are rising.';
+      } else if (row.event_type === 'MOOD_DECLINED') {
+        title = 'Atmosphere Shifting ☁️';
+        desc = 'A brief quiet or wave of tension is felt in the relationship atmosphere.';
+      }
+      }
+
+      // Safety net: ensure no Turkish text leaks in English mode
+      if (/[\u00c7\u00e7\u011e\u011f\u0130\u0131\u00d6\u00f6\u015e\u015f\u00dc\u00fc]/.test(title || '')) {
+        title = 'Relationship Milestone ✨';
+      }
+      if (/[\u00c7\u00e7\u011e\u011f\u0130\u0131\u00d6\u00f6\u015e\u015f\u00dc\u00fc]/.test(desc || '')) {
+        desc = 'A meaningful moment was shared in your relationship journey.';
+      }
+
+      return {
+        ...row,
+        title_tr: title,
+        description_tr: desc,
+        title,
+        description: desc
+      };
+    });
+
+    res.json(rows);
 
   } catch (err) {
     console.error('[relationshipController] getTimeline error:', err);
-    res.status(500).json({ message: 'Zaman tüneli yüklenemedi.' });
+    const lang = getLanguage(req);
+    res.status(500).json({ message: lang === 'en' ? 'Could not load time tunnel.' : 'Zaman tüneli yüklenemedi.' });
   }
 };
 
@@ -1195,13 +1341,16 @@ exports.getInsightFeed = async (req, res) => {
       [connectionId, userId]
     );
 
+    const lang = getLanguage(req);
+    const isEn = lang === 'en';
+
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
     const plan = await getUserPlan(userId);
     if (plan === 'free') {
-      return res.status(402).json({ message: 'Uyum Fısıltıları premium bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: isEn ? 'Harmony Whispers is a premium feature.' : 'Uyum Fısıltıları premium bir özelliktir.', isPremiumLocked: true });
     }
 
     // 2. Fetch or generate the insights
@@ -1210,7 +1359,8 @@ exports.getInsightFeed = async (req, res) => {
 
   } catch (err) {
     console.error('[relationshipController] getInsightFeed error:', err);
-    res.status(500).json({ message: 'Uyum fısıltıları yüklenemedi.' });
+    const lang = getLanguage(req);
+    res.status(500).json({ message: lang === 'en' ? 'Could not load harmony whispers.' : 'Uyum fısıltıları yüklenemedi.' });
   }
 };
 
@@ -1229,14 +1379,17 @@ exports.getCrystals = async (req, res) => {
       [connectionId, userId]
     );
 
+    const lang = getLanguage(req);
+    const isEn = lang === 'en';
+
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
     // 2. Check Signature tier
     const isSig = await isSignatureConnection(connectionId);
     if (!isSig) {
-      return res.status(402).json({ message: 'Anı Kristalleri Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: isEn ? 'Memory Crystals is exclusive to Signature level.' : 'Anı Kristalleri Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
     }
 
     // 3. Fetch crystals
@@ -1250,7 +1403,8 @@ exports.getCrystals = async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('[relationshipController] getCrystals error:', err);
-    res.status(500).json({ message: 'Anı kristalleri yüklenemedi.' });
+    const lang = getLanguage(req);
+    res.status(500).json({ message: lang === 'en' ? 'Could not load memory crystals.' : 'Anı kristalleri yüklenemedi.' });
   }
 };
 
@@ -1261,6 +1415,8 @@ exports.getCrystals = async (req, res) => {
 exports.getGardenState = async (req, res) => {
   const connectionId = req.params.id;
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   try {
     // 1. Verify active connection
@@ -1270,13 +1426,13 @@ exports.getGardenState = async (req, res) => {
     );
 
     if (checkRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Aktif bağlantı bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'Active connection not found.' : 'Aktif bağlantı bulunamadı.' });
     }
 
     // 2. Check Signature tier
     const isSig = await isSignatureConnection(connectionId);
     if (!isSig) {
-      return res.status(402).json({ message: 'İlişki Bahçesi Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
+      return res.status(402).json({ message: isEn ? 'Relationship Garden is exclusive to Signature level.' : 'İlişki Bahçesi Signature seviyesine özel bir özelliktir.', isPremiumLocked: true });
     }
 
     // 3. Query metrics
@@ -1376,9 +1532,13 @@ exports.getGardenState = async (req, res) => {
       );
       if (dupCheck.rows.length === 0) {
         await db.query(
-          `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr)
-           VALUES ($1, 'garden_level_up', 'Bahçe Seviyesi Yükseldi 🌱', $2)`,
-          [connectionId, `İlişki bahçeniz büyüme göstererek Seviye ${growthLevel} oldu! Ortak çabalarınız meyvelerini veriyor.`]
+          `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr, title_en, description_en)
+           VALUES ($1, 'garden_level_up', 'Bahçe Seviyesi Yükseldi 🌱', $2, 'Relationship Garden Leveled Up 🌱', $3)`,
+          [
+            connectionId, 
+            `İlişki bahçeniz büyüme göstererek Seviye ${growthLevel} oldu! Ortak çabalarınız meyvelerini veriyor.`,
+            `Your relationship garden grew to Level ${growthLevel}! Your shared efforts are bearing fruit.`
+          ]
         );
       }
     }
@@ -1408,6 +1568,7 @@ exports.getGardenState = async (req, res) => {
     });
   } catch (err) {
     console.error('[relationshipController] getGardenState error:', err);
-    res.status(500).json({ message: 'İlişki bahçesi yüklenemedi.' });
+    const lang = getLanguage(req);
+    res.status(500).json({ message: lang === 'en' ? 'Could not load relationship garden.' : 'İlişki bahçesi yüklenemedi.' });
   }
 };

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from '../utils/notifications';
+import { t } from '../i18n';
 
 interface NotificationState {
   remindersEnabled: boolean;
@@ -78,8 +79,8 @@ const useNotificationStore = create<NotificationState>((set, get) => ({
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Selfplace Hatırlatıcısı 🌿",
-        body: "Kendine ayıracağın küçük bir an için hazır mısın?",
+        title: t('notifications.reminderTitle'),
+        body: t('notifications.reminderBody'),
         sound: true,
       },
       trigger: {

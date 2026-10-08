@@ -7,13 +7,27 @@ import useThemeStore from '../store/useThemeStore';
 import { themeModes, ThemeMode } from '../constants/themeModes';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useT } from '../i18n';
+
 export default function ThemeSelectionScreen() {
   const router = useRouter();
   const { currentTheme, setTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const THEME_NAMES: Record<string, { tr: string; en: string }> = {
+    sakin: { tr: 'Sakin 🌙', en: 'Calm 🌙' },
+    sicak: { tr: 'Sıcak ✨', en: 'Warm ✨' },
+    okyanus: { tr: 'Okyanus 🌊', en: 'Ocean 🌊' },
+    gunbatimi: { tr: 'Gün Batımı 🌅', en: 'Sunset 🌅' },
+  };
 
   const renderThemeOption = (themeId: ThemeMode['id']) => {
     const theme = themeModes[themeId];
     const isSelected = currentTheme.id === themeId;
+    const themeDisplayName = THEME_NAMES[themeId]
+      ? (isEn ? THEME_NAMES[themeId].en : THEME_NAMES[themeId].tr)
+      : theme.name;
 
     return (
       <TouchableOpacity
@@ -47,7 +61,7 @@ export default function ThemeSelectionScreen() {
 
           <View style={styles.themeLabelRow}>
             <Text style={[styles.themeName, { color: theme.colors.text.primary }]}>
-              {theme.name}
+              {themeDisplayName}
             </Text>
             {isSelected && (
               <View style={[styles.checkCircle, { backgroundColor: theme.colors.button.primary }]}>
@@ -67,12 +81,12 @@ export default function ThemeSelectionScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Uygulama Hissi</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('settings.theme')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={[styles.description, { color: currentTheme.colors.text.secondary }]}>
-            Selfplace&apos;in sana nasıl hissettirmesini istersin? Aşağıdan bir mod seçerek deneyimini kişiselleştirebilirsin.
+            {isEn ? 'How would you like Selfplace to feel? Personalize your experience by selecting a mode below.' : "Selfplace'in sana nasıl hissettirmesini istersin? Aşağıdan bir mod seçerek deneyimini kişiselleştirebilirsin."}
           </Text>
 
           <View style={styles.optionsContainer}>

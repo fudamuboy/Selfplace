@@ -9,19 +9,22 @@ import { CustomButton } from '../components/CustomButton';
 import { Toast } from '../components/Toast';
 import client from '../api/client';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
-
-const GOALS = [
-  { id: 'Self-understanding', label: 'Kendini Anlama 🧠', subtitle: 'Kendini daha derin keşfet' },
-  { id: 'Relationship growth', label: 'İlişkilerde Büyüme 🌱', subtitle: 'Bağlarını ve empatiyi güçlendir' },
-  { id: 'Emotional balance', label: 'Duygusal Denge ⚖️', subtitle: 'Hislerini sakince yönet' },
-  { id: 'Stress reduction', label: 'Stresi Azaltma 🧘', subtitle: 'Zihnini ve bedenini dinlendir' },
-  { id: 'Personal development', label: 'Kişisel Gelişim 🚀', subtitle: 'Adım adım farkındalıkla büyü' }
-];
+import { useT } from '../i18n';
 
 export default function GoalsSelectionScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
   const { user, updateUser } = useAuthStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const GOALS = [
+    { id: 'Self-understanding', label: t('goals.selfUnderstandingTitle'), subtitle: t('goals.selfUnderstandingSub') },
+    { id: 'Relationship growth', label: t('goals.relationshipGrowthTitle'), subtitle: t('goals.relationshipGrowthSub') },
+    { id: 'Emotional balance', label: t('goals.emotionalBalanceTitle'), subtitle: t('goals.emotionalBalanceSub') },
+    { id: 'Stress reduction', label: t('goals.stressReductionTitle'), subtitle: t('goals.stressReductionSub') },
+    { id: 'Personal development', label: t('goals.personalDevelopmentTitle'), subtitle: t('goals.personalDevelopmentSub') }
+  ];
   
   const [selectedGoals, setSelectedGoals] = useState<string[]>(user?.onboarding_goals || []);
   const [saving, setSaving] = useState(false);
@@ -29,27 +32,25 @@ export default function GoalsSelectionScreen() {
 
   const handleSave = async () => {
     if (selectedGoals.length === 0) {
-      setToast({ visible: true, message: 'Lütfen en az bir hedef seçin.' });
+      setToast({ visible: true, message: isEn ? 'Please select at least one goal.' : 'Lütfen en az bir hedef seçin.' });
       return;
     }
     setSaving(true);
     try {
-      // Update backend
       await client.put('/user/profile', {
         onboarding_goals: selectedGoals
       });
 
-      // Update Zustand local store
       await updateUser({
         onboarding_goals: selectedGoals
       });
 
-      setToast({ visible: true, message: 'Hedefleriniz güncellendi ✨' });
+      setToast({ visible: true, message: isEn ? 'Goals updated ✨' : 'Hedefleriniz güncellendi ✨' });
       setTimeout(() => {
         router.back();
       }, 1000);
     } catch (error) {
-      setToast({ visible: true, message: 'Güncelleme yapılırken bir hata oluştu.' });
+      setToast({ visible: true, message: t('toasts.errorGeneric') });
     } finally {
       setSaving(false);
     }
@@ -62,12 +63,12 @@ export default function GoalsSelectionScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton} disabled={saving}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Hedeflerim</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('goals.title')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={[styles.description, { color: currentTheme.colors.text.secondary }]}>
-            Selfplace deneyimini ve yapay zeka yoldaşının rehberliğini şekillendirecek niyet ve hedeflerini seç.
+            {isEn ? "Select your goals and intentions to guide your Selfplace experience and AI companion." : "Selfplace deneyimini ve yapay zeka yoldaşının rehberliğini şekillendirecek niyet ve hedeflerini seç."}
           </Text>
 
           <View style={styles.goalsContainer}>
@@ -116,7 +117,7 @@ export default function GoalsSelectionScreen() {
           </View>
 
           <CustomButton
-            title="Kaydet"
+            title={t('common.save')}
             onPress={handleSave}
             loading={saving}
             style={{ marginTop: 40 }}

@@ -9,19 +9,22 @@ import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { FORM_MAX_WIDTH, PAGE_PADDING_H } from '../../constants/Layout';
+import { useT } from '../../i18n';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ visible: false, title: '', message: '', success: false });
   const router = useRouter();
+  const { t, language } = useT();
+  const isEn = language === 'en';
 
   const handleSendCode = async () => {
     if (!email) {
       setModal({
         visible: true,
-        title: 'E-posta Gerekli',
-        message: 'Lütfen şifre sıfırlama kodu gönderebilmemiz için kayıtlı e-posta adresini girin.',
+        title: isEn ? 'Email Required' : 'E-posta Gerekli',
+        message: isEn ? 'Please enter your registered email address to receive a password reset code.' : 'Lütfen şifre sıfırlama kodu gönderebilmemiz için kayıtlı e-posta adresini girin.',
         success: false
       });
       return;
@@ -31,8 +34,8 @@ export default function ForgotPasswordScreen() {
     if (!emailRegex.test(email.trim())) {
       setModal({
         visible: true,
-        title: 'Geçersiz E-posta',
-        message: 'Lütfen geçerli bir e-posta adresi girdiğinizden emin olun.',
+        title: isEn ? 'Invalid Email' : 'Geçersiz E-posta',
+        message: isEn ? 'Please make sure you entered a valid email address.' : 'Lütfen geçerli bir e-posta adresi girdiğinizden emin olun.',
         success: false
       });
       return;
@@ -44,15 +47,15 @@ export default function ForgotPasswordScreen() {
       
       setModal({
         visible: true,
-        title: 'Kod Gönderildi',
-        message: '6 haneli şifre sıfırlama kodu e-posta adresine başarıyla gönderildi.',
+        title: isEn ? 'Code Sent' : 'Kod Gönderildi',
+        message: isEn ? 'A 6-digit password reset code has been sent to your email.' : '6 haneli şifre sıfırlama kodu e-posta adresine başarıyla gönderildi.',
         success: true
       });
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || 'Sıfırlama kodu gönderilirken bir sorun oluştu. Lütfen tekrar dene.';
+      const errMsg = error.response?.data?.message || (isEn ? 'Something went wrong while sending the reset code. Please try again.' : 'Sıfırlama kodu gönderilirken bir sorun oluştu. Lütfen tekrar dene.');
       setModal({
         visible: true,
-        title: 'Hata',
+        title: isEn ? 'Error' : 'Hata',
         message: errMsg,
         success: false
       });
@@ -74,9 +77,9 @@ export default function ForgotPasswordScreen() {
               <MascotBlob mood={loading ? "reflective" : "calm"} />
             </View>
 
-            <Text style={styles.title}>Şifremi Unuttum</Text>
+            <Text style={styles.title}>{isEn ? 'Forgot Password' : 'Şifremi Unuttum'}</Text>
             <Text style={styles.subtitle}>
-              Kendine giden yolculuğa devam etmek için kayıtlı e-posta adresini gir. Şifreni yenilemen için 6 haneli bir kod göndereceğiz.
+              {isEn ? 'Enter your registered email address to continue your self-discovery journey. We will send you a 6-digit code to reset your password.' : 'Kendine giden yolculuğa devam etmek için kayıtlı e-posta adresini gir. Şifreni yenilemen için 6 haneli bir kod göndereceğiz.'}
             </Text>
 
             <View style={styles.inputContainer}>
@@ -89,7 +92,7 @@ export default function ForgotPasswordScreen() {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="E-posta adresinizi girin"
+                  placeholder={isEn ? 'Enter your email address' : 'E-posta adresinizi girin'}
                   placeholderTextColor={Colors.text.secondary}
                   value={email}
                   onChangeText={setEmail}
@@ -101,7 +104,7 @@ export default function ForgotPasswordScreen() {
             </View>
 
             <CustomButton
-              title="Sıfırlama Kodu Gönder"
+              title={isEn ? 'Send Reset Code' : 'Sıfırlama Kodu Gönder'}
               onPress={handleSendCode}
               loading={loading}
               style={{ marginTop: 10, width: '100%' }}
@@ -112,7 +115,7 @@ export default function ForgotPasswordScreen() {
               style={styles.backLink}
             >
               <Ionicons name="arrow-back-outline" size={16} color={Colors.primary} />
-              <Text style={styles.backLinkText}>Giriş ekranına dön</Text>
+              <Text style={styles.backLinkText}>{isEn ? 'Back to login' : 'Giriş ekranına dön'}</Text>
             </TouchableOpacity>
             </View>
           </View>

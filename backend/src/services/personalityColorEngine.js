@@ -109,7 +109,28 @@ function resolveColorFamily(scores) {
   return COLOR_FAMILIES[bestMatch.toUpperCase()];
 }
 
+const COLOR_NAMES = {
+  moon_blue: { tr: 'Ay Mavisi', en: 'Moon Blue' },
+  ember_orange: { tr: 'Kor Turuncusu', en: 'Ember Orange' },
+  sage_green: { tr: 'Adaçayı Yeşili', en: 'Sage Green' },
+  golden_amber: { tr: 'Altın Kehribar', en: 'Golden Amber' },
+  violet_mist: { tr: 'Menekşe Sisi', en: 'Violet Mist' }
+};
+
+function localizeColorFamily(colorFamily, isEn = false) {
+  if (!colorFamily) return colorFamily;
+  const id = (colorFamily.id || '').toLowerCase();
+  const langKey = isEn ? 'en' : 'tr';
+  const localizedName = COLOR_NAMES[id]?.[langKey] || (isEn ? colorFamily.name : (COLOR_NAMES[id]?.tr || colorFamily.name));
+  return {
+    ...colorFamily,
+    name: localizedName
+  };
+}
+
 module.exports = {
   COLOR_FAMILIES,
+  COLOR_NAMES,
+  localizeColorFamily,
   resolveColorFamily
 };

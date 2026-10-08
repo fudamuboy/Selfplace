@@ -1,13 +1,16 @@
 const db = require('../config/db');
 const emotionalController = require('./emotionalController');
 const { extractJournalThemes } = require('../services/journalIntelligenceService');
+const { getLanguage } = require('../utils/languageResolver');
 
 exports.createEntry = async (req, res) => {
   const { title, content } = req.body;
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   if (!title && !content) {
-    return res.status(400).json({ message: 'Lütfen başlık veya içerik giriniz.' });
+    return res.status(400).json({ message: isEn ? 'Please enter a title or content.' : 'Lütfen başlık veya içerik giriniz.' });
   }
 
   const finalContent = content || '';
@@ -22,8 +25,8 @@ exports.createEntry = async (req, res) => {
     await emotionalController.syncEntry(
       userId,
       'journal',
-      'Sakin', // Journal entries are calm by default unless analyzed
-      title || 'Günlük Yazısı',
+      isEn ? 'Calm' : 'Sakin', // Journal entries are calm by default unless analyzed
+      title || (isEn ? 'Journal Entry' : 'Günlük Yazısı'),
       finalContent,
       { journal_id: result.rows[0].id }
     );
@@ -41,20 +44,22 @@ exports.createEntry = async (req, res) => {
   } catch (err) {
     console.error('[journalController] createEntry error:', err.message);
     res.status(500).json({ 
-      message: 'Günlük kaydedilemedi.'
+      message: isEn ? 'Could not save journal entry.' : 'Günlük kaydedilemedi.'
     });
   }
 };
 
 exports.getEntries = async (req, res) => {
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
   try {
     const result = await db.query('SELECT * FROM journal_entries WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
     res.json(result.rows);
   } catch (err) {
     console.error('[journalController] getEntries error:', err.message);
     res.status(500).json({ 
-      message: 'Veriler getirilemedi.'
+      message: isEn ? 'Could not load entries.' : 'Veriler getirilemedi.'
     });
   }
 };
@@ -62,16 +67,18 @@ exports.getEntries = async (req, res) => {
 exports.getEntryById = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
   try {
     const result = await db.query('SELECT * FROM journal_entries WHERE id = $1 AND user_id = $2', [id, userId]);
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Kayıt bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'Entry not found.' : 'Kayıt bulunamadı.' });
     }
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[journalController] getEntryById error:', err.message);
     res.status(500).json({ 
-      message: 'Veri getirilemedi.'
+      message: isEn ? 'Could not load entry.' : 'Veri getirilemedi.'
     });
   }
 };
@@ -80,9 +87,11 @@ exports.updateEntry = async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   if (!title && !content) {
-    return res.status(400).json({ message: 'Lütfen başlık veya içerik giriniz.' });
+    return res.status(400).json({ message: isEn ? 'Please enter a title or content.' : 'Lütfen başlık veya içerik giriniz.' });
   }
 
   const finalContent = content || '';
@@ -93,7 +102,7 @@ exports.updateEntry = async (req, res) => {
       [title, finalContent, id, userId]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Kayıt bulunamadı veya yetkiniz yok.' });
+      return res.status(404).json({ message: isEn ? 'Entry not found or unauthorized.' : 'Kayıt bulunamadı veya yetkiniz yok.' });
     }
     // Asynchronously update thematic AI memory
     extractJournalThemes(userId).catch(err => console.error('[journalController] extractJournalThemes error:', err));
@@ -102,7 +111,7 @@ exports.updateEntry = async (req, res) => {
   } catch (err) {
     console.error('[journalController] updateEntry error:', err.message);
     res.status(500).json({ 
-      message: 'Günlük güncellenemedi.'
+      message: isEn ? 'Could not update journal entry.' : 'Günlük güncellenemedi.'
     });
   }
 };
@@ -110,19 +119,21 @@ exports.updateEntry = async (req, res) => {
 exports.deleteEntry = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
   try {
     const result = await db.query('DELETE FROM journal_entries WHERE id = $1 AND user_id = $2 RETURNING *', [id, userId]);
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Kayıt bulunamadı veya yetkiniz yok.' });
+      return res.status(404).json({ message: isEn ? 'Entry not found or unauthorized.' : 'Kayıt bulunamadı veya yetkiniz yok.' });
     }
     // Asynchronously update thematic AI memory (in case deletion cleared all recent entries)
     extractJournalThemes(userId).catch(err => console.error('[journalController] extractJournalThemes error:', err));
 
-    res.json({ message: 'Kayıt başarıyla silindi.' });
+    res.json({ message: isEn ? 'Entry successfully deleted.' : 'Kayıt başarıyla silindi.' });
   } catch (err) {
     console.error('[journalController] deleteEntry error:', err.message);
     res.status(500).json({ 
-      message: 'Kayıt silinemedi.'
+      message: isEn ? 'Could not delete entry.' : 'Kayıt silinemedi.'
     });
   }
 };

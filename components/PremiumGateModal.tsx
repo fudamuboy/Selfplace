@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../store/useThemeStore';
 import { MODAL_MAX_WIDTH } from '../constants/Layout';
 
+import { useT } from '../i18n';
+
 export type PremiumFeatureType = 'time-tunnel' | 'deep-memory' | 'advanced-ai' | 'shared-ritual' | 'daily-sync' | 'whispers' | null;
 
 interface PremiumGateModalProps {
@@ -21,51 +23,54 @@ export const PremiumGateModal: React.FC<PremiumGateModalProps> = ({
   onUpgrade,
 }) => {
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
 
   if (!visible || !feature) return null;
+
+  const isEn = language === 'en';
 
   const getFeatureDetails = () => {
     switch (feature) {
       case 'time-tunnel':
         return {
-          title: 'Zaman Tüneli',
-          message: 'Geçmiş duygusal yolculuğunu daha derin keşfetmek için Plus’a geçebilirsin ✨',
+          title: isEn ? 'Time Tunnel' : 'Zaman Tüneli',
+          message: isEn ? 'Upgrade to Plus to explore your past emotional journey in greater depth ✨' : 'Geçmiş duygusal yolculuğunu daha derin keşfetmek için Plus’a geçebilirsin ✨',
           icon: 'trail-sign-outline'
         };
       case 'deep-memory':
         return {
-          title: 'Derin Hafıza',
-          message: 'İlişkinizdeki gelişimleri ve özel anları daha güçlü takip etmek için Plus deneyimi önerilir ✨',
+          title: isEn ? 'Deep Memory' : 'Derin Hafıza',
+          message: isEn ? 'Plus membership recommended to track relationship growth and special moments ✨' : 'İlişkinizdeki gelişimleri ve özel anları daha güçlü takip etmek için Plus deneyimi önerilir ✨',
           icon: 'library-outline'
         };
       case 'advanced-ai':
         return {
-          title: 'Gelişmiş AI',
-          message: 'Seni daha iyi anlayan gelişmiş duygusal rehberlik için premium özellikleri keşfedebilirsin ✨',
+          title: isEn ? 'Advanced AI' : 'Gelişmiş AI',
+          message: isEn ? 'Explore premium features for advanced AI guidance that understands you deeply ✨' : 'Seni daha iyi anlayan gelişmiş duygusal rehberlik için premium özellikleri keşfedebilirsin ✨',
           icon: 'sparkles-outline'
         };
       case 'shared-ritual':
         return {
-          title: 'Ortak Ritüeller',
-          message: 'İlişkinizin günlük ritimlerini ve derin yansımalarını açmak için Plus’a geçebilirsin ✨',
+          title: isEn ? 'Shared Rituals' : 'Ortak Ritüeller',
+          message: isEn ? 'Upgrade to Plus to unlock daily relationship rhythms and shared reflections ✨' : 'İlişkinizin günlük ritimlerini ve derin yansımalarını açmak için Plus’a geçebilirsin ✨',
           icon: 'chatbubbles-outline'
         };
       case 'daily-sync':
         return {
-          title: 'Duygu Uyum Analizi',
-          message: 'Günlük uyum analizi, duygusal hava durumu ve ilişki enerjisi analizlerini açmak için Plus’a geçebilirsin ✨',
+          title: isEn ? 'Harmony Analysis' : 'Duygu Uyum Analizi',
+          message: isEn ? 'Upgrade to Plus to unlock daily sync analysis and emotional atmosphere insights ✨' : 'Günlük uyum analizi, duygusal hava durumu ve ilişki enerjisi analizlerini açmak için Plus’a geçebilirsin ✨',
           icon: 'analytics-outline'
         };
       case 'whispers':
         return {
-          title: 'İlişki Fısıltıları',
-          message: 'Günün size özel hafif duygusal uyum tavsiyelerini açmak için Plus’a geçebilirsin ✨',
+          title: isEn ? 'Relationship Whispers' : 'İlişki Fısıltıları',
+          message: isEn ? 'Upgrade to Plus to unlock personalized relationship recommendations ✨' : 'Günün size özel hafif duygusal uyum tavsiyelerini açmak için Plus’a geçebilirsin ✨',
           icon: 'leaf-outline'
         };
       default:
         return {
-          title: 'Premium Özellik',
-          message: 'İlişkinizi daha derin takip etmek için Plus özellikleri sana yardımcı olabilir ✨',
+          title: isEn ? 'Premium Feature' : 'Premium Özellik',
+          message: isEn ? 'Plus features help you track your relationship and growth more deeply ✨' : 'İlişkinizi daha derin takip etmek için Plus özellikleri sana yardımcı olabilir ✨',
           icon: 'star-outline'
         };
     }
@@ -102,7 +107,7 @@ export const PremiumGateModal: React.FC<PremiumGateModalProps> = ({
               onPress={onUpgrade}
               activeOpacity={0.8}
             >
-              <Text style={styles.upgradeBtnText}>Plus Aboneliğine Geç</Text>
+              <Text style={styles.upgradeBtnText}>{t('settings.upgradeToPlus')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -110,7 +115,7 @@ export const PremiumGateModal: React.FC<PremiumGateModalProps> = ({
               onPress={onClose}
               activeOpacity={0.8}
             >
-              <Text style={[styles.dismissBtnText, { color: currentTheme.colors.text.muted }]}>Daha Sonra</Text>
+              <Text style={[styles.dismissBtnText, { color: currentTheme.colors.text.muted }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>

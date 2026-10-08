@@ -1763,8 +1763,56 @@ const BASE_ARCHETYPES = [
   }
 ];
 
+const { EN_QUESTIONS_MAP } = require('./personalityQuestionsEn');
+
+function localizeQuestion(q, isEn = false) {
+  if (!q) return q;
+  if (!isEn) return q;
+
+  const enMap = EN_QUESTIONS_MAP[q.id];
+  if (enMap) {
+    return {
+      ...q,
+      text: enMap.text,
+      options: q.options.map((opt, i) => ({
+        ...opt,
+        text: enMap.options[i] || opt.text
+      }))
+    };
+  }
+
+  // DEFENSIVE FALLBACK: In English mode, an unmapped question must NEVER leak Turkish
+  console.warn(`[localizeQuestion] Missing EN translation for question ID: ${q.id}. Using safe English fallback.`);
+  return {
+    ...q,
+    text: "How do you experience your inner emotional balance in this situation?",
+    options: q.options.map((opt, i) => ({
+      ...opt,
+      text: i === 0 ? "I quietly observe and stay within my own space" :
+            i === 1 ? "I adapt gently while keeping my balance" :
+            "I express myself openly and seek deeper connection"
+    }))
+  };
+}
+
+function localizeArchetype(arch, isEn = false) {
+  if (!arch || !isEn) return arch;
+  const map = {
+    'oceanheart': { name: 'Ocean Heart', description: 'Deep, calm, and empathetic. A quiet sanctuary that listens attentively.' },
+    'wildfire': { name: 'Wildfire', description: 'Passionate, fast-paced, and expressive. An energetic presence that brightens the room.' },
+    'earthanchor': { name: 'Earth Anchor', description: 'Grounded, rational, and reassuring. A steady foundation that offers peace.' },
+    'windseeker': { name: 'Wind Seeker', description: 'Curious, free-spirited, and exploratory. A vibrant mind seeking new horizons.' },
+    'starweaver': { name: 'Star Weaver', description: 'Dreamy, intuitive, and imaginative. A rich inner world guided by poetic vision.' }
+  };
+  const mapped = map[arch.id];
+  return mapped ? { ...arch, name: mapped.name, description: mapped.description } : arch;
+}
+
 module.exports = {
   DIMENSIONS,
   FULL_POOL,
-  BASE_ARCHETYPES
+  BASE_ARCHETYPES,
+  EN_QUESTIONS_MAP,
+  localizeQuestion,
+  localizeArchetype
 };

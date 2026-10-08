@@ -13,11 +13,15 @@ import * as Clipboard from 'expo-clipboard';
 import { Toast } from '../components/Toast';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 import useSubscriptionStore from '../store/useSubscriptionStore';
+import { useT } from '../i18n';
+import { useLanguageStore } from '../store/useLanguageStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
   const { user } = useAuthStore();
+  const { t, language } = useT();
+  const setLanguage = useLanguageStore((state) => state.setLanguage);
 
   const {
     restoreLoading,
@@ -49,8 +53,8 @@ export default function SettingsScreen() {
     if (!success && value) {
       setInfoModal({
         visible: true,
-        title: 'İzin Gerekli',
-        message: 'Hatırlatıcı gönderebilmemiz için bildirim izni vermeniz gerekiyor.'
+        title: t('common.warning'),
+        message: t('errors.generic')
       });
     }
   };
@@ -65,7 +69,6 @@ export default function SettingsScreen() {
   const handleContactSupport = () => {
     const email = 'selfplace.support@gmail.com';
     Linking.openURL(`mailto:${email}`).catch(() => {
-      // Soft failure: Show custom branded modal instead of technical error
       setContactModalVisible(true);
     });
   };
@@ -82,7 +85,7 @@ export default function SettingsScreen() {
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
-    setToast({ visible: true, message: 'E-posta kopyalandı ✨' });
+    setToast({ visible: true, message: t('toasts.copied') });
   };
 
   const handleSendResetLink = async () => {
@@ -93,21 +96,17 @@ export default function SettingsScreen() {
       await client.post('/auth/forgot-password', { email: user.email });
       setInfoModal({ 
         visible: true, 
-        title: 'Kod Gönderildi', 
-        message: '6 haneli sıfırlama kodu e-posta adresine gönderildi. Şimdi kodunla şifreni yenileyebilirsin.' 
+        title: t('auth.resetPasswordTitle'), 
+        message: t('auth.resetSuccess') 
       });
-      // Navigation happens after modal close or directly? User said "automatically navigate".
-      // I'll set a flag or just navigate. 
-      // Actually, standard UX is show success THEN navigate.
       setTimeout(() => {
         router.push('/reset-password');
       }, 1500);
     } catch (error: any) {
-      
       setInfoModal({ 
         visible: true, 
-        title: 'Hata', 
-        message: 'Bağlantı gönderilirken bir sorun oluştu.' 
+        title: t('common.error'), 
+        message: t('errors.generic') 
       });
     } finally {
       setPasswordLoading(false);
@@ -144,29 +143,31 @@ export default function SettingsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Ayarlar</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('settings.title')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
-          {renderSectionHeader('HESAP')}
-          {renderRow('person-outline', 'Hesap Ayarları', 'Hesap bilgileri ve silme', () => router.push('/account'))}
-          {renderRow('compass-outline', 'Yolculuk Hedeflerim', user?.onboarding_goals && user.onboarding_goals.length > 0 ? user.onboarding_goals.map(g => {
-            if (g === 'Self-understanding') return 'Kendini Anlama';
-            if (g === 'Relationship growth') return 'İlişkilerde Büyüme';
-            if (g === 'Emotional balance') return 'Duygusal Denge';
-            if (g === 'Stress reduction') return 'Stresi Azaltma';
-            if (g === 'Personal development') return 'Kişisel Gelişim';
-            return g;
-          }).join(', ') : 'Belirtilmemiş', () => router.push('/goals-selection'))}
+          {renderSectionHeader(t('settings.languageSection'))}
+          {renderRow(
+            'language-outline',
+            t('settings.selectLanguage'),
+            language === 'tr' ? t('languageSelection.tr') : t('languageSelection.en'),
+            () => setLanguage(language === 'tr' ? 'en' : 'tr')
+          )}
+
+          <View style={{ height: 24 }} />
+          {renderSectionHeader(t('settings.accountSection'))}
+          {renderRow('person-outline', t('account.title'), t('settings.accountSettings'), () => router.push('/account'))}
+          {renderRow('compass-outline', t('goals.title'), user?.onboarding_goals && user.onboarding_goals.length > 0 ? user.onboarding_goals.join(', ') : t('common.optional'), () => router.push('/goals-selection'))}
 
           <View style={{ height: 24 }} />
 
-          {renderSectionHeader('BİLDİRİMLER')}
+          {renderSectionHeader(t('settings.notificationsSection'))}
           {renderRow(
             'notifications-outline', 
-            'Günlük Hatırlatıcı', 
-            remindersEnabled ? `Her gün ${reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : 'Kapalı',
+            t('settings.dailyReminder'), 
+            remindersEnabled ? (language === 'en' ? `Daily at ${reminderTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : `Her gün ${reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`) : t('settings.off'),
             undefined,
             <Switch 
               value={remindersEnabled} 
@@ -180,9 +181,9 @@ export default function SettingsScreen() {
               style={[styles.timeRow, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
               onPress={() => setShowTimePicker(true)}
             >
-              <Text style={{ color: currentTheme.colors.text.primary }}>Hatırlatma Saatini Değiştir</Text>
+              <Text style={{ color: currentTheme.colors.text.primary }}>{t('settings.changeReminderTime')}</Text>
               <Text style={{ color: currentTheme.colors.primary, fontWeight: 'bold' }}>
-                {reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                {reminderTime.toLocaleTimeString(language === 'en' ? 'en-US' : 'tr-TR', { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </TouchableOpacity>
           )}
@@ -198,11 +199,11 @@ export default function SettingsScreen() {
           )}
 
           <View style={{ height: 24 }} />
-          {renderSectionHeader('GÜVENLİK')}
+          {renderSectionHeader(t('settings.accountSection'))}
           {renderRow(
             'lock-closed-outline', 
-            'Şifre', 
-            'Şifreni güvenle sıfırla',
+            t('settings.password'), 
+            t('settings.resetPasswordSub'),
             undefined,
             <TouchableOpacity 
               onPress={handleSendResetLink}
@@ -210,19 +211,19 @@ export default function SettingsScreen() {
               style={{ backgroundColor: currentTheme.colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 }}
             >
               <Text style={{ color: currentTheme.colors.button.text, fontSize: 12, fontWeight: '600' }}>
-                {passwordLoading ? '...' : 'Sıfırla'}
+                {passwordLoading ? '...' : t('settings.resetBtn')}
               </Text>
             </TouchableOpacity>
           )}
 
           <View style={{ height: 24 }} />
-          {renderSectionHeader('DESTEK')}
-          {renderRow('mail-outline', 'Bize Ulaş', 'selfplace.support@gmail.com', handleContactSupport)}
-          {renderRow('help-circle-outline', 'Yardım & SSS', 'Uygulama hakkında merak edilenler', () => router.push('/faq'))}
+          {renderSectionHeader(t('settings.supportSection'))}
+          {renderRow('mail-outline', t('settings.contactUs'), 'selfplace.support@gmail.com', handleContactSupport)}
+          {renderRow('help-circle-outline', t('settings.faq'), language === 'en' ? 'Frequently asked questions' : 'Uygulama hakkında merak edilenler', () => router.push('/faq'))}
           {renderRow(
             'refresh-outline',
-            restoreLoading ? 'Geri Yükleniyor…' : 'Satın Alımları Geri Yükle',
-            'Aboneliğini cihaza yeniden tanımla',
+            restoreLoading ? t('settings.restoringPurchases') : t('settings.restorePurchases'),
+            language === 'en' ? 'Restore subscription on this device' : 'Aboneliğini cihaza yeniden tanımla',
             restoreLoading ? undefined : handleRestorePurchases,
             restoreLoading
               ? <ActivityIndicator size="small" color={currentTheme.colors.primary} />
@@ -230,9 +231,9 @@ export default function SettingsScreen() {
           )}
 
           <View style={{ height: 24 }} />
-          {renderSectionHeader('YASAL')}
-          {renderRow('document-text-outline', 'Kullanım Koşulları', 'Uygulama kuralları ve şartları', () => router.push('/terms'))}
-          {renderRow('shield-outline', 'Gizlilik Politikası', 'Verilerinin nasıl korunduğu', () => router.push('/privacy-policy'))}
+          {renderSectionHeader(t('settings.legalSection'))}
+          {renderRow('document-text-outline', t('settings.termsOfService'), language === 'en' ? 'Rules and conditions' : 'Uygulama kuralları ve şartları', () => router.push('/terms'))}
+          {renderRow('shield-outline', t('settings.privacyPolicy'), language === 'en' ? 'How your data is protected' : 'Verilerinin nasıl korunduğu', () => router.push('/privacy-policy'))}
 
 
 
@@ -250,11 +251,13 @@ export default function SettingsScreen() {
 
       <CustomModal
         visible={contactModalVisible}
-        title="Bize Yaz 🌿"
-        message={"Mail uygulaması açılamadı.\nAşağıdaki adrese yazabilirsin:\n\nselfplace.support@gmail.com"}
+        title={language === 'en' ? 'Contact Us 🌿' : 'Bize Yaz 🌿'}
+        message={language === 'en' 
+          ? "Could not open mail app.\nYou can write to us directly at:\n\nselfplace.support@gmail.com"
+          : "Mail uygulaması açılamadı.\nAşağıdaki adrese yazabilirsin:\n\nselfplace.support@gmail.com"}
         onClose={() => setContactModalVisible(false)}
-        confirmText="Tamam"
-        secondaryText="E-postayı Kopyala"
+        confirmText={language === 'en' ? 'OK' : 'Tamam'}
+        secondaryText={language === 'en' ? 'Copy Email' : 'E-postayı Kopyala'}
         onSecondaryPress={() => copyToClipboard('selfplace.support@gmail.com')}
       />
 

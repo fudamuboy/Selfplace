@@ -9,12 +9,17 @@ import { CustomButton } from '../components/CustomButton';
 import { getRituals, respondToRitual, RelationshipRitual } from '../api/relationshipApi';
 import { CONTENT_MAX_WIDTH, FORM_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 
+import { useT } from '../i18n';
+
 export default function ConnectionRitualsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const connectionId = parseInt(id || '0', 10);
   
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [ritual, setRitual] = useState<RelationshipRitual | null>(null);
@@ -47,18 +52,18 @@ export default function ConnectionRitualsScreen() {
 
   const handleSubmit = async () => {
     if (!responseText.trim()) {
-      showToast('Lütfen cevabınızı yazın.');
+      showToast(isEn ? 'Please write your reflection.' : 'Lütfen cevabınızı yazın.');
       return;
     }
 
     setSubmitLoading(true);
     try {
       await respondToRitual(connectionId, ritual!.ritualId, responseText, includeInSynthesis);
-      showToast('Cevabınız kaydedildi ✨');
+      showToast(isEn ? 'Your reflection saved ✨' : 'Cevabınız kaydedildi ✨');
       fetchDailyRitual();
     } catch (error) {
       console.warn('[ConnectionRituals] Submit error:', error);
-      showToast('Cevap kaydedilemedi.');
+      showToast(isEn ? 'Could not save reflection.' : 'Cevap kaydedilemedi.');
     } finally {
       setSubmitLoading(false);
     }
@@ -87,7 +92,7 @@ export default function ConnectionRitualsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Günlük Ritüel</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Daily Ritual' : 'Günlük Ritüel'}</Text>
         </View>
 
         <KeyboardAvoidingView
@@ -118,7 +123,7 @@ export default function ConnectionRitualsScreen() {
                     color={alreadyAnswered ? currentTheme.colors.primary : currentTheme.colors.text.muted} 
                   />
                   <Text style={[styles.statusText, { color: currentTheme.colors.text.secondary }]}>
-                    {alreadyAnswered ? "Sizin yanıtınız tamamlandı." : "Sizin yanıtınız bekleniyor."}
+                    {alreadyAnswered ? (isEn ? 'Your reflection is completed.' : 'Sizin yanıtınız tamamlandı.') : (isEn ? 'Waiting for your reflection.' : 'Sizin yanıtınız bekleniyor.')}
                   </Text>
                 </View>
                 <View style={[styles.statusRow, { marginTop: 10 }]}>
@@ -128,14 +133,14 @@ export default function ConnectionRitualsScreen() {
                     color={ritual.partnerResponded ? currentTheme.colors.primary : currentTheme.colors.text.muted} 
                   />
                   <Text style={[styles.statusText, { color: currentTheme.colors.text.secondary }]}>
-                    {ritual.partnerResponded ? "Ortağınız yanıtını tamamladı 🌿" : "Ortağınızın yanıtı bekleniyor..."}
+                    {ritual.partnerResponded ? (isEn ? 'Your partner completed their response 🌿' : 'Ortağınız yanıtını tamamladı 🌿') : (isEn ? "Waiting for partner's response..." : 'Ortağınızın yanıtı bekleniyor...')}
                   </Text>
                 </View>
               </View>
 
               {/* Input Group */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>Yansıtmanız</Text>
+                <Text style={[styles.label, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Your Reflection' : 'Yansıtmanız'}</Text>
                 <TextInput
                   style={[
                     styles.textInput, 
@@ -147,7 +152,7 @@ export default function ConnectionRitualsScreen() {
                   ]}
                   value={responseText}
                   onChangeText={setResponseText}
-                  placeholder="Duygularınızı, düşüncelerinizi buraya samimiyetle ve nazikçe yazın..."
+                  placeholder={isEn ? 'Write your feelings and thoughts gently and sincerely here...' : 'Duygularınızı, düşüncelerinizi buraya samimiyetle ve nazikçe yazın...'}
                   placeholderTextColor={currentTheme.colors.text.muted}
                   multiline
                   numberOfLines={6}
@@ -159,8 +164,8 @@ export default function ConnectionRitualsScreen() {
               {/* Synthesis toggle */}
               <View style={[styles.switchRow, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                 <View style={styles.switchTexts}>
-                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>Uyum Sentezine Dahil Et</Text>
-                  <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>Bu yanıt günlük AI uyum analizinde kullanılsın.</Text>
+                  <Text style={[styles.switchTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Include in Harmony Synthesis' : 'Uyum Sentezine Dahil Et'}</Text>
+                  <Text style={[styles.switchSub, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Use this entry for AI relationship harmony analysis.' : 'Bu yanıt günlük AI uyum analizinde kullanılsın.'}</Text>
                 </View>
                 <Switch
                   value={includeInSynthesis}
@@ -172,14 +177,14 @@ export default function ConnectionRitualsScreen() {
 
               {/* Action Button */}
               <CustomButton
-                title={alreadyAnswered ? "Cevabı Güncelle" : "Kaydet"}
+                title={alreadyAnswered ? (isEn ? 'Update Reflection' : 'Cevabı Güncelle') : (isEn ? 'Save' : 'Kaydet')}
                 onPress={handleSubmit}
                 loading={submitLoading}
                 style={{ marginTop: 20 }}
               />
 
               <Text style={[styles.privacyNote, { color: currentTheme.colors.text.muted }]}>
-                🔒 Yanıtınız tamamen özel kalır. Ortağınız cevabınızın içeriğini doğrudan okuyamaz. Yalnızca yapay zeka, aranızdaki uyumu sentezlemek için bu verilerden yararlanır.
+                {isEn ? '🔒 Your reflection remains private. Your partner cannot read the raw text directly. AI only processes it to synthesize your relationship harmony.' : '🔒 Yanıtınız tamamen özel kalır. Ortağınız cevabınızın içeriğini doğrudan okuyamaz. Yalnızca yapay zeka, aranızdaki uyumu sentezlemek için bu verilerden yararlanır.'}
               </Text>
 
               {/* AI Ritual Reflection Synthesis Card */}
@@ -187,13 +192,13 @@ export default function ConnectionRitualsScreen() {
                 <View style={[styles.synthesisCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                   <View style={styles.synthesisHeader}>
                     <Ionicons name="sparkles" size={18} color={currentTheme.colors.primary} />
-                    <Text style={[styles.synthesisTitle, { color: currentTheme.colors.text.primary }]}>✨ Ortak Yansımanız</Text>
+                    <Text style={[styles.synthesisTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? '✨ Shared Reflection' : '✨ Ortak Yansımanız'}</Text>
                   </View>
                   
                   {ritual.emotionalClimate && (
                     <View style={[styles.climateBadge, { backgroundColor: currentTheme.colors.secondary }]}>
                       <Text style={[styles.climateText, { color: currentTheme.colors.primary }]}>
-                        Atmosfer: {ritual.emotionalClimate}
+                        {isEn ? 'Atmosphere:' : 'Atmosfer:'} {ritual.emotionalClimate}
                       </Text>
                     </View>
                   )}
@@ -208,7 +213,7 @@ export default function ConnectionRitualsScreen() {
                       <View style={styles.suggestionRow}>
                         <Ionicons name="heart" size={16} color={currentTheme.colors.accent} style={{ marginTop: 2 }} />
                         <View style={styles.suggestionTextContainer}>
-                          <Text style={[styles.suggestionLabel, { color: currentTheme.colors.text.secondary }]}>Küçük Bir Adım</Text>
+                          <Text style={[styles.suggestionLabel, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Gentle Step' : 'Küçük Bir Adım'}</Text>
                           <Text style={[styles.suggestionText, { color: currentTheme.colors.text.primary }]}>
                             {ritual.gentleSuggestion}
                           </Text>

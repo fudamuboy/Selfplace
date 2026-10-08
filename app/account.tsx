@@ -9,10 +9,14 @@ import { CustomModal } from '../components/CustomModal';
 import client from '../api/client';
 import { logger } from '../utils/logger';
 
+import { useT } from '../i18n';
+
 export default function AccountScreen() {
   const router = useRouter();
   const { currentTheme } = useThemeStore();
   const { user, logout } = useAuthStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
   
   const [loading, setLoading] = useState(false);
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
@@ -22,21 +26,16 @@ export default function AccountScreen() {
     setConfirmModalVisible(false);
     setLoading(true);
     try {
-      // Trigger the secure backend delete endpoint
       await client.delete('/user/delete-account');
-      
-      // Clear local authentication tokens and logout
       await logout();
-      
-      // Redirect to login/welcome screen
       router.replace('/(auth)/login');
     } catch (err: any) {
       logger.error('[AccountScreen] Delete account failed', err);
       
-      const errMsg = err.response?.data?.message || 'Hesabınız silinirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
+      const errMsg = err.response?.data?.message || (isEn ? 'An error occurred while deleting your account. Please try again later.' : 'Hesabınız silinirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
       setErrorModal({
         visible: true,
-        title: 'Hata',
+        title: isEn ? 'Error' : 'Hata',
         message: errMsg
       });
     } finally {
@@ -102,7 +101,7 @@ export default function AccountScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton} disabled={loading}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Hesap Ayarları</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('settings.account')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -110,24 +109,24 @@ export default function AccountScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={currentTheme.colors.primary} />
               <Text style={[styles.loadingText, { color: currentTheme.colors.text.secondary }]}>
-                Hesabınız siliniyor...
+                {isEn ? 'Deleting your account...' : 'Hesabınız siliniyor...'}
               </Text>
             </View>
           )}
 
           {!loading && (
             <>
-              {renderSectionHeader('HESAP BİLGİLERİ')}
-              {renderRow('person-outline', 'Kullanıcı Adı', user?.username || 'Belirtilmemiş')}
-              {renderRow('mail-outline', 'E-posta', user?.email || 'Belirtilmemiş')}
+              {renderSectionHeader(isEn ? 'ACCOUNT INFORMATION' : 'HESAP BİLGİLERİ')}
+              {renderRow('person-outline', isEn ? 'Username' : 'Kullanıcı Adı', user?.username || (isEn ? 'Not specified' : 'Belirtilmemiş'))}
+              {renderRow('mail-outline', isEn ? 'Email' : 'E-posta', user?.email || (isEn ? 'Not specified' : 'Belirtilmemiş'))}
 
               <View style={{ height: 32 }} />
 
-              {renderSectionHeader('HESAP YÖNETİMİ')}
+              {renderSectionHeader(isEn ? 'ACCOUNT MANAGEMENT' : 'HESAP YÖNETİMİ')}
               {renderRow(
                 'person-remove-outline', 
-                'Hesabı Kalıcı Olarak Sil', 
-                'Profilinizi ve tüm verilerinizi tamamen yok edin', 
+                isEn ? 'Delete Account Permanently' : 'Hesabı Kalıcı Olarak Sil', 
+                isEn ? 'Permanently wipe your profile and all data' : 'Profilinizi ve tüm verilerinizi tamamen yok edin', 
                 () => setConfirmModalVisible(true), 
                 true
               )}
@@ -139,10 +138,10 @@ export default function AccountScreen() {
       {/* Account Deletion Confirmation Modal */}
       <CustomModal
         visible={confirmModalVisible}
-        title="Hesabı Sil"
-        message="Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
-        confirmText="Hesabı Kalıcı Olarak Sil"
-        secondaryText="İptal"
+        title={isEn ? 'Delete Account' : 'Hesabı Sil'}
+        message={isEn ? 'Are you sure you want to permanently delete your account? This action cannot be undone.' : 'Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.'}
+        confirmText={isEn ? 'Permanently Delete Account' : 'Hesabı Kalıcı Olarak Sil'}
+        secondaryText={t('common.cancel')}
         onConfirm={handleDeleteAccount}
         onSecondaryPress={() => setConfirmModalVisible(false)}
         onClose={() => setConfirmModalVisible(false)}

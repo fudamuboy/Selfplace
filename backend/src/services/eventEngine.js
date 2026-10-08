@@ -43,11 +43,15 @@ async function trackEvent(userId, eventType, priority = 'minor', metadata = {}, 
       connectionId = conn.id;
     }
 
-    // 2. Resolve Turkish event descriptions
+    // 2. Resolve Turkish and English event descriptions
+    const customTitleEn = metadata?.customTitleEn || metadata?.titleEn || null;
+    const customDescriptionEn = metadata?.customDescriptionEn || metadata?.descriptionEn || null;
     let titleTr = customTitle;
     let descriptionTr = customDescription;
+    let titleEn = customTitleEn;
+    let descriptionEn = customDescriptionEn;
 
-    if (!titleTr || !descriptionTr) {
+    if (!titleTr || !descriptionTr || !titleEn || !descriptionEn) {
       const userRes = await db.query('SELECT username FROM users WHERE id = $1', [userId]);
       const username = userRes.rows[0]?.username || 'Kullanıcı';
 
@@ -57,52 +61,84 @@ async function trackEvent(userId, eventType, priority = 'minor', metadata = {}, 
 
       switch (eventType) {
         case 'CONNECTION_CREATED':
-          titleTr = 'İlişki Bağlantısı Kuruldu 🌿';
-          descriptionTr = `${username} ve ${partnerName} Selfplace üzerinde bir araya geldi.`;
+          titleTr = titleTr || 'İlişki Bağlantısı Kuruldu 🌿';
+          descriptionTr = descriptionTr || `${username} ve ${partnerName} Selfplace üzerinde bir araya geldi.`;
+          titleEn = titleEn || 'First Connection Established 🌿';
+          descriptionEn = descriptionEn || `${username} and ${partnerName} connected on Selfplace.`;
           break;
         case 'CHECKIN_COMPLETED':
-          titleTr = 'Duygu Paylaşımı Yapıldı 💭';
-          descriptionTr = `${username} günlük duygu durumunu paylaştı.`;
+          titleTr = titleTr || 'Duygu Paylaşımı Yapıldı 💭';
+          descriptionTr = descriptionTr || `${username} günlük duygu durumunu paylaştı.`;
+          titleEn = titleEn || 'Emotion Shared 💭';
+          descriptionEn = descriptionEn || `${username} shared their daily emotional check-in.`;
           break;
         case 'PERSONALITY_COMPLETED':
-          titleTr = 'Kişilik Testi Tamamlandı 🧩';
-          descriptionTr = `${username} içsel kimlik arketipi testini tamamladı.`;
+          titleTr = titleTr || 'Kişilik Testi Tamamlandı 🧩';
+          descriptionTr = descriptionTr || `${username} içsel kimlik arketipi testini tamamladı.`;
+          titleEn = titleEn || 'Personality Test Completed 🧩';
+          descriptionEn = descriptionEn || `${username} completed the inner identity archetype test.`;
           break;
         case 'JOURNAL_SHARED':
-          titleTr = 'Günlük Paylaşıldı 📖';
-          descriptionTr = `${username} hislerini günlüğe yazarak paylaştı.`;
+          titleTr = titleTr || 'Günlük Paylaşıldı 📖';
+          descriptionTr = descriptionTr || `${username} hislerini günlüğe yazarak paylaştı.`;
+          titleEn = titleEn || 'Journal Shared 📖';
+          descriptionEn = descriptionEn || `${username} shared their feelings in a journal entry.`;
           break;
         case 'INVITATION_ACCEPTED':
-          titleTr = 'Davet Kartı Kabul Edildi 💌';
-          descriptionTr = `${username} dünkü davet kartı sorusunu yanıtlayarak tamamladı.`;
+          titleTr = titleTr || 'Davet Kartı Kabul Edildi 💌';
+          descriptionTr = descriptionTr || `${username} dünkü davet kartı sorusunu yanıtlayarak tamamladı.`;
+          titleEn = titleEn || 'Invitation Card Accepted 💌';
+          descriptionEn = descriptionEn || `${username} answered and completed the invitation card.`;
           break;
         case 'WEEKLY_INSIGHT_GENERATED':
-          titleTr = 'Haftalık İçgörü Raporu Hazır ✨';
-          descriptionTr = `İlişkiniz için bu haftanın duygusal analiz sentezi oluşturuldu.`;
+          titleTr = titleTr || 'Haftalık İçgörü Raporu Hazır ✨';
+          descriptionTr = descriptionTr || `İlişkiniz için bu haftanın duygusal analiz sentezi oluşturuldu.`;
+          titleEn = titleEn || 'Weekly Insight Ready ✨';
+          descriptionEn = descriptionEn || `This week's emotional synthesis for your relationship has been generated.`;
           break;
         case 'GOAL_COMPLETED':
-          titleTr = 'Ortak Hedef Tamamlandı 🎉';
-          descriptionTr = `Belirlediğiniz bir ortak hedef başarıyla tamamlandı.`;
+          titleTr = titleTr || 'Ortak Hedef Tamamlandı 🎉';
+          descriptionTr = descriptionTr || `Belirlediğiniz bir ortak hedef başarıyla tamamlandı.`;
+          titleEn = titleEn || 'Shared Goal Completed 🎉';
+          descriptionEn = descriptionEn || `A shared goal has been successfully completed.`;
           break;
         case 'MOOD_IMPROVED':
-          titleTr = 'Hava Durumu İyileşiyor☀️';
-          descriptionTr = `İlişki atmosferindeki enerji ve yakınlık düzeyi yükseliyor.`;
+          titleTr = titleTr || 'Hava Durumu İyileşiyor ☀️';
+          descriptionTr = descriptionTr || `İlişki atmosferindeki enerji ve yakınlık düzeyi yükseliyor.`;
+          titleEn = titleEn || 'Atmosphere Clearing ☀️';
+          descriptionEn = descriptionEn || `The energy and closeness in the relationship atmosphere are rising.`;
           break;
         case 'MOOD_DECLINED':
-          titleTr = 'Hava Değişimi ☁️';
-          descriptionTr = `İlişki atmosferinde küçük bir durağanlık veya stres dalgası hissediliyor.`;
+          titleTr = titleTr || 'Hava Değişimi ☁️';
+          descriptionTr = descriptionTr || `İlişki atmosferinde küçük bir durağanlık veya stres dalgası hissediliyor.`;
+          titleEn = titleEn || 'Atmosphere Shifting ☁️';
+          descriptionEn = descriptionEn || `A brief quiet or wave of tension is felt in the relationship atmosphere.`;
+          break;
+        case 'weather_change':
+          titleTr = titleTr || 'Duygusal Hava Değişti 🌤️';
+          descriptionTr = descriptionTr || (metadata.weather ? `İlişki atmosferiniz bugün "${metadata.weather}" durumuna evrildi.` : 'İlişki atmosferiniz bugün yeni bir duruma evrildi.');
+          titleEn = titleEn || 'Emotional Weather Changed 🌤️';
+          descriptionEn = descriptionEn || (metadata.weatherEn || metadata.weather ? `Your relational atmosphere evolved to "${metadata.weatherEn || metadata.weather}" today.` : 'Your relational atmosphere evolved to a new state today.');
+          break;
+        case 'ritual_done':
+          titleTr = titleTr || 'Ortak Ritüel Tamamlandı ✨';
+          descriptionTr = descriptionTr || 'Günün duygusal yansımasını iki taraf da tamamlayarak empati bağını pekiştirdi.';
+          titleEn = titleEn || 'Shared Ritual Completed ✨';
+          descriptionEn = descriptionEn || 'Both partners completed today\'s emotional reflection, strengthening your bond.';
           break;
         default:
-          titleTr = eventType;
-          descriptionTr = metadata.description || 'Yeni bir uygulama içi aktivite tamamlandı.';
+          titleTr = titleTr || eventType;
+          descriptionTr = descriptionTr || metadata.description || 'Yeni bir uygulama içi aktivite tamamlandı.';
+          titleEn = titleEn || customTitleEn || customTitle || eventType;
+          descriptionEn = descriptionEn || customDescriptionEn || customDescription || metadata.description_en || metadata.description || 'A new in-app activity was completed.';
       }
     }
 
-    // 3. Insert event into relationship_timeline
+    // 3. Insert event into relationship_timeline with bilingual titles and descriptions
     await db.query(
-      `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr, created_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [connectionId, eventType, titleTr, descriptionTr]
+      `INSERT INTO relationship_timeline (connection_id, event_type, title_tr, description_tr, title_en, description_en, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      [connectionId, eventType, titleTr, descriptionTr, titleEn, descriptionEn]
     );
   } catch (err) {
     console.error('[EventEngine] Error tracking event:', err.message);

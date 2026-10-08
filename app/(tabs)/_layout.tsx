@@ -2,9 +2,11 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import useThemeStore from '../../store/useThemeStore';
+import { useT } from '../../i18n';
 
 export default function TabLayout() {
   const { currentTheme } = useThemeStore();
+  const { t } = useT();
 
   return (
     <Tabs screenOptions={{
@@ -23,28 +25,28 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Alanım',
+          title: t('navigation.home'),
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Yolculuk',
+          title: t('navigation.journey'),
           tabBarIcon: ({ color, size }) => <Ionicons name="book" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="journal"
         options={{
-          title: 'Günlük',
+          title: t('navigation.journal'),
           tabBarIcon: ({ color, size }) => <Ionicons name="pencil" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
+          title: t('navigation.profile'),
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
       />

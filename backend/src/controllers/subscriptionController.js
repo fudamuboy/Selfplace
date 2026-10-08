@@ -2,6 +2,7 @@ const db = require('../config/db');
 const https = require('https');
 const { Buffer } = require('buffer');
 const { google } = require('googleapis');
+const { getLanguage } = require('../utils/languageResolver');
 
 // ---------------------------------------------------------------------------
 // Apple verification URLs
@@ -180,7 +181,7 @@ exports.verifyAppleReceipt = async (req, res) => {
     }
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
       console.error('[Subscription] GOOGLE_SERVICE_ACCOUNT_JSON is not set.');
-      return res.status(500).json({ message: 'Sunucu yapılandırma hatası (Google).' });
+      return res.status(500).json({ message: getLanguage(req) === 'en' ? 'Server configuration error (Google).' : 'Sunucu yapılandırma hatası (Google).' });
     }
   } else {
     if (!receiptData) {
@@ -188,7 +189,7 @@ exports.verifyAppleReceipt = async (req, res) => {
     }
     if (!process.env.APPLE_SHARED_SECRET) {
       console.error('[Subscription] APPLE_SHARED_SECRET environment variable is not set.');
-      return res.status(500).json({ message: 'Sunucu yapılandırma hatası (Apple).' });
+      return res.status(500).json({ message: getLanguage(req) === 'en' ? 'Server configuration error (Apple).' : 'Sunucu yapılandırma hatası (Apple).' });
     }
   }
 
@@ -237,7 +238,7 @@ exports.verifyAppleReceipt = async (req, res) => {
     if (status !== 0) {
       console.warn(`[Subscription] Apple returned non-zero status: ${status} for user ${userId}`);
       return res.status(400).json({
-        message: 'Apple abonelik doğrulaması başarısız oldu.',
+        message: getLanguage(req) === 'en' ? 'Apple subscription verification failed.' : 'Apple abonelik doğrulaması başarısız oldu.',
         appleStatus: status,
       });
     }
@@ -293,7 +294,7 @@ exports.verifyAppleReceipt = async (req, res) => {
 
   } catch (err) {
     console.error('[Subscription] verifyAppleReceipt error:', err.message);
-    return res.status(500).json({ message: 'Abonelik doğrulanırken bir hata oluştu.' });
+    return res.status(500).json({ message: getLanguage(req) === 'en' ? 'We couldn\'t verify your subscription.' : 'Abonelik doğrulanırken bir hata oluştu.' });
   }
 };
 
@@ -343,6 +344,6 @@ exports.getSubscriptionStatus = async (req, res) => {
     return res.json(row);
   } catch (err) {
     console.error('[Subscription] getSubscriptionStatus error:', err.message);
-    return res.status(500).json({ message: 'Abonelik durumu alınamadı.' });
+    return res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t load your subscription status.' : 'Abonelik durumu alınamadı.' });
   }
 };

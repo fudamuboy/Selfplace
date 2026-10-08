@@ -11,6 +11,8 @@ import { JournalSkeleton } from '../../components/SkeletonLoader';
 import { NetworkErrorState } from '../../components/NetworkErrorState';
 import { useNetworkStore } from '../../store/useNetworkStore';
 
+import { useT } from '../../i18n';
+
 interface JournalEntry {
   id: number | null;
   title: string | null;
@@ -20,6 +22,7 @@ interface JournalEntry {
 
 export default function JournalScreen() {
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<JournalEntry>({ id: null, title: '', content: '' });
@@ -55,7 +58,7 @@ export default function JournalScreen() {
         if (err.message === 'SESSION_EXPIRED' || err.isSessionExpiry) {
           return;
         }
-        setError(err.message || 'Bağlantı kısa süreliğine sessizleşti 🌙');
+        setError(err.message || t('errors.network'));
       }
       logger.error('[JournalScreen] fetchEntries failed', err);
     } finally {
@@ -70,14 +73,13 @@ export default function JournalScreen() {
   }, []);
 
   const handleSave = async () => {
-    // Strip HTML tags and &nbsp; to check if the content is truly empty
     const plainText = currentEntry.content
       .replace(/<[^>]*>/g, '')
       .replace(/&nbsp;/g, '')
       .trim();
     
     if (!plainText) {
-      Alert.alert('Eksik Bilgi', 'Lütfen önce bir şeyler yaz.');
+      Alert.alert(t('common.info'), language === 'en' ? 'Please write something first.' : 'Lütfen önce bir şeyler yaz.');
       return;
     }
 
@@ -97,8 +99,8 @@ export default function JournalScreen() {
       setCurrentEntry({ id: null, title: '', content: '' });
       fetchEntries();
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Günlük kaydedilemedi.';
-      Alert.alert('Hata', msg);
+      const msg = err.response?.data?.message || t('toasts.errorGeneric');
+      Alert.alert(t('common.error'), msg);
     }
   };
 
@@ -113,9 +115,9 @@ export default function JournalScreen() {
   };
 
   const deleteEntry = async (id: number) => {
-    Alert.alert('Emin misiniz?', 'Bu günlüğü silmek istediğinize emin misiniz?', [
-      { text: 'İptal', style: 'cancel' },
-      { text: 'Sil', style: 'destructive', onPress: async () => {
+    Alert.alert(t('modals.confirmTitle'), t('journal.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: async () => {
         try {
           await client.delete(`/journal/${id}`);
           fetchEntries();
@@ -131,9 +133,9 @@ export default function JournalScreen() {
           <TouchableOpacity onPress={() => setIsEditing(false)}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Günlük Yaz</Text>
+          <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>{t('journal.newEntry')}</Text>
           <TouchableOpacity onPress={handleSave}>
-            <Text style={[styles.saveButton, { color: currentTheme.colors.primary }]}>Kaydet</Text>
+            <Text style={[styles.saveButton, { color: currentTheme.colors.primary }]}>{t('common.save')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -142,7 +144,7 @@ export default function JournalScreen() {
           <View style={styles.editorInner}>
             <TextInput
               style={[styles.titleInput, { color: '#FFFFFF', borderBottomColor: 'rgba(255,255,255,0.1)' }]}
-              placeholder="Başlık (İsteğe bağlı)"
+              placeholder={language === 'en' ? "Title (Optional)" : "Başlık (İsteğe bağlı)"}
               placeholderTextColor="rgba(255,255,255,0.5)"
               value={currentEntry.title || ''}
               onChangeText={(t) => setCurrentEntry(prev => ({ ...prev, title: t }))}
@@ -165,7 +167,7 @@ export default function JournalScreen() {
               <RichEditor
                 ref={richText}
                 initialContentHTML={currentEntry.content}
-                placeholder="Bugün aklından neler geçiyor? Buraya özgürce yazabilirsin..."
+                placeholder={t('journal.entryPlaceholder')}
                 onChange={(content) => setCurrentEntry(prev => ({ ...prev, content }))}
                 editorStyle={{
                   backgroundColor: 'transparent',
@@ -187,7 +189,7 @@ export default function JournalScreen() {
   return (
     <GradientBackground edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Günlüğüm</Text>
+        <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>{t('journal.title')}</Text>
         <TouchableOpacity onPress={createNew}>
           <Ionicons name="add" size={28} color={currentTheme.colors.primary} />
         </TouchableOpacity>
@@ -206,10 +208,10 @@ export default function JournalScreen() {
             <TouchableOpacity style={[styles.entryCard, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]} onPress={() => editEntry(item)}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.entryTitle, { color: '#FFFFFF' }]}>
-                  {item.title || 'Başlıksız Günlük'}
+                  {item.title || (language === 'en' ? 'Untitled Journal' : 'Başlıksız Günlük')}
                 </Text>
                 <Text style={[styles.entryDate, { color: 'rgba(255,255,255,0.75)' }]}>
-                  {item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}
+                  {item.created_at ? new Date(item.created_at).toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR') : ''}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => deleteEntry(item.id as number)} style={{ padding: 10 }}>
@@ -221,7 +223,7 @@ export default function JournalScreen() {
             <View style={styles.emptyContainer}>
               <Ionicons name="journal-outline" size={64} color="rgba(255,255,255,0.35)" />
               <Text style={[styles.emptyText, { color: 'rgba(255,255,255,0.75)' }]}>
-                Henüz bir günlük yazmadın. Kendine biraz zaman ayır ve ilk günlüğünü oluştur.
+                {t('journal.emptySubtitle')}
               </Text>
             </View>
           }

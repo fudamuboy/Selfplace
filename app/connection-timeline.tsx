@@ -9,12 +9,17 @@ import { CONTENT_MAX_WIDTH, PAGE_PADDING_H } from '../constants/Layout';
 import { logger } from '../utils/logger';
 import { NetworkErrorState } from '../components/NetworkErrorState';
 
+import { useT } from '../i18n';
+
 export default function ConnectionTimelineScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const connectionId = parseInt(id || '0', 10);
 
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
   const [timeline, setTimeline] = useState<RelationshipTimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +33,7 @@ export default function ConnectionTimelineScreen() {
       setTimeline(data);
     } catch (err: any) {
       if (err.message !== 'SESSION_EXPIRED' && !err.isSessionExpiry) {
-        setError(err.message || 'Zaman tüneli yüklenirken bir hata oluştu.');
+        setError(err.message || (isEn ? 'An error occurred while loading the time tunnel.' : 'Zaman tüneli yüklenirken bir hata oluştu.'));
       }
       logger.error('[ConnectionTimeline] Fetch error', err);
     } finally {
@@ -59,9 +64,9 @@ export default function ConnectionTimelineScreen() {
 
   const getEventIconColor = (type: string) => {
     switch (type) {
-      case 'created': return '#F472B6'; // pink
-      case 'weather_change': return '#60A5FA'; // blue
-      case 'ritual_done': return '#FBBF24'; // amber
+      case 'created': return '#F472B6';
+      case 'weather_change': return '#60A5FA';
+      case 'ritual_done': return '#FBBF24';
       default: return currentTheme.colors.primary;
     }
   };
@@ -83,7 +88,7 @@ export default function ConnectionTimelineScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Zaman Tüneli</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Time Tunnel' : 'Zaman Tüneli'}</Text>
         </View>
 
         <ScrollView 
@@ -94,7 +99,7 @@ export default function ConnectionTimelineScreen() {
           }
         >
           <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>
-            Duygusal uyumunuzun gelişimini ve kilometre taşlarını buradan sakin bir akışla izleyin.
+            {isEn ? 'Follow your emotional harmony growth and milestones here in a calm flow.' : 'Duygusal uyumunuzun gelişimini ve kilometre taşlarını buradan sakin bir akışla izleyin.'}
           </Text>
 
           {error && timeline.length === 0 ? (
@@ -103,7 +108,7 @@ export default function ConnectionTimelineScreen() {
             <View style={[styles.emptyBox, { borderColor: currentTheme.colors.cardBorder }]}>
               <Ionicons name="trail-sign-outline" size={40} color={currentTheme.colors.text.muted} />
               <Text style={[styles.emptyText, { color: currentTheme.colors.text.muted }]}>
-                Zaman tünelinde henüz kayıtlı bir kilometre taşı bulunmuyor. Günlük ritüelleri tamamlayarak ilk taşları ekleyebilirsiniz.
+                {isEn ? 'No milestones recorded in your time tunnel yet. Complete daily rituals to add your first milestones.' : 'Zaman tünelinde henüz kayıtlı bir kilometre taşı bulunmuyor. Günlük ritüelleri tamamlayarak ilk taşları ekleyebilirsiniz.'}
               </Text>
             </View>
           ) : (
@@ -114,6 +119,54 @@ export default function ConnectionTimelineScreen() {
               {timeline.map((event, index) => {
                 const iconName = getEventIcon(event.event_type);
                 const iconColor = getEventIconColor(event.event_type);
+
+                const translateWeatherDesc = (desc: string) => {
+                  if (!isEn) return desc;
+                  return (desc || '')
+                    .replace('Yeni atmosfer:', 'New atmosphere:')
+                    .replace('Hafif Yoğun', 'Mildly Intense')
+                    .replace('Durgun', 'Calm')
+                    .replace('Hassas', 'Sensitive')
+                    .replace('Güneşli', 'Sunny')
+                    .replace('Bulutlu', 'Cloudy')
+                    .replace('Yumuşak', 'Gentle');
+                };
+
+                const EVENT_LABELS: Record<string, { titleEn: string; descEn: string; titleTr: string; descTr: string }> = {
+                  'created': {
+                    titleEn: 'First Connection Established 🌿',
+                    descEn: 'Your journey of emotional alignment on Selfplace has begun.',
+                    titleTr: 'İlk Bağlantı Kuruldu 🌿',
+                    descTr: 'Selfplace üzerinde duygusal uyum yolculuğunuz başladı.'
+                  },
+                  'weather_change': {
+                    titleEn: 'Emotional Weather Updated 🌤️',
+                    descEn: translateWeatherDesc(event.description_tr || ''),
+                    titleTr: event.title_tr || 'Duygusal Hava Değişti 🌤️',
+                    descTr: event.description_tr || ''
+                  },
+                  'ritual_done': {
+                    titleEn: 'Shared Ritual Completed ✨',
+                    descEn: 'You completed a ritual together. A beautiful bond.',
+                    titleTr: 'Ortak Ritüel Tamamlandı ✨',
+                    descTr: 'Birlikte bir ritüeli tamamladınız. Güzel bir bağ.'
+                  },
+                  'garden_level_up': {
+                    titleEn: 'Relationship Garden Leveled Up 🌱',
+                    descEn: 'Your shared garden has grown to a new level.',
+                    titleTr: 'Bahçe Seviyesi Yükseldi 🌱',
+                    descTr: 'Birlikte büyüttüğünüz bahçe yeni bir seviyeye ulaştı.'
+                  },
+                  'level_up': {
+                    titleEn: 'Relationship Level Milestone 🎉',
+                    descEn: 'Your connection has reached a new depth.',
+                    titleTr: 'İlişki Seviyesi Yükseldi 🎉',
+                    descTr: 'Bağlantınız yeni bir derinliğe ulaştı.'
+                  },
+                };
+                const label = EVENT_LABELS[event.event_type];
+                const title = isEn ? (label?.titleEn || event.title_tr) : (label?.titleTr || event.title_tr);
+                const description = isEn ? (label?.descEn || event.description_tr) : (label?.descTr || event.description_tr);
 
                 return (
                   <View key={event.id} style={styles.eventRow}>
@@ -128,15 +181,15 @@ export default function ConnectionTimelineScreen() {
                     {/* Timeline Card */}
                     <View style={[styles.eventCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                       <Text style={[styles.eventTitle, { color: currentTheme.colors.text.primary }]}>
-                        {event.title_tr}
+                        {title}
                       </Text>
-                      {event.description_tr && (
+                      {description && (
                         <Text style={[styles.eventDesc, { color: currentTheme.colors.text.secondary }]}>
-                          {event.description_tr}
+                          {description}
                         </Text>
                       )}
                       <Text style={[styles.eventDate, { color: currentTheme.colors.text.muted }]}>
-                        {new Date(event.created_at).toLocaleDateString('tr-TR')} · {new Date(event.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(event.created_at).toLocaleDateString(isEn ? 'en-US' : 'tr-TR')} · {new Date(event.created_at).toLocaleTimeString(isEn ? 'en-US' : 'tr-TR', { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </View>
 

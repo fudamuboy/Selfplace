@@ -20,7 +20,7 @@ function getClient() {
 // System prompts
 // ---------------------------------------------------------------------------
 
-const DAILY_REFLECTION_PROMPT = `Sen güvenilir, zeki ve sıcak bir arkadaşsın.
+const DAILY_REFLECTION_PROMPT_TR = `Sen güvenilir, zeki ve sıcak bir arkadaşsın.
 Kullanıcıya günü için çok kısa, gerçekçi ve destekleyici bir cümle yaz.
 - Sadece 1 kısa cümle.
 - Ton: günlük konuşma dili, net, arkadaşça, gerçekçi.
@@ -29,17 +29,14 @@ Kullanıcıya günü için çok kısa, gerçekçi ve destekleyici bir cümle yaz
 - Her zaman doğal Türkçe yaz.
 Örnek: "Bugün kendine biraz daha fazla zaman ayırman iyi olabilir."`;
 
-const WEEKLY_INSIGHT_PROMPT = `Sen düşünceli, anlayışlı ve pratik bir insansın.
-Kullanıcının haftalık verilerine dayanarak tam olarak 2-3 cümlelik doğal bir geri bildirim oluştur.
-- Verilerdeki özel isimleri, olayları ve tekrarlayan durumları günlük bir sohbet gibi fark et.
-- SADECE 2-3 kısa cümle yaz.
-- Şiirsel metaforlardan, "evren", "ruhunun yolculuğu", "kalbinin pusulası" gibi spiritüel jargondan UZAK DUR.
-- Sadece olasılıksal bir dil kullan ("olabilir", "görünüyor", "fark etmiş olabilirsin", "gibi").
-- Kesin teşhis, analiz veya guru tavsiyelerinde bulunma.
-- Ton: gerçekçi, pratik, arkadaşça, yapaylıktan uzak.
-- Kullanıcıya ismen hitap etme, ama paylaştığı detaylara nazikçe değin.
-- Her zaman günlük konuşma dilinde Türkçe yaz.
-Örnek: "Bu hafta sınavlarınla ilgili anlattıklarına bakılırsa biraz yorulmuş görünüyorsun. Dışarı çıkıp arkadaşlarınla vakit geçirmenin sana iyi geldiğini fark etmiş olabilirsin."`;
+const DAILY_REFLECTION_PROMPT_EN = `You are a reliable, thoughtful, and warm friend.
+Write a very brief, grounded, and supportive sentence for the user's day.
+- Exactly 1 short sentence.
+- Tone: warm, conversational, clear, realistic, gentle.
+- DO NOT use poetic metaphors, spiritual guruspeak, or self-help cliches.
+- Do not give unsolicited advice or ask questions.
+- Always write in natural, fluent English.
+Example: "It might feel good to give yourself a little extra quiet time today."`;
 
 // ---------------------------------------------------------------------------
 // generateDailyReflection
@@ -48,14 +45,15 @@ Kullanıcının haftalık verilerine dayanarak tam olarak 2-3 cümlelik doğal b
 /**
  * Generates a single, soft sentence for daily reflection.
  */
-async function generateDailyReflection() {
+async function generateDailyReflection(language = 'tr') {
+  const isEn = language === 'en';
   try {
     const client = getClient();
     const completion = await client.chat.completions.create({
       model:      'gpt-4o-mini',
       messages:   [
-        { role: 'system', content: DAILY_REFLECTION_PROMPT },
-        { role: 'user',   content: 'Bugün için kısa, sakin bir yansıma cümlesi yazar mısın?' },
+        { role: 'system', content: isEn ? DAILY_REFLECTION_PROMPT_EN : DAILY_REFLECTION_PROMPT_TR },
+        { role: 'user',   content: isEn ? 'Could you write a short, calm daily reflection for today?' : 'Bugün için kısa, sakin bir yansıma cümlesi yazar mısın?' },
       ],
       max_tokens:  80,
       temperature: 0.9,
@@ -66,7 +64,6 @@ async function generateDailyReflection() {
 
     return result;
   } catch (err) {
-    // Only log actual API errors, not "key missing" which is expected if not configured
     if (!err.message.includes('OPENAI_API_KEY')) {
       console.error('[aiService] generateDailyReflection error:', err.message);
     }
@@ -80,15 +77,17 @@ async function generateDailyReflection() {
  * @param {Object} userData
  * @param {string} depthLevel      - 'NEW' | 'LIGHT' | 'GROWING' | 'DEEP' | 'IMMERSIVE'
  * @param {boolean} hasPartner     - true | false
+ * @param {string} language        - 'tr' | 'en'
  * @returns {Promise<string>} A JSON string representing the Weekly Wrapped
  */
-async function generateWeeklyInsight(userData, depthLevel = 'NEW', hasPartner = false) {
+async function generateWeeklyInsight(userData, depthLevel = 'NEW', hasPartner = false, language = 'tr') {
+  const isEn = language === 'en';
   try {
     const { checkIns = [], cardResponses = [], advancedCheckIns = [] } = userData;
     const client = getClient();
 
     // --- Build a compact summary ---
-    const moodSummary     = checkIns.map(c => c.mood).filter(Boolean).join(', ') || 'bilinmiyor';
+    const moodSummary     = checkIns.map(c => c.mood).filter(Boolean).join(', ') || (isEn ? 'unknown' : 'bilinmiyor');
     const notesSummary    = checkIns.map(c => c.note).filter(Boolean).slice(0, 5).join(' | ') || null;
     const questionsSummary = checkIns.map(c => c.reflection_question).filter(Boolean).slice(0, 5).join(' | ') || null;
     
@@ -98,46 +97,49 @@ async function generateWeeklyInsight(userData, depthLevel = 'NEW', hasPartner = 
       .join(' | ') || null;
 
     const acceptedCategories = [...new Set(
-      cardResponses.filter(r => r.response === 'Deneyeceğim').map(r => r.category).filter(Boolean)
+      cardResponses.filter(r => r.response === 'Deneyeceğim' || r.response === 'I will try').map(r => r.category).filter(Boolean)
     )];
 
-    const lines = [`Bu haftaki ruh halleri: ${moodSummary}.`];
-    if (questionsSummary)           lines.push(`Yansıma soruları: ${questionsSummary}.`);
-    if (notesSummary)               lines.push(`Günlük notlar: ${notesSummary}.`);
-    if (advancedSummary)            lines.push(`Detaylı paylaşımlar: ${advancedSummary}.`);
-    if (acceptedCategories.length)  lines.push(`İlgi duyduğu kart kategorileri: ${acceptedCategories.join(', ')}.`);
-    lines.push('Bu verilere dayanarak kişiye nazik, kısa bir haftalık öz-yansıma yaz.');
+    const lines = isEn 
+      ? [`Moods this week: ${moodSummary}.`] 
+      : [`Bu haftaki ruh halleri: ${moodSummary}.`];
+    if (questionsSummary)           lines.push(isEn ? `Reflection questions: ${questionsSummary}.` : `Yansıma soruları: ${questionsSummary}.`);
+    if (notesSummary)               lines.push(isEn ? `Daily notes: ${notesSummary}.` : `Günlük notlar: ${notesSummary}.`);
+    if (advancedSummary)            lines.push(isEn ? `Detailed reflections: ${advancedSummary}.` : `Detaylı paylaşımlar: ${advancedSummary}.`);
+    if (acceptedCategories.length)  lines.push(isEn ? `Interested card categories: ${acceptedCategories.join(', ')}.` : `İlgi duyduğu kart kategorileri: ${acceptedCategories.join(', ')}.`);
+    lines.push(isEn ? 'Based on this data, write a gentle, short weekly self-reflection.' : 'Bu verilere dayanarak kişiye nazik, kısa bir haftalık öz-yansıma yaz.');
 
     const userMessage = lines.join('\n');
 
     let systemPrompt = `You are "Selfplace", a thoughtful, grounded, emotionally intelligent friend.
-Your goal is to generate a personalized Weekly Wrapped reflection in Turkish for the user, returned strictly as a JSON object.
+Your goal is to generate a personalized Weekly Wrapped reflection in ${isEn ? 'ENGLISH' : 'TURKISH'} for the user, returned strictly as a JSON object.
 Use natural daily conversational language. DO NOT use poetic metaphors, spiritual guruspeak, or dramatic emotional language.
 
 Current User Emotional Level: ${depthLevel}
 Connected partner status: ${hasPartner ? 'CONNECTED' : 'SOLO'}
+Target Language: ${isEn ? 'ENGLISH (en)' : 'TURKISH (tr)'}
 `;
 
     if (depthLevel === 'NEW' || depthLevel === 'LIGHT') {
       systemPrompt += `
 Format your response as a JSON object containing only the "insight" key:
 {
-  "insight": "Write a grounded, natural 2-sentence summary noticing simple moods/patterns. Turkish language."
+  "insight": "Write a grounded, natural 2-sentence summary noticing simple moods/patterns. ${isEn ? 'English language.' : 'Turkish language.'}"
 }
-Do not include any other fields. Use realistic, probabilistic language ("olabilir", "görünüyor"). No overly deep emotional claims.
+Do not include any other fields. Use realistic, probabilistic language (${isEn ? '"seems like", "might have"' : '"olabilir", "görünüyor"'}). No overly deep emotional claims.
 `;
     } else if (depthLevel === 'GROWING') {
       systemPrompt += `
 Format your response as a JSON object containing "insight", "rhythm", "comfortPattern", "thoughtFocus", and "questions" keys:
 {
-  "insight": "Write a grounded 2-sentence summary. Turkish.",
-  "rhythm": "Describe their rhythm this week naturally (e.g. busy, calm, stressed). Max 1 sentence.",
-  "comfortPattern": "Identify practical comfort patterns (e.g. reading, quiet walks, resting). Max 1 sentence.",
-  "thoughtFocus": "Identify their main thought focus or theme this week (e.g. work, relationships). Max 1 sentence.",
+  "insight": "Write a grounded 2-sentence summary in ${isEn ? 'English' : 'Turkish'}.",
+  "rhythm": "Describe their rhythm this week naturally (e.g. busy, calm, steady). Max 1 sentence.",
+  "comfortPattern": "Identify practical comfort patterns (e.g. quiet walks, reading, resting). Max 1 sentence.",
+  "thoughtFocus": "Identify their main thought focus or theme this week (e.g. work, relationships, self-care). Max 1 sentence.",
   "questions": [
-    { "q": "Bu hafta seni en çok ne yordu?", "a": "Answer this based on their entries. Keep it conversational, max 1 sentence." },
-    { "q": "Kendini en huzurlu hissettiğin an neydi?", "a": "Answer this based on their entries. Keep it conversational, max 1 sentence." },
-    { "q": "Son zamanlarda içinde en çok hangi düşünce dönüyor?", "a": "Answer this based on their entries. Keep it conversational, max 1 sentence." }
+    { "q": "${isEn ? 'What drained your energy most this week?' : 'Bu hafta seni en çok ne yordu?'}", "a": "Answer based on their entries. Keep it conversational, max 1 sentence." },
+    { "q": "${isEn ? 'When did you feel most at peace?' : 'Kendini en huzurlu hissettiğin an neydi?'}", "a": "Answer based on their entries. Keep it conversational, max 1 sentence." },
+    { "q": "${isEn ? 'What thought has been lingering in your mind lately?' : 'Son zamanlarda içinde en çok hangi düşünce dönüyor?'}", "a": "Answer based on their entries. Keep it conversational, max 1 sentence." }
   ]
 }
 `;
@@ -145,17 +147,17 @@ Format your response as a JSON object containing "insight", "rhythm", "comfortPa
       systemPrompt += `
 Format your response as a JSON object containing "insight", "rhythm", "comfortPattern", "thoughtFocus", "questions", "shifts", and "relationshipSynthesis" keys:
 {
-  "insight": "Write a grounded, natural 2-sentence emotional summary. Turkish.",
+  "insight": "Write a grounded, natural 2-sentence emotional summary in ${isEn ? 'English' : 'Turkish'}.",
   "rhythm": "Describe emotional rhythm naturally. Max 1 sentence.",
   "comfortPattern": "Identify comfort patterns. Max 1 sentence.",
   "thoughtFocus": "Identify main thought focus. Max 1 sentence.",
   "questions": [
-    { "q": "Bu hafta seni en çok ne yordu?", "a": "Answer based on entries." },
-    { "q": "Kendini en huzurlu hissettiğin an neydi?", "a": "Answer based on entries." },
-    { "q": "Son zamanlarda içinde en çok hangi düşünce dönüyor?", "a": "Answer based on entries." }
+    { "q": "${isEn ? 'What drained your energy most this week?' : 'Bu hafta seni en çok ne yordu?'}", "a": "Answer based on entries." },
+    { "q": "${isEn ? 'When did you feel most at peace?' : 'Kendini en huzurlu hissettiğin an neydi?'}", "a": "Answer based on entries." },
+    { "q": "${isEn ? 'What thought has been lingering in your mind lately?' : 'Son zamanlarda içinde en çok hangi düşünce dönüyor?'}", "a": "Answer based on entries." }
   ],
-  "shifts": "Describe evolution or shifts naturally compared to previous timelines (e.g. more relaxed, less worried). Max 1-2 sentences.",
-  "relationshipSynthesis": "${hasPartner ? 'Synthesize relational atmosphere, pacing, tension naturally without poetry. Do not expose partner logs directly. Max 2 sentences.' : 'Skip relational synthesis.'}"
+  "shifts": "Describe evolution or shifts naturally compared to previous timelines. Max 1-2 sentences.",
+  "relationshipSynthesis": "${hasPartner ? 'Synthesize relational atmosphere, pacing, tension naturally without poetry. Max 2 sentences.' : 'Skip relational synthesis.'}"
 }
 `;
     }
@@ -186,27 +188,29 @@ Format your response as a JSON object containing "insight", "rhythm", "comfortPa
 // ---------------------------------------------------------------------------
 // generatePersonalityArchetype
 // ---------------------------------------------------------------------------
-async function generatePersonalityArchetype(baseArchetype, dimensionScores) {
+async function generatePersonalityArchetype(baseArchetype, dimensionScores, language = 'tr') {
+  const isEn = language === 'en';
   try {
     const client = getClient();
     const systemPrompt = `You are "Selfplace", a calm, emotionally intelligent personality guide.
-Your goal is to enrich a base personality archetype into a deeply personalized and grounded evaluation in Turkish.
+Your goal is to enrich a base personality archetype into a deeply personalized and grounded evaluation in ${isEn ? 'ENGLISH' : 'TURKISH'}.
 DO NOT use clinical, psychiatric, or medically diagnostic language (e.g. avoid "avoidant attachment disorder", "unstable").
-Instead, use natural, empathetic, and realistic descriptions (e.g. "Bazen duygularını kendi içinde yaşamayı tercih ediyorsun").
+Instead, use natural, empathetic, and realistic descriptions (e.g. ${isEn ? '"Sometimes you prefer processing feelings quietly on your own"' : '"Bazen duygularını kendi içinde yaşamayı tercih ediyorsun"'}).
 
 Base Archetype: ${baseArchetype.name}
 Base Description: ${baseArchetype.description}
 User's Dimension Scores:
 ${JSON.stringify(dimensionScores, null, 2)}
+Language: ${isEn ? 'ENGLISH (en)' : 'TURKISH (tr)'}
 
 Generate a JSON object with the following fields:
 {
-  "archetype_name": "A unique Turkish name inspired by the Base Archetype but personalized (e.g., 'Sakin Gözlemci', 'Enerjik Bağ Kurucu')",
-  "description": "A 2-3 sentence grounded, realistic summary of their inner world.",
-  "relationship_style": "1-2 sentences on how they naturally bond, love, or connect with others.",
-  "strengths": ["Strength 1 (short phrase)", "Strength 2", "Strength 3"],
-  "blind_spots": ["Blind spot 1 (softly worded phrase)", "Blind spot 2"],
-  "communication_energy": "A short realistic sentence on how they express themselves."
+  "archetype_name": "${isEn ? 'A unique English name inspired by the Base Archetype (e.g. Calm Observer, Gentle Connector)' : 'A unique Turkish name inspired by the Base Archetype'}",
+  "description": "A 2-3 sentence grounded, realistic summary of their inner world in ${isEn ? 'English' : 'Turkish'}.",
+  "relationship_style": "1-2 sentences on how they naturally bond, love, or connect with others in ${isEn ? 'English' : 'Turkish'}.",
+  "strengths": ["${isEn ? 'Strength 1 in English' : 'Strength 1 in Turkish'}", "Strength 2", "Strength 3"],
+  "blind_spots": ["${isEn ? 'Blind spot 1 in English' : 'Blind spot 1 in Turkish'}", "Blind spot 2"],
+  "communication_energy": "A short realistic sentence on how they express themselves in ${isEn ? 'English' : 'Turkish'}."
 }`;
 
     const completion = await client.chat.completions.create({
@@ -227,11 +231,11 @@ Generate a JSON object with the following fields:
   }
 }
 
-
 // ---------------------------------------------------------------------------
 // generatePersonalityDrift
 // ---------------------------------------------------------------------------
-async function generatePersonalityDrift(oldScores, newScores) {
+async function generatePersonalityDrift(oldScores, newScores, language = 'tr') {
+  const isEn = language === 'en';
   try {
     const client = getClient();
     const systemPrompt = `You are "Selfplace", a calm, emotionally intelligent personality guide.
@@ -239,17 +243,18 @@ The user has retaken their personality journey. We want to observe how their emo
 
 Old Scores: ${JSON.stringify(oldScores)}
 New Scores: ${JSON.stringify(newScores)}
+Language: ${isEn ? 'ENGLISH (en)' : 'TURKISH (tr)'}
 
 DO NOT use diagnostic, medical, or judgmental language (e.g., "better", "worse", "improved", "declined").
 DO NOT use clinical terms like "avoidant" or "unstable".
-Use grounded, clear, and natural conversational language. NO poetic metaphors. (e.g., "Son zamanlarda duygularını daha net yaşamaya başladığın hissediliyor.").
+Use grounded, clear, and natural conversational language in ${isEn ? 'ENGLISH' : 'TURKISH'}. NO poetic metaphors.
 
-Write a single, grounded 1-2 sentence observation in Turkish about how their emotional style is evolving based on the differences in scores. If the scores are almost identical, mention how their core energy remains deeply rooted and stable.
+Write a single, grounded 1-2 sentence observation in ${isEn ? 'English' : 'Turkish'} about how their emotional style is evolving. If the scores are almost identical, mention how their core energy remains deeply rooted and stable.
 
-Respond ONLY with a valid JSON object containing the following fields:
+Respond ONLY with a valid JSON object containing:
 {
-  "evolution_summary": "A 2-3 sentence natural reflection on their overall emotional journey and how their core rhythms are evolving.",
-  "dominant_shift": "A 1-2 sentence specific realistic observation of the most noticeable dimensional change (e.g., 'Kendini ifade ederken artık daha rahat hissettiğin görünüyor.')"
+  "evolution_summary": "A 2-3 sentence natural reflection on their overall emotional journey in ${isEn ? 'English' : 'Turkish'}.",
+  "dominant_shift": "A 1-2 sentence specific realistic observation of the most noticeable dimensional change in ${isEn ? 'English' : 'Turkish'}."
 }`;
 
     const completion = await client.chat.completions.create({
@@ -266,19 +271,20 @@ Respond ONLY with a valid JSON object containing the following fields:
     return JSON.parse(result);
   } catch (err) {
     console.error('[aiService] generatePersonalityDrift error:', err.message);
-    return null; // Graceful fallback
+    return null;
   }
 }
 
 // ---------------------------------------------------------------------------
 // generateRitualReflection
 // ---------------------------------------------------------------------------
-async function generateRitualReflection(ritualQuestion, partnerAAnswer, partnerBAnswer) {
+async function generateRitualReflection(ritualQuestion, partnerAAnswer, partnerBAnswer, language = 'tr') {
+  const isEn = language === 'en';
   try {
     const client = getClient();
     const systemPrompt = `You are the emotional reflection engine of a relationship wellness app called Selfplace.
 
-Your task is to analyze two relationship ritual answers written by romantic partners and generate a deeply human, grounded shared reflection.
+Your task is to analyze two relationship ritual answers written by romantic partners and generate a deeply human, grounded shared reflection in ${isEn ? 'ENGLISH' : 'TURKISH'}.
 
 IMPORTANT RULES:
 * NEVER sound robotic, clinical, or generic.
@@ -288,33 +294,20 @@ IMPORTANT RULES:
 * Avoid exaggeration.
 * Do not repeat the users' exact words.
 * Do not make the reflection too long.
-* Generate all fields (relationship_reflection and gentle_suggestion) in Turkish.
-* The tone should feel like:
-  "an emotionally intelligent friend making a grounded observation about the relationship."
+* Generate all fields (relationship_reflection, emotional_climate, gentle_suggestion, crystal_summary) in ${isEn ? 'ENGLISH' : 'TURKISH'}.
 
 You must generate:
 1. relationship_reflection
-   → A warm, grounded emotional synthesis of both answers in Turkish.
+   → A warm, grounded emotional synthesis of both answers in ${isEn ? 'English' : 'Turkish'}.
 2. emotional_climate
-   → A short emotional atmosphere label.
-   Examples:
-   * "Sakin Yakınlık"
-   * "Gerçekçi Minnettarlık"
-   * "Hassas Denge"
-   * "Net İletişim"
-   * "Güvenli Alan"
-   * "Ortak Çaba"
-   * "Duygusal Yenilenme"
+   → A short emotional atmosphere label in ${isEn ? 'English' : 'Turkish'}.
+   Examples ${isEn ? '(e.g. "Calm Intimacy", "Grounded Gratitude", "Gentle Balance", "Open Communication")' : '(e.g. "Sakin Yakınlık", "Gerçekçi Minnettarlık", "Hassas Denge")'}.
 3. gentle_suggestion
-   → A practical, supportive suggestion based on the answers.
+   → A practical, supportive suggestion in ${isEn ? 'English' : 'Turkish'}.
 4. is_memory_crystal
-   → A boolean indicating if the combined answers represent a truly deep, vulnerable, or emotionally significant milestone/breakthrough/healing moment.
-     CRITICAL RULES FOR CRYSTALS:
-     - Default value must be FALSE.
-     - ONLY set to TRUE if BOTH answers demonstrate highly profound emotional disclosures, heavy vulnerability (e.g. sharing fears, crying, severe anxiety, breakthroughs), intense mutual gratitude, or resolving a major conflict/silence.
-     - Set to FALSE for typical daily check-ins, polite expressions, casual updates, or short responses.
+   → A boolean indicating if the combined answers represent a milestone/breakthrough/healing moment.
 5. crystal_summary
-   → A short summary/title in Turkish (max 4 words) describing the milestone, if is_memory_crystal is true (e.g., "Dürüst Bir Paylaşım", "Karşılıklı Güven"). Otherwise empty.
+   → A short summary/title in ${isEn ? 'English' : 'Turkish'} (max 4 words) if is_memory_crystal is true. Otherwise empty.
 6. crystal_symbol
    → An emotional symbol string choosing from: 'sparkles', 'heart', 'star', 'moon', 'leaf', 'rose', 'sun'.
 

@@ -68,6 +68,8 @@ const TypingIndicator = ({ color }: { color: string }) => {
   );
 };
 
+import { useT } from '../i18n';
+
 // ─── Main Chat Screen ───────────────────────────────────────────────────────
 export default function AIChatScreen() {
   const router = useRouter();
@@ -76,10 +78,11 @@ export default function AIChatScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    // Initial welcome message if no history
     if (messages.length === 0) {
       fetchGreeting();
     }
@@ -87,10 +90,10 @@ export default function AIChatScreen() {
 
   const fetchGreeting = async () => {
     try {
-      const response = await client.get('/ai/greeting');
+      const response = await client.get(`/ai/greeting?lang=${language}`);
       addMessage('ai', response.data.greeting);
     } catch (err) {
-      addMessage('ai', 'Merhaba, seninleyim. Bugün aklından neler geçiyor?');
+      addMessage('ai', isEn ? 'Hello, I am here with you. What is on your mind today?' : 'Merhaba, seninleyim. Bugün aklından neler geçiyor?');
     }
   };
 
@@ -111,13 +114,13 @@ export default function AIChatScreen() {
     try {
       const response = await client.post('/ai/chat', { 
         message: userMsg, 
-        conversationId 
+        conversationId,
+        lang: language
       });
       
       const aiMsg = response.data.message;
       setConversationId(response.data.conversationId);
       
-      // Realistic typing delay based on message length
       const delay = Math.min(Math.max(aiMsg.length * 20, 1000), 4000);
       
       setTimeout(() => {
@@ -128,7 +131,7 @@ export default function AIChatScreen() {
     } catch (error) {
       logger.error('Chat error', error);
       setIsTyping(false);
-      addMessage('ai', 'Şu an seni tam anlayamadım, ama dinlemeye devam ediyorum.');
+      addMessage('ai', isEn ? 'I could not quite grasp that right now, but I am still here listening.' : 'Şu an seni tam anlayamadım, ama dinlemeye devam ediyorum.');
     }
   };
 
@@ -174,7 +177,7 @@ export default function AIChatScreen() {
             <Text style={styles.headerTitle}>Selfplace AI</Text>
             <View style={styles.statusRow}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Şu an burada</Text>
+              <Text style={styles.statusText}>{isEn ? 'Here with you' : 'Şu an burada'}</Text>
             </View>
           </View>
           <View style={{ width: 40 }} />
@@ -202,7 +205,7 @@ export default function AIChatScreen() {
             <View style={styles.inputWrapper}>
               <TextInput
                 style={styles.input}
-                placeholder="Neler düşünüyorsun?"
+                placeholder={isEn ? 'What are you thinking?' : 'Neler düşünüyorsun?'}
                 placeholderTextColor="rgba(255,255,255,0.4)"
                 value={inputText}
                 onChangeText={setInputText}

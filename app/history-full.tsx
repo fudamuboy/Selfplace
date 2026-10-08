@@ -10,15 +10,25 @@ import { logger } from '../utils/logger';
 import { NetworkErrorState } from '../components/NetworkErrorState';
 
 
-const MOOD_EMOJIS: { [key: string]: string } = {
-  'Mutlu': '😊',
-  'Üzgün': '😔',
-  'Kızgın': '😡',
-  'Kaygılı': '😰',
-  'Yorgun': '😴',
-  'Hassas': '🥹',
-  'Motive': '✨',
-  'Sakin': '🤍',
+import { useT } from '../i18n';
+
+const MOODS_CONFIG = [
+  { id: 'Mutlu', emoji: '😊', labelTr: 'Mutlu', labelEn: 'Happy' },
+  { id: 'Üzgün', emoji: '😔', labelTr: 'Üzgün', labelEn: 'Sad' },
+  { id: 'Kızgın', emoji: '😡', labelTr: 'Kızgın', labelEn: 'Angry' },
+  { id: 'Kaygılı', emoji: '😰', labelTr: 'Kaygılı', labelEn: 'Anxious' },
+  { id: 'Yorgun', emoji: '😴', labelTr: 'Yorgun', labelEn: 'Tired' },
+  { id: 'Hassas', emoji: '🥹', labelTr: 'Hassas', labelEn: 'Sensitive' },
+  { id: 'Motive', emoji: '✨', labelTr: 'Motive', labelEn: 'Motivated' },
+  { id: 'Sakin', emoji: '🤍', labelTr: 'Sakin', labelEn: 'Calm' },
+];
+
+// The API localizes emotion labels in English mode (and legacy rows may hold English labels),
+// so map any variant back to the canonical id used for emoji and filtering.
+const toCanonicalMood = (emotion?: string): string => {
+  if (!emotion) return 'Sakin';
+  const e = emotion.toLowerCase();
+  return MOODS_CONFIG.find(m => m.labelTr.toLowerCase() === e || m.labelEn.toLowerCase() === e)?.id || emotion;
 };
 
 export default function HistoryFull() {
@@ -29,6 +39,8 @@ export default function HistoryFull() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const { currentTheme } = useThemeStore();
   const router = useRouter();
+  const { t, language } = useT();
+  const isEn = language === 'en';
 
   useEffect(() => {
     fetchData();
@@ -47,8 +59,8 @@ export default function HistoryFull() {
       const mappedList = response.data.map((entry: any) => ({
         ...entry,
         id: entry.id,
-        mood: entry.emotion || 'Sakin',
-        question_text: entry.prompt || 'Yansıma',
+        mood: toCanonicalMood(entry.emotion),
+        question_text: entry.prompt || (isEn ? 'Reflection' : 'Yansıma'),
         answer: entry.content,
         type: entry.source_type
       }));
@@ -57,7 +69,7 @@ export default function HistoryFull() {
       setFilteredData(mappedList);
     } catch (_err: any) {
       if (_err.message !== 'SESSION_EXPIRED' && !_err.isSessionExpiry) {
-        setError(_err.message || 'Geçmiş yüklenirken bir hata oluştu.');
+        setError(_err.message || (isEn ? 'Error loading history.' : 'Geçmiş yüklenirken bir hata oluştu.'));
       }
       logger.error('History fetch error', _err);
     } finally {
@@ -75,20 +87,24 @@ export default function HistoryFull() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return date.toLocaleDateString(isEn ? 'en-US' : 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const renderItem = ({ item }: { item: any }) => (
-    <View style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.emoji}>{MOOD_EMOJIS[item.mood] || '🤍'}</Text>
-        <Text style={[styles.date, { color: currentTheme.colors.text.secondary }]}>{formatDate(item.created_at)}</Text>
-      </View>
-      <Text style={[styles.question, { color: currentTheme.colors.primary }]}>{item.question_text || 'Yansıma'}</Text>
-      <Text style={[styles.answer, { color: currentTheme.colors.text.primary }]}>“{sanitizeText(item.answer, 'Paylaşım bulunamadı.')}”</Text>
+  const renderItem = ({ item }: { item: any }) => {
+    const moodConfig = MOODS_CONFIG.find(m => m.id === item.mood);
+    const emoji = moodConfig ? moodConfig.emoji : '🤍';
 
-    </View>
-  );
+    return (
+      <View style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.emoji}>{emoji}</Text>
+          <Text style={[styles.date, { color: currentTheme.colors.text.secondary }]}>{formatDate(item.created_at)}</Text>
+        </View>
+        <Text style={[styles.question, { color: currentTheme.colors.primary }]}>{item.question_text || (isEn ? 'Reflection' : 'Yansıma')}</Text>
+        <Text style={[styles.answer, { color: currentTheme.colors.text.primary }]}>“{sanitizeText(item.answer, isEn ? 'No content found.' : 'Paylaşım bulunamadı.')}”</Text>
+      </View>
+    );
+  };
 
   return (
     <GradientBackground>
@@ -97,7 +113,7 @@ export default function HistoryFull() {
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text.primary} />
           </Pressable>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Duygusal Arşiv</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Emotional Archive' : 'Duygusal Arşiv'}</Text>
         </View>
 
         <View style={styles.filterSection}>
@@ -109,19 +125,19 @@ export default function HistoryFull() {
                 { backgroundColor: currentTheme.colors.card, borderColor: !selectedMood ? currentTheme.colors.primary : currentTheme.colors.cardBorder }
               ]}
             >
-              <Text style={[styles.moodFilterText, { color: !selectedMood ? currentTheme.colors.primary : currentTheme.colors.text.primary }]}>Tümü</Text>
+              <Text style={[styles.moodFilterText, { color: !selectedMood ? currentTheme.colors.primary : currentTheme.colors.text.primary }]}>{isEn ? 'All' : 'Tümü'}</Text>
             </Pressable>
-            {Object.keys(MOOD_EMOJIS).map((mood) => (
+            {MOODS_CONFIG.map((m) => (
               <Pressable 
-                key={mood}
-                onPress={() => setSelectedMood(selectedMood === mood ? null : mood)}
+                key={m.id}
+                onPress={() => setSelectedMood(selectedMood === m.id ? null : m.id)}
                 style={[
                   styles.moodFilter, 
-                  { backgroundColor: currentTheme.colors.card, borderColor: selectedMood === mood ? currentTheme.colors.primary : currentTheme.colors.cardBorder }
+                  { backgroundColor: currentTheme.colors.card, borderColor: selectedMood === m.id ? currentTheme.colors.primary : currentTheme.colors.cardBorder }
                 ]}
               >
-                <Text style={styles.moodFilterEmoji}>{MOOD_EMOJIS[mood]}</Text>
-                <Text style={[styles.moodFilterText, { color: selectedMood === mood ? currentTheme.colors.primary : currentTheme.colors.text.primary }]}>{mood}</Text>
+                <Text style={styles.moodFilterEmoji}>{m.emoji}</Text>
+                <Text style={[styles.moodFilterText, { color: selectedMood === m.id ? currentTheme.colors.primary : currentTheme.colors.text.primary }]}>{isEn ? m.labelEn : m.labelTr}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -140,8 +156,8 @@ export default function HistoryFull() {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="sparkles-outline" size={60} color={currentTheme.colors.text.secondary} />
-                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>Burada henüz bir iz yok ✨</Text>
-                <Text style={[styles.emptySubtext, { color: currentTheme.colors.text.secondary }]}>Duygusal yolculuğun burada zamanla oluşacak.</Text>
+                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>{isEn ? 'No entries here yet ✨' : 'Burada henüz bir iz yok ✨'}</Text>
+                <Text style={[styles.emptySubtext, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Your emotional journey will unfold here over time.' : 'Duygusal yolculuğun burada zamanla oluşacak.'}</Text>
               </View>
             }
           />

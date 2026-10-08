@@ -2,18 +2,26 @@ import 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { View, ActivityIndicator, Animated, Text, StyleSheet, Platform, AppState } from 'react-native';
+import { View, Animated, Text, StyleSheet, Platform, AppState } from 'react-native';
 import useThemeStore from "../store/useThemeStore";
 import useAuthStore from "../store/useAuthStore";
 import { useNetworkStore } from "../store/useNetworkStore";
 import * as Notifications from '../utils/notifications';
 import { getSubscription } from '../api/userApi';
 import useSubscriptionStore from '../store/useSubscriptionStore';
+import { useLanguageStore } from '../store/useLanguageStore';
+import * as SplashScreen from 'expo-splash-screen';
+import { BrandIntro } from '../components/BrandIntro';
 
 // ─── Soft session-expiry toast ────────────────────────────────────────────────
+// Cross-fade the native splash into the JS brand intro instead of cutting (iOS)
+SplashScreen.setOptions({ duration: 400, fade: true });
+
 function SessionExpiredToast({ visible, onHide }: { visible: boolean; onHide: () => void }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
+  const { language } = useLanguageStore();
+  const isEn = language === 'en';
 
   useEffect(() => {
     if (visible) {
@@ -44,7 +52,7 @@ function SessionExpiredToast({ visible, onHide }: { visible: boolean; onHide: ()
     >
       <Text style={toastStyles.emoji}>🔐</Text>
       <Text style={toastStyles.text}>
-        Oturum süren doldu. Lütfen tekrar giriş yap.
+        {isEn ? 'Session expired. Please log in again.' : 'Oturum süren doldu. Lütfen tekrar giriş yap.'}
       </Text>
     </Animated.View>
   );
@@ -86,7 +94,7 @@ const toastStyles = StyleSheet.create({
 
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 export default function RootLayout() {
-  const { loadTheme } = useThemeStore();
+  const { loadTheme, currentTheme } = useThemeStore();
   const {
     token,
     setAuth,
@@ -98,6 +106,7 @@ export default function RootLayout() {
     clearSessionExpired,
   } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
   const [showSessionToast, setShowSessionToast] = useState(false);
 
   try {
@@ -128,10 +137,22 @@ export default function RootLayout() {
           console.error('[Startup] Theme load failed:', e);
         }
 
+        // Load language settings
+        try {
+          await useLanguageStore.getState().loadLanguage();
+        } catch (e) {
+          console.error('[Startup] Language load failed:', e);
+        }
+
         // Check onboarding status
         try {
           const onboardingValue = await AsyncStorage.getItem('onboardingCompleted');
-          await setOnboardingCompleted(onboardingValue === 'true');
+          const isOnboarded = onboardingValue === 'true';
+          await setOnboardingCompleted(isOnboarded);
+          if (isOnboarded && !useLanguageStore.getState().hasSelectedLanguage) {
+            // Existing user who already completed onboarding keeps Turkish and bypasses language selector
+            await useLanguageStore.getState().setHasSelectedLanguage(true);
+          }
         } catch (e) {
           console.error('[Startup] Onboarding status check failed:', e);
           await setOnboardingCompleted(false);
@@ -323,26 +344,34 @@ export default function RootLayout() {
     }
   }, [sessionExpired, isReady]);
 
+  const hasSelectedLanguage = useLanguageStore((state) => state.hasSelectedLanguage);
+
   // ── Route guarding ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isReady) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
-    const onOnboarding = segments[0] === 'onboarding';
-    const onPostAuthOnboarding = segments[0] === 'post-auth-onboarding';
+    const firstSeg = segments[0] as string;
+    const inAuthGroup = firstSeg === '(auth)';
+    const inTabsGroup = firstSeg === '(tabs)';
+    const onLanguageSelection = firstSeg === 'language-selection';
+    const onOnboarding = firstSeg === 'onboarding';
+    const onPostAuthOnboarding = firstSeg === 'post-auth-onboarding';
     const onPublic = 
-      segments[0] === 'terms' || 
-      segments[0] === 'privacy-policy' || 
-      segments[0] === 'reset-password' || 
-      segments[0] === 'forgot-password';
+      firstSeg === 'terms' || 
+      firstSeg === 'privacy-policy' || 
+      firstSeg === 'reset-password' || 
+      firstSeg === 'forgot-password';
 
-    if (!onboardingCompleted) {
-      if (!onOnboarding) {
+    if (!hasSelectedLanguage && !onboardingCompleted) {
+      if (!onLanguageSelection) {
+        router.replace('/language-selection' as any);
+      }
+    } else if (!onboardingCompleted) {
+      if (!onOnboarding && !onLanguageSelection) {
         router.replace('/onboarding');
       }
     } else if (!token) {
-      if (inTabsGroup || (!inAuthGroup && !onPublic)) {
+      if (inTabsGroup || (!inAuthGroup && !onPublic && !onLanguageSelection)) {
         router.replace('/(auth)/login');
       }
     } else if (token) {
@@ -350,23 +379,21 @@ export default function RootLayout() {
         if (!onPostAuthOnboarding) {
           router.replace('/post-auth-onboarding');
         }
-      } else if (inAuthGroup || onOnboarding || onPostAuthOnboarding) {
+      } else if (inAuthGroup || onOnboarding || onPostAuthOnboarding || onLanguageSelection) {
         router.replace('/(tabs)');
       }
     }
-  }, [isReady, onboardingCompleted, token, postAuthOnboardingCompleted, segments]);
+  }, [isReady, hasSelectedLanguage, onboardingCompleted, token, postAuthOnboardingCompleted, segments]);
 
-  if (!isReady || onboardingCompleted === null) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0F2027' }}>
-        <ActivityIndicator size="large" color="#fff" />
-      </View>
-    );
-  }
+  const appReady = isReady && onboardingCompleted !== null;
 
   return (
-    <View style={{ flex: 1 }}>
+    // Theme background under everything, so no white frame can show between screens
+    <View style={{ flex: 1, backgroundColor: currentTheme.colors.background[0] }}>
+      {appReady && (
+      <>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="language-selection" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="post-auth-onboarding" />
         <Stack.Screen name="(auth)" />
@@ -397,6 +424,20 @@ export default function RootLayout() {
           clearSessionExpired();
         }}
       />
+      </>
+      )}
+
+      {/* Brand intro replaces the old loading spinner; the routed screen mounts underneath and is revealed by its fade */}
+      {!introDone && (
+        <BrandIntro
+          key="brand-intro"
+          // First launch (onboarding not completed) gets the full intro, returning users the compact one.
+          // onboardingCompleted is read from storage at the very start of initialize(), before any network work.
+          variant={onboardingCompleted === null ? null : onboardingCompleted ? 'compact' : 'full'}
+          ready={appReady}
+          onFinish={() => setIntroDone(true)}
+        />
+      )}
     </View>
   );
 }

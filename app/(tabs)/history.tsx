@@ -14,6 +14,8 @@ import { logger } from '../../utils/logger';
 import { useNetworkStore } from '../../store/useNetworkStore';
 import { NetworkErrorState } from '../../components/NetworkErrorState';
 
+import { useT } from '../../i18n';
+
 interface CheckIn {
   id: number;
   mood: string;
@@ -36,6 +38,8 @@ const MOOD_EMOJIS: { [key: string]: string } = {
 export default function HistoryScreen() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [advancedAnswers, setAdvancedAnswers] = useState<any[]>([]);
+  const { t, language } = useT();
+  const isEn = language === 'en';
   
   interface WeeklyInsightData {
     insight: string;
@@ -86,21 +90,27 @@ export default function HistoryScreen() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      // Phase 2 (Immediate): Load timeline / reflections
       const [timelineRes, dailyRes] = await Promise.allSettled([
         client.get('/emotional/timeline'),
         client.get('/reflections/daily')
       ]);
 
       if (timelineRes.status === 'fulfilled') {
-        const mappedList = timelineRes.value.data.map((entry: any) => ({
-          ...entry,
-          id: entry.id,
-          mood: entry.emotion || 'Sakin',
-          question_text: entry.prompt || 'Yansıma',
-          answer: entry.content,
-          type: entry.source_type
-        }));
+        const mappedList = timelineRes.value.data
+          .filter((entry: any) => {
+            const p = (entry.prompt || '').toLowerCase().trim();
+            const c = (entry.content || '').toLowerCase().trim();
+            if (p === 'test prompt' || c === 'test content') return false;
+            return true;
+          })
+          .map((entry: any) => ({
+            ...entry,
+            id: entry.id,
+            mood: entry.emotion || 'Sakin',
+            question_text: entry.prompt || (isEn ? 'Reflection' : 'Yansıma'),
+            answer: entry.content,
+            type: entry.source_type
+          }));
         setAdvancedAnswers(mappedList);
       } else {
         logger.error('[History] Fetch timeline failed', timelineRes.reason);
@@ -113,15 +123,13 @@ export default function HistoryScreen() {
         logger.error('[History] Fetch daily reflection failed', dailyRes.reason);
       }
 
-      // If both Stage 2 calls fail, register the error message
       if (timelineRes.status === 'rejected' && dailyRes.status === 'rejected') {
         const errObj = timelineRes.reason || dailyRes.reason;
         if (errObj?.message !== 'SESSION_EXPIRED' && !errObj?.isSessionExpiry) {
-          setError(errObj?.message || 'Veriler yüklenirken bir bağlantı hatası oluştu.');
+          setError(errObj?.message || t('errors.network'));
         }
       }
 
-      // Phase 3 (Delayed Background, 1000ms): Load insights, patterns, journey
       setTimeout(async () => {
         try {
           const [weeklyRes, patternsRes, journeyRes] = await Promise.allSettled([
@@ -182,7 +190,7 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchData(true);
-    }, [])
+    }, [language])
   );
 
   const onRefresh = () => {
@@ -192,7 +200,7 @@ export default function HistoryScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return date.toLocaleDateString(isEn ? 'en-US' : 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   const isCardUnlocked = (cardIndex: number, level: string) => {
@@ -208,55 +216,61 @@ export default function HistoryScreen() {
     const level = weeklyData?.depthLevel || 'NEW';
     const hasWeekly = !!weeklyData;
 
-    // Slide 1: Senin Haftan (Overview / Progression)
+    // Guard: if the API returned a Turkish progressionText (stale cached response from a prior
+    // Turkish session) but the app is now in English mode, fall back to the English default.
+    const rawProgText = journeyData?.progressionText || '';
+    const progressionText = (isEn && /[\u00c7\u00e7\u011e\u011f\u0130\u0131\u00d6\u00f6\u015e\u015f\u00dc\u00fc]/.test(rawProgText))
+      ? 'You\'re beginning a new week in your self-discovery journey.'
+      : rawProgText || (isEn ? 'You\'re beginning a new week in your self-discovery journey.' : 'Kendini tan\u0131ma yolculu\u011funda yeni bir haftaya ba\u015fl\u0131yorsun.');
+
     slides.push({
       id: 's1',
-      title: 'Senin Haftan',
-      label: 'Genel Bir Bakış 🌤️',
-      bodyText: journeyData?.progressionText || 'Kendini tanıma yolculuğunda yeni bir haftaya başlıyorsun.',
-      footerText: 'Kendini keşfetme yolculuğun devam ediyor 🤍',
+      title: isEn ? 'Your Week' : 'Senin Haftan',
+      label: isEn ? 'An Overview \uD83C\uDF24\uFE0F' : 'Genel Bir Bak\u0131\u015f \uD83C\uDF24\uFE0F',
+      bodyText: progressionText,
+      footerText: isEn ? 'Your journey of self-discovery continues \uD83E\uDD0D' : 'Kendini ke\u015ffetme yolculu\u011fun devam ediyor \uD83E\uDD0D',
       icon: 'sparkles',
       iconColor: '#FBBF24',
       gradient: ['rgba(30, 27, 75, 0.98)', 'rgba(49, 46, 129, 0.98)', 'rgba(15, 17, 26, 1)']
     });
 
-    // Slide 2: Duygusal Ritim
+    // Slide 2: Emotional Rhythm
     slides.push({
       id: 's2',
-      title: 'Duygusal Ritmin',
-      label: 'Ruh Halindeki Değişimler 🌊',
+      title: isEn ? 'Emotional Rhythm' : 'Duygusal Ritmin',
+      label: isEn ? 'Shifts in Mood 🌊' : 'Ruh Halindeki Değişimler 🌊',
       bodyText: hasWeekly && weeklyData?.rhythm 
         ? weeklyData.rhythm 
-        : 'Bu günlerde paylaştıklarınla duygusal ritmin şekilleniyor. Dalgalanmaları yargısızca fark et.',
-      footerText: 'Duygularının ritmini dinle 🌿',
+        : (isEn ? 'Your emotional rhythm takes shape through what you share. Notice fluctuations without judgment.' : 'Bu günlerde paylaştıklarınla duygusal ritmin şekilleniyor. Dalgalanmaları yargısızca fark et.'),
+      footerText: isEn ? 'Listen to the rhythm of your feelings 🌿' : 'Duygularının ritmini dinle 🌿',
       icon: 'heart',
       iconColor: '#EF4444',
       gradient: ['rgba(76, 29, 149, 0.98)', 'rgba(59, 7, 100, 0.98)', 'rgba(15, 17, 26, 1)']
     });
 
-    // Slide 3: Öne Çıkan Anlar / Yansımalar
+    // Slide 3: Inner Reflections
     slides.push({
       id: 's3',
-      title: 'İçsel Yansımalar',
-      label: 'Unutulmaz Hisler ✨',
+      title: isEn ? 'Inner Reflections' : 'İçsel Yansımalar',
+      label: isEn ? 'Memorable Moments ✨' : 'Unutulmaz Hisler ✨',
       bodyText: hasWeekly && weeklyData?.thoughtFocus 
         ? weeklyData.thoughtFocus 
-        : `Bu hafta ${journeyData?.stats?.journalCount || 0} yazı yazdın. Kendine mola vermenin, sessiz anların değerini fark ettiğin anlar öne çıktı.`,
-      footerText: 'Her küçük an iz bırakır 🤍',
+        : (isEn ? `You wrote ${journeyData?.stats?.journalCount || 0} entries this week. Moments of quiet pause and self-awareness stood out.` : `Bu hafta ${journeyData?.stats?.journalCount || 0} yazı yazdın. Kendine mola vermenin, sessiz anların değerini fark ettiğin anlar öne çıktı.`),
+      footerText: isEn ? 'Every small moment leaves a trace 🤍' : 'Her küçük an iz bırakır 🤍',
       icon: 'star',
       iconColor: '#FBBF24',
       gradient: ['rgba(30, 27, 75, 0.98)', 'rgba(74, 4, 78, 0.98)', 'rgba(15, 17, 26, 1)']
     });
 
-    // Slide 4: Sonraki Hafta İçin
+    // Slide 4: Looking Ahead
     slides.push({
       id: 's4',
-      title: 'Sonraki Hafta İçin',
-      label: 'Niyetlerin & Odakların 🌅',
+      title: isEn ? 'For the Week Ahead' : 'Sonraki Hafta İçin',
+      label: isEn ? 'Intentions & Focus 🌅' : 'Niyetlerin & Odakların 🌅',
       bodyText: hasWeekly && weeklyData?.shifts 
         ? weeklyData.shifts 
-        : 'Gelecek haftaya başlarken kendine daha şefkatli davranmayı niyet edebilirsin. Adımların aceleye gelmesin.',
-      footerText: 'Yeni bir güne, yeni bir haftaya hazır ol 🤍',
+        : (isEn ? 'As you begin the upcoming week, intend to be gentle with yourself. Take steps at your own calm pace.' : 'Gelecek haftaya başlarken kendine daha şefkatli davranmayı niyet edebilirsin. Adımların aceleye gelmesin.'),
+      footerText: isEn ? 'Ready for a fresh day, a fresh week 🤍' : 'Yeni bir güne, yeni bir haftaya hazır ol 🤍',
       icon: 'sunny',
       iconColor: '#F97316',
       gradient: ['rgba(2, 44, 34, 0.98)', 'rgba(6, 78, 59, 0.98)', 'rgba(15, 17, 26, 1)']
@@ -275,8 +289,10 @@ export default function HistoryScreen() {
     if (!unlocked) {
       setModal({
         visible: true,
-        title: 'Uykuda Olan Bir Hikaye... 🌙',
-        message: 'Bu hikaye kartı henüz duygusal olarak uykuda. Kendine zaman ayırıp iç dünyanı paylaştıkça ve zihnindeki düşünceleri döktükçe, buradaki anlar kendiliğinden uyanacak... ✨'
+        title: isEn ? 'A Story Still Sleeping... 🌙' : 'Uykuda Olan Bir Hikaye... 🌙',
+        message: isEn
+          ? 'This story card is currently sleeping. As you dedicate time to yourself and share your reflections, these moments will softly awaken... ✨'
+          : 'Bu hikaye kartı henüz duygusal olarak uykuda. Kendine zaman ayırıp iç dünyanı paylaştıkça ve zihnindeki düşünceleri döktükçe, buradaki anlar kendiliğinden uyanacak... ✨'
       });
       return;
     }
@@ -292,18 +308,18 @@ export default function HistoryScreen() {
         <View style={styles.storySectionHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>
-              Bu Haftanın Hikayesi
+              {isEn ? "This Week's Story" : "Bu Haftanın Hikayesi"}
             </Text>
             <TouchableOpacity onPress={() => setModal({
               visible: true,
-              title: 'Haftalık Hikayeler 📖',
-              message: 'Haftalık paylaşımlarından süzülen 5 farklı yansıma hikayesi. Tıklayarak tam ekran okuyabilirsin.'
+              title: isEn ? 'Weekly Stories 📖' : 'Haftalık Hikayeler 📖',
+              message: isEn ? '5 different reflection stories woven from your weekly entries. Tap to read in full screen.' : 'Haftalık paylaşımlarından süzülen 5 farklı yansıma hikayesi. Tıklayarak tam ekran okuyabilirsin.'
             })}>
               <Ionicons name="information-circle-outline" size={16} color={currentTheme.colors.text.secondary} />
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={() => handleShowAllStories()}>
-            <Text style={[styles.seeAllStoriesLink, { color: currentTheme.colors.primary }]}>Tümünü Gör &gt;</Text>
+            <Text style={[styles.seeAllStoriesLink, { color: currentTheme.colors.primary }]}>{isEn ? 'See All >' : 'Tümünü Gör >'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -356,15 +372,19 @@ export default function HistoryScreen() {
     const level = weeklyData?.depthLevel || 'NEW';
     const isImmersive = level === 'IMMERSIVE';
 
-    const encouragementMessage = journeyData?.progressionText || 'Kendini tanıma yolculuğunda yeni bir haftaya başlıyorsun.';
+    // Guard against stale Turkish progressionText in English mode (e.g. from an in-flight cached response).
+    const rawEncText = journeyData?.progressionText || '';
+    const encouragementMessage = (isEn && /[\u00c7\u00e7\u011e\u011f\u0130\u0131\u00d6\u00f6\u015e\u015f\u00dc\u00fc]/.test(rawEncText))
+      ? 'You\'re beginning a new week in your self-discovery journey.'
+      : rawEncText || (isEn ? 'You\'re beginning a new week in your self-discovery journey.' : 'Kendini tan\u0131ma yolculu\u011funda yeni bir haftaya ba\u015fl\u0131yorsun.');
 
     return (
       <View style={[
         isImmersive ? styles.immersiveJourneyStatsCard : styles.journeyStatsCard,
         { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder, marginTop: 24 }
       ]}>
-        <Text style={[styles.journeyStatsTitle, { color: isImmersive ? '#E2E8F0' : currentTheme.colors.primary }]}>Haftalık Yolculuğun ✨</Text>
-        <Text style={[styles.journeyStatsSubtitle, { color: currentTheme.colors.text.secondary }]}>Her küçük adım, seni daha iyi anlamana yardımcı oluyor.</Text>
+        <Text style={[styles.journeyStatsTitle, { color: isImmersive ? '#E2E8F0' : currentTheme.colors.primary }]}>{isEn ? 'Your Weekly Journey ✨' : 'Haftalık Yolculuğun ✨'}</Text>
+        <Text style={[styles.journeyStatsSubtitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Every small step helps you understand yourself better.' : 'Her küçük adım, seni daha iyi anlamana yardımcı oluyor.'}</Text>
 
         <View style={styles.journeyStatsRow}>
           <View style={styles.journeyStatCol}>
@@ -372,7 +392,7 @@ export default function HistoryScreen() {
               <Ionicons name="flash" size={20} color="#A78BFA" />
             </View>
             <Text style={[styles.statCount, { color: currentTheme.colors.text.primary }]}>{checkinCount}</Text>
-            <Text style={[styles.statLabel, { color: currentTheme.colors.text.secondary }]}>Check-in{"\n"}Bu hafta</Text>
+            <Text style={[styles.statLabel, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Check-ins\nThis week' : 'Check-in\nBu hafta'}</Text>
           </View>
 
           <View style={styles.journeyStatCol}>
@@ -380,7 +400,7 @@ export default function HistoryScreen() {
               <Ionicons name="heart" size={20} color="#F472B6" />
             </View>
             <Text style={[styles.statCount, { color: currentTheme.colors.text.primary }]}>{cardsCount}</Text>
-            <Text style={[styles.statLabel, { color: currentTheme.colors.text.secondary }]}>Duygu Farkındalığı{"\n"}Anı</Text>
+            <Text style={[styles.statLabel, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Emotional Cards\nMoments' : 'Duygu Farkındalığı\nAnı'}</Text>
           </View>
 
           <View style={styles.journeyStatCol}>
@@ -388,7 +408,7 @@ export default function HistoryScreen() {
               <Ionicons name="book" size={20} color="#FB923C" />
             </View>
             <Text style={[styles.statCount, { color: currentTheme.colors.text.primary }]}>{journalCount}</Text>
-            <Text style={[styles.statLabel, { color: currentTheme.colors.text.secondary }]}>Yazı / Günlük{"\n"}Bu hafta</Text>
+            <Text style={[styles.statLabel, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Journal Entries\nThis week' : 'Yazı / Günlük\nBu hafta'}</Text>
           </View>
         </View>
 
@@ -407,9 +427,9 @@ export default function HistoryScreen() {
     const isImmersive = level === 'IMMERSIVE';
     const hasWeekly = !!weeklyData;
 
-    let sakinText = 'Akşam saatlerinde daha sakin hissediyorsun.';
-    let ruhText = 'Bu hafta dengeli ve içe dönük anların çoğalmış.';
-    let hatirlatmaText = 'Kendine karşı nazik olmayı unutma. Sen yeterince iyisin. 🤍';
+    let sakinText = isEn ? 'You tend to feel calmer during evening hours.' : 'Akşam saatlerinde daha sakin hissediyorsun.';
+    let ruhText = isEn ? 'Balanced and introspective moments increased for you this week.' : 'Bu hafta dengeli ve içe dönük anların çoğalmış.';
+    let hatirlatmaText = isEn ? 'Remember to be gentle with yourself. You are enough as you are. 🤍' : 'Kendine karşı nazik olmayı unutma. Sen yeterince iyisin. 🤍';
 
     if (hasWeekly && weeklyData) {
       if (weeklyData.comfortPattern) sakinText = weeklyData.comfortPattern;
@@ -420,7 +440,7 @@ export default function HistoryScreen() {
     return (
       <View style={[styles.patternSection, { marginTop: 24 }]}>
         <View style={styles.storySectionHeader}>
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>Bu Haftanın İçgörüleri</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>{isEn ? "This Week's Insights" : "Bu Haftanın İçgörüleri"}</Text>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.insightsCarousel}>
@@ -431,7 +451,7 @@ export default function HistoryScreen() {
             <View style={[styles.insightCardIconWrapper, { backgroundColor: 'rgba(167, 139, 250, 0.12)' }]}>
               <Ionicons name="moon" size={18} color="#A78BFA" />
             </View>
-            <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>En Sakin Zamanın</Text>
+            <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Your Calmest Time' : 'En Sakin Zamanın'}</Text>
             <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{sakinText}</Text>
           </View>
 
@@ -443,7 +463,7 @@ export default function HistoryScreen() {
               <View style={[styles.insightCardIconWrapper, { backgroundColor: 'rgba(52, 211, 153, 0.12)' }]}>
                 <Ionicons name="leaf" size={18} color="#34D399" />
               </View>
-              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>Ruh Halin</Text>
+              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Your Mood Flow' : 'Ruh Halin'}</Text>
               <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{ruhText}</Text>
             </View>
           ) : (
@@ -453,8 +473,8 @@ export default function HistoryScreen() {
               { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }
             ]}>
               <Ionicons name="moon-outline" size={18} color={currentTheme.colors.text.muted} style={{ marginBottom: 6, opacity: 0.6 }} />
-              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.muted }]}>Uykudaki Ritim 🌊</Text>
-              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>Duygularını paylaştıkça bu ritim kendiliğinden uyanacak...</Text>
+              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Sleeping Rhythm 🌊' : 'Uykudaki Ritim 🌊'}</Text>
+              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>{isEn ? 'As you share your emotions, this rhythm will awaken naturally...' : 'Duygularını paylaştıkça bu ritim kendiliğinden uyanacak...'}</Text>
             </View>
           )}
 
@@ -466,7 +486,7 @@ export default function HistoryScreen() {
               <View style={[styles.insightCardIconWrapper, { backgroundColor: 'rgba(251, 146, 60, 0.12)' }]}>
                 <Ionicons name="star" size={18} color="#FB923C" />
               </View>
-              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>Minik Hatırlatma</Text>
+              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Gentle Reminder' : 'Minik Hatırlatma'}</Text>
               <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.primary }]}>{hatirlatmaText}</Text>
             </View>
           ) : (
@@ -476,8 +496,8 @@ export default function HistoryScreen() {
               { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }
             ]}>
               <Ionicons name="sparkles-outline" size={18} color={currentTheme.colors.text.muted} style={{ marginBottom: 6, opacity: 0.6 }} />
-              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.muted }]}>Sessiz Yansıma ✨</Text>
-              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>Kendinle kurduğun bağ derinleştikçe bu fısıltı belirecek...</Text>
+              <Text style={[styles.insightCardTitle, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Quiet Reflection ✨' : 'Sessiz Yansıma ✨'}</Text>
+              <Text numberOfLines={4} ellipsizeMode="tail" style={[styles.insightCardBody, { color: currentTheme.colors.text.muted, fontSize: 13 }]}>{isEn ? 'As your bond with yourself deepens, this whisper will appear...' : 'Kendinle kurduğun bağ derinleştikçe bu fısıltı belirecek...'}</Text>
             </View>
           )}
 
@@ -490,7 +510,7 @@ export default function HistoryScreen() {
             onPress={() => router.push('/check-in')}
           >
             <Ionicons name="add" size={24} color={currentTheme.colors.primary} />
-            <Text style={[styles.insightCardItemMoreText, { color: currentTheme.colors.text.primary }]}>Keşfetmek için paylaşmaya devam et ✨</Text>
+            <Text style={[styles.insightCardItemMoreText, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Keep sharing to discover more ✨' : 'Keşfetmek için paylaşmaya devam et ✨'}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -505,12 +525,12 @@ export default function HistoryScreen() {
     if (level === 'NEW' || level === 'LIGHT') {
       return (
         <View style={{ marginTop: 24, paddingBottom: 12 }}>
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Haftanın Soruları & Yansımaları</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Weekly Questions & Reflections' : 'Haftanın Soruları & Yansımaları'}</Text>
           <View style={[styles.questionsPlaceholderCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
             <Ionicons name="cloudy-outline" size={24} color={currentTheme.colors.text.muted} style={{ marginBottom: 8, opacity: 0.6 }} />
-            <Text style={[styles.placeholderCardTitle, { color: currentTheme.colors.text.primary }]}>Yansımalar Henüz Uykuda... 🌿</Text>
+            <Text style={[styles.placeholderCardTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Reflections Still Sleeping... 🌿' : 'Yansımalar Henüz Uykuda... 🌿'}</Text>
             <Text style={[styles.placeholderCardSubtitle, { color: currentTheme.colors.text.secondary }]}>
-              Kendinle kurduğun bağ ve paylaşımların derinleştikçe, bu alandaki sorular ve yansımalar kendiliğinden belirecek.
+              {isEn ? 'As your bond with yourself and reflections deepen, questions and insights here will appear naturally.' : 'Kendinle kurduğun bağ ve paylaşımların derinleştikçe, bu alandaki sorular ve yansımalar kendiliğinden belirecek.'}
             </Text>
           </View>
         </View>
@@ -520,7 +540,7 @@ export default function HistoryScreen() {
     return (
       <View style={{ marginTop: 24, paddingBottom: 12 }}>
         <View style={styles.storySectionHeader}>
-          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>Haftanın Soruları & Yansımaları</Text>
+          <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>{isEn ? 'Weekly Questions & Reflections' : 'Haftanın Soruları & Yansımaları'}</Text>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.questionsCarousel}>
@@ -541,7 +561,7 @@ export default function HistoryScreen() {
             ))
           ) : (
             <View style={[styles.qCardItem, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder, borderStyle: 'dashed', justifyContent: 'center' }]}>
-              <Text style={[styles.qCardAnswer, { color: currentTheme.colors.text.muted, textAlign: 'center' }]}>Bu hafta soru oluşturmak için yeterli paylaşım yapılmadı 🌿</Text>
+              <Text style={[styles.qCardAnswer, { color: currentTheme.colors.text.muted, textAlign: 'center' }]}>{isEn ? 'Not enough entries shared this week to generate questions 🌿' : 'Bu hafta soru oluşturmak için yeterli paylaşım yapılmadı 🌿'}</Text>
             </View>
           )}
         </ScrollView>
@@ -554,8 +574,8 @@ export default function HistoryScreen() {
       <View style={styles.container}>
         <View style={styles.screenHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: currentTheme.colors.text.primary, paddingHorizontal: 0, marginBottom: 0 }]}>Kendinle Yolculuğun</Text>
-            <Text style={[styles.subtitleText, { color: currentTheme.colors.text.secondary }]}>Kendini keşfet, anlamlandır ve ilerle ✨</Text>
+            <Text style={[styles.title, { color: currentTheme.colors.text.primary, paddingHorizontal: 0, marginBottom: 0 }]}>{isEn ? 'Your Journey' : 'Kendinle Yolculuğun'}</Text>
+            <Text style={[styles.subtitleText, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Discover, reflect, and move forward ✨' : 'Kendini keşfet, anlamlandır ve ilerle ✨'}</Text>
           </View>
           <TouchableOpacity 
             style={[styles.historyButton, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}
@@ -568,14 +588,14 @@ export default function HistoryScreen() {
               } else {
                 setModal({
                   visible: true,
-                  title: 'Geçmiş Haftalar 🗓️',
-                  message: 'Henüz geçmiş haftaların oluşmaya başlamadı.\n\nBurada zamanla:\n- duyguların,\n- düşüncelerin,\n- gelişimin\nbirikmeye başlayacak.'
+                  title: `${t('history.pastWeeks')} 🗓️`,
+                  message: isEn ? 'Your past weeks have not accumulated yet.\n\nOver time:\n- your emotions,\n- your thoughts,\n- your growth\nwill gather here.' : 'Henüz geçmiş haftaların oluşmaya başlamadı.\n\nBurada zamanla:\n- duyguların,\n- düşüncelerin,\n- gelişimin\nbirikmeye başlayacak.'
                 });
               }
             }}
           >
             <Ionicons name="calendar-outline" size={16} color={currentTheme.colors.primary} />
-            <Text style={[styles.historyButtonText, { color: currentTheme.colors.text.primary }]}>Geçmiş Haftalar</Text>
+            <Text style={[styles.historyButtonText, { color: currentTheme.colors.text.primary }]}>{t('history.pastWeeks')}</Text>
           </TouchableOpacity>
         </View>
         
@@ -585,7 +605,7 @@ export default function HistoryScreen() {
           <NetworkErrorState message={error} onRetry={() => fetchData(false)} />
         ) : (
           <FlatList
-            data={[]} // We use ListHeaderComponent for everything to keep it simple and unified
+            data={[]}
             keyExtractor={() => 'dummy'}
             ListHeaderComponent={
               <View style={styles.headerComponent}>
@@ -598,7 +618,7 @@ export default function HistoryScreen() {
                         <Ionicons name="sunny-outline" size={24} color={currentTheme.colors.primary} />
                       </View>
                       <View style={styles.dailyTextContainer}>
-                        <Text style={[styles.dailyTitle, { color: currentTheme.colors.text.secondary }]}>Günlük Küçük Yansıma 🌿</Text>
+                        <Text style={[styles.dailyTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Daily Reflection 🌿' : 'Günlük Küçük Yansıma 🌿'}</Text>
                         <Text style={[styles.dailyText, { color: currentTheme.colors.text.primary }]}>{sanitizeText(dailyReflection)}</Text>
                       </View>
                       <View style={styles.leafSilhouetteContainer}>
@@ -613,7 +633,7 @@ export default function HistoryScreen() {
                 <View style={[styles.quoteCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
                   <Ionicons name={"chatbubble-ellipses-outline" as any} size={16} color={currentTheme.colors.primary} style={styles.quoteIcon} />
                   <Text style={[styles.quoteText, { color: currentTheme.colors.text.secondary }]}>
-                    Küçük yansımalar, büyük değişimlerin başlangıcıdır.
+                    {isEn ? 'Small reflections are the beginning of great transformations.' : 'Küçük yansımalar, büyük değişimlerin başlangıcıdır.'}
                   </Text>
                   <Ionicons name="sparkles-outline" size={14} color={currentTheme.colors.accent} style={styles.quoteSparkle} />
                 </View>
@@ -624,8 +644,8 @@ export default function HistoryScreen() {
 
                 {advancedAnswers.length > 0 && (
                   <View style={[styles.advancedSection, { marginTop: 32 }]}>
-                    <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 4 }]}>Paylaşımların ✨</Text>
-                    <Text style={[styles.sectionSubtitle, { color: currentTheme.colors.text.secondary, marginBottom: 16 }]}>Duygusal yolculuğundan dökülen küçük yansımalar.</Text>
+                    <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary, marginBottom: 4 }]}>{isEn ? 'Your Reflections ✨' : 'Paylaşımların ✨'}</Text>
+                    <Text style={[styles.sectionSubtitle, { color: currentTheme.colors.text.secondary, marginBottom: 16 }]}>{isEn ? 'Gentle moments gathered from your emotional journey.' : 'Duygusal yolculuğundan dökülen küçük yansımalar.'}</Text>
                     
                     <View style={styles.verticalTimeline}>
                       {advancedAnswers.slice(0, 10).map((ans, idx) => (
@@ -635,10 +655,10 @@ export default function HistoryScreen() {
                             <View style={styles.cardTopRow}>
                               <Text style={styles.snippetEmoji}>{MOOD_EMOJIS[ans.mood] || '🤍'}</Text>
                               <View style={[styles.tag, { backgroundColor: currentTheme.colors.glow }]}>
-                                <Text style={[styles.tagText, { color: currentTheme.colors.primary }]}>{ans.question_text || 'Günlük Not'}</Text>
+                                <Text style={[styles.tagText, { color: currentTheme.colors.primary }]}>{ans.question_text || (isEn ? 'Daily Note' : 'Günlük Not')}</Text>
                               </View>
                             </View>
-                             <Text style={[styles.snippetText, { color: currentTheme.colors.text.primary }]}>“{sanitizeText(ans.answer, 'Paylaşım bulunamadı.')}”</Text>
+                             <Text style={[styles.snippetText, { color: currentTheme.colors.text.primary }]}>“{sanitizeText(ans.answer, isEn ? 'No entry found.' : 'Paylaşım bulunamadı.')}”</Text>
 
                             <Text style={[styles.snippetDate, { color: currentTheme.colors.text.secondary }]}>{formatDate(ans.created_at)}</Text>
                           </View>
@@ -647,7 +667,7 @@ export default function HistoryScreen() {
                     </View>
 
                     <CustomButton 
-                      title="Tüm Geçmişi Gör" 
+                      title={isEn ? "See Full History" : "Tüm Geçmişi Gör"} 
                       onPress={() => router.push('/history-full')} 
                       style={styles.seeAllButton}
                       textStyle={styles.seeAllButtonText}
@@ -663,8 +683,8 @@ export default function HistoryScreen() {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>Henüz geçmiş haftaların oluşmaya başlamadı.</Text>
-                <Text style={[styles.emptySubtext, { color: currentTheme.colors.text.secondary }]}>Burada zamanla:{'\n'}- duyguların,{'\n'}- düşüncelerin,{'\n'}- gelişimin{'\n'}birikmeye başlayacak.</Text>
+                <Text style={[styles.emptyText, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Your past weeks have not accumulated yet.' : 'Henüz geçmiş haftaların oluşmaya başlamadı.'}</Text>
+                <Text style={[styles.emptySubtext, { color: currentTheme.colors.text.secondary }]}>{isEn ? `Over time:\n- your emotions,\n- your thoughts,\n- your growth\nwill gather here.` : `Burada zamanla:\n- duyguların,\n- düşüncelerin,\n- gelişimin\nbirikmeye başlayacak.`}</Text>
               </View>
             }
           />

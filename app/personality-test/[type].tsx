@@ -9,17 +9,25 @@ import client from '../../api/client';
 import usePersonalitySessionStore from '../../store/usePersonalitySessionStore';
 import useThemeStore from '../../store/useThemeStore';
 import { logger } from '../../utils/logger';
+import { useT } from '../../i18n';
 
 interface Option {
   text: string;
   weights: Record<string, number>;
 }
 
-const INTERSTITIALS = [
+const INTERSTITIALS_TR = [
   "Cevapların iç dünyandaki bazı sessiz desenleri ortaya çıkarıyor...",
   "Duygusal ritmini yavaş yavaş hissetmeye başlıyoruz...",
   "Kendini ifade etme biçimin eşsiz bir hikaye anlatıyor...",
   "Enerjinin gerçek rengi belirginleşiyor..."
+];
+
+const INTERSTITIALS_EN = [
+  "Your answers reveal quiet patterns within your inner world...",
+  "We are beginning to feel your emotional rhythm softly...",
+  "The way you express yourself tells a unique story...",
+  "The true color of your energy is coming into focus..."
 ];
 
 export default function PersonalityTestScreen() {
@@ -27,6 +35,10 @@ export default function PersonalityTestScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const INTERSTITIALS = isEn ? INTERSTITIALS_EN : INTERSTITIALS_TR;
   
   const { 
     isActive, questions, currentIndex, answers, dimensionScores, sessionFingerprint, queueHash,
@@ -52,7 +64,7 @@ export default function PersonalityTestScreen() {
 
   const submitTest = useCallback(async (finalAnswers: Record<string, number>) => {
     setSubmitting(true);
-    setInterstitialText("Sonuçların sentezleniyor... Bu biraz zaman alabilir.");
+    setInterstitialText(isEn ? "Synthesizing your results... This may take a moment." : "Sonuçların sentezleniyor... Bu biraz zaman alabilir.");
     setShowInterstitial(true);
     
     
@@ -72,7 +84,7 @@ export default function PersonalityTestScreen() {
       setShowInterstitial(false);
       setTimeout(() => router.back(), 1500);
     }
-  }, [endSession, router, sessionFingerprint]);
+  }, [endSession, router, sessionFingerprint, isEn]);
 
   // Helper log function to output complete queue status
   const logRuntimeQueueState = useCallback((context: string) => {
@@ -279,10 +291,10 @@ export default function PersonalityTestScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={currentTheme.colors.primary} style={{ marginBottom: 20 }} />
           <Text style={{ color: currentTheme.colors.text.primary, fontSize: 18, fontWeight: '600', textAlign: 'center', paddingHorizontal: 40 }}>
-            Yolculuk Yapılandırılıyor... ✨
+            {isEn ? 'Structuring Your Journey... ✨' : 'Yolculuk Yapılandırılıyor... ✨'}
           </Text>
           <Text style={{ color: currentTheme.colors.text.secondary, fontSize: 14, textAlign: 'center', marginTop: 10, paddingHorizontal: 40 }}>
-            Uyumlu duygusal rota yeniden hesaplanıyor.
+            {isEn ? 'Recalculating harmonious emotional route.' : 'Uyumlu duygusal rota yeniden hesaplanıyor.'}
           </Text>
         </View>
       </GradientBackground>
@@ -305,13 +317,13 @@ export default function PersonalityTestScreen() {
       <GradientBackground>
         <View style={styles.centerContainer}>
           <Text style={{ color: currentTheme.colors.text.primary, fontSize: 16, marginBottom: 20, textAlign: 'center', paddingHorizontal: 24 }}>
-            Test yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.
+            {isEn ? 'Could not load test. Please check your connection and try again.' : 'Test yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.'}
           </Text>
           <TouchableOpacity 
             style={{ backgroundColor: currentTheme.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 }}
             onPress={() => { endSession(); router.back(); }}
           >
-            <Text style={{ color: '#FFF', fontWeight: '700' }}>Geri Dön</Text>
+            <Text style={{ color: '#FFF', fontWeight: '700' }}>{isEn ? 'Go Back' : 'Geri Dön'}</Text>
           </TouchableOpacity>
         </View>
       </GradientBackground>
@@ -338,7 +350,7 @@ export default function PersonalityTestScreen() {
     <GradientBackground>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => { endSession(); router.back(); }} style={styles.backBtn} disabled={submitting}>
-          <Text style={[styles.backText, { color: currentTheme.colors.text.muted }]}>İptal</Text>
+          <Text style={[styles.backText, { color: currentTheme.colors.text.muted }]}>{t('common.cancel')}</Text>
         </TouchableOpacity>
         
         {/* Progress Bar */}

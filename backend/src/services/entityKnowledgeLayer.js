@@ -91,12 +91,13 @@ class EKLCache {
     if (this._cleanupTimer.unref) this._cleanupTimer.unref();
   }
 
-  _key(entityName) {
-    return entityName.trim().toLowerCase();
+  _key(entityName, language = 'tr') {
+    const lang = language === 'en' ? 'en' : 'tr';
+    return `${entityName.trim().toLowerCase()}_${lang}`;
   }
 
-  get(entityName) {
-    const key = this._key(entityName);
+  get(entityName, language = 'tr') {
+    const key = this._key(entityName, language);
     const entry = this._store.get(key);
     if (!entry) return null;
 
@@ -110,8 +111,8 @@ class EKLCache {
     return { knowledge: entry.knowledge, freshness: isStale ? 'stale' : 'cached' };
   }
 
-  set(entityName, knowledge) {
-    this._store.set(this._key(entityName), { knowledge, cachedAt: Date.now() });
+  set(entityName, knowledge, language = 'tr') {
+    this._store.set(this._key(entityName, language), { knowledge, cachedAt: Date.now() });
   }
 
   _sweep() {
@@ -456,7 +457,9 @@ const PROVIDER_ROUTES = {
  * @param {string} entityType
  * @returns {Promise<object>}
  */
-async function fetchInternalKnowledge(entityName, entityType) {
+async function fetchInternalKnowledge(entityName, entityType, language = 'tr') {
+  const isEn = language === 'en';
+  const summaryLangInstruction = isEn ? '1–2 sentences in English, natural and concise.' : '1–2 sentences in Turkish, natural and concise.';
   const prompt = `You are a factual knowledge retrieval assistant.
 A user mentioned "${entityName}" which appears to be a ${entityType}.
 
@@ -477,7 +480,7 @@ Confidence scoring rules:
 - 0.00–0.49: You cannot confidently identify this entity. Set entityFound to false.
 
 Additional rules:
-- summary: 1–2 sentences in Turkish, natural and concise.
+- summary: ${summaryLangInstruction}
 - canonicalName: official/correct full name if different from what was typed.
 - Never invent details. If uncertain, lower confidence.
 - Return ONLY the JSON object, no markdown.`;
@@ -506,16 +509,22 @@ Additional rules:
  *
  * @param {string} entityName
  * @param {string} entityType
+ * @param {string} language
  * @returns {Promise<object>}
  */
-async function fetchWebSearch(entityName, entityType) {
+async function fetchWebSearch(entityName, entityType, language = 'tr') {
+  const isEn = language === 'en';
+  const queryPrompt = isEn
+    ? `Provide brief and current factual information about "${entityName}" which may be a ${entityType}. Share verified facts in English: official name, location (city, district/country), brief description. 2-3 sentences.`
+    : `"${entityName}" hakkında kısa ve güncel bilgi ver. Bu bir ${entityType} türünde bir varlık olabilir. Türkçe veya İngilizce olarak, doğrulayabildiğin gerçekleri paylaş: resmi adı, konumu (şehir, ilçe), kısa açıklaması. 2-3 cümle yeterli.`;
+
   // Call 1: Real-time web search — get raw factual content
   const searchCompletion = await openai.chat.completions.create({
     model: WEB_SEARCH_MODEL,
     messages: [
       {
         role: 'user',
-        content: `"${entityName}" hakkında kısa ve güncel bilgi ver. Bu bir ${entityType} türünde bir varlık olabilir. Türkçe veya İngilizce olarak, doğrulayabildiğin gerçekleri paylaş: resmi adı, konumu (şehir, ilçe), kısa açıklaması. 2-3 cümle yeterli.`,
+        content: queryPrompt,
       },
     ],
     max_tokens: 400,
@@ -526,6 +535,8 @@ async function fetchWebSearch(entityName, entityType) {
   if (!rawText || rawText.length < 10) {
     return { entityFound: false, confidence: 0 };
   }
+
+  const summaryRule = isEn ? 'summary: 1-2 sentences in natural English summarizing the text.' : 'summary: 1-2 cümle, doğal Türkçe, web metninden özet.';
 
   // Call 2: Structure the raw search result into our schema
   const structureCompletion = await openai.chat.completions.create({
@@ -552,7 +563,7 @@ Bu metni analiz et ve şu JSON şemasını doldur:
 
 Kurallar:
 - entityFound: gerçek bir varlık bulundu mu?
-- summary: 1-2 cümle, doğal Türkçe, web metninden özet.
+- ${summaryRule}
 - confidence: metindeki bilginin güvenilirliği (0.0–1.0). Metin iyi ve açıksa 0.80+.
 - Yalnızca JSON nesnesi döndür, başka açıklama ekleme.`,
       },
@@ -591,9 +602,10 @@ Kurallar:
  *
  * @param {string} entityName
  * @param {string} entityType
+ * @param {string} language
  * @returns {Promise<{ result: object, sourceType: string }>}
  */
-async function routeToProvider(entityName, entityType) {
+async function routeToProvider(entityName, entityType, language = 'tr') {
   const strategy = PROVIDER_ROUTES[entityType] || 'two_tier';
 
   if (strategy === 'none') {
@@ -603,7 +615,7 @@ async function routeToProvider(entityName, entityType) {
   // ── Tier A: Internal Knowledge ─────────────────────────────
   let internalResult = null;
   try {
-    internalResult = await fetchInternalKnowledge(entityName, entityType);
+    internalResult = await fetchInternalKnowledge(entityName, entityType, language);
   } catch (err) {
     console.error(`[EKL] Internal knowledge fetch failed for "${entityName}":`, err.message);
   }
@@ -618,7 +630,7 @@ async function routeToProvider(entityName, entityType) {
   // ── Tier B: Web Search ─────────────────────────────────────
 
   try {
-    const webResult = await fetchWebSearch(entityName, entityType);
+    const webResult = await fetchWebSearch(entityName, entityType, language);
 
     if (webResult && webResult.entityFound && (webResult.confidence ?? 0) > internalConfidence) {
       return { result: webResult, sourceType: 'web_search' };
@@ -655,10 +667,12 @@ async function routeToProvider(entityName, entityType) {
  * Returns null if no detectable entity (fast path — no external calls).
  *
  * @param {string} message
+ * @param {string} language
  * @returns {Promise<object|null>}
  */
-async function getEntityKnowledge(message) {
+async function getEntityKnowledge(message, language = 'tr') {
   try {
+    const lang = language === 'en' ? 'en' : 'tr';
     // ── Stage 1: Detect ────────────────────────────────────
     const detection = detectEntities(message);
 
@@ -674,14 +688,14 @@ async function getEntityKnowledge(message) {
     const entityType = classifyEntity(bestCandidate);
 
     // ── Stage 3: Cache lookup ──────────────────────────────
-    const cached = _cache.get(bestCandidate);
+    const cached = _cache.get(bestCandidate, lang);
     if (cached) {
       return { ...cached.knowledge, freshness: cached.freshness, sourceType: 'cache' };
     }
 
 
     // ── Stage 4: Provider (Two-Tier) ───────────────────────
-    const { result, sourceType } = await routeToProvider(bestCandidate, entityType);
+    const { result, sourceType } = await routeToProvider(bestCandidate, entityType, lang);
 
     if (!result || !result.entityFound) {
       // Do NOT cache negative results — a failed lookup today may succeed later
@@ -720,7 +734,7 @@ async function getEntityKnowledge(message) {
     };
 
     // Cache successful lookups for subsequent requests
-    _cache.set(bestCandidate, knowledge);
+    _cache.set(bestCandidate, knowledge, lang);
 
     return knowledge;
 

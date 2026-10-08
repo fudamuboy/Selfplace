@@ -1,17 +1,24 @@
 const db = require('../config/db');
 const emotionalController = require('./emotionalController');
 const { extractCheckInThemes } = require('../services/checkInIntelligenceService');
+const { getLanguage } = require('../utils/languageResolver');
 
 exports.getRandomQuestion = async (req, res) => {
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
   try {
-    const result = await db.query('SELECT id, text AS question_text FROM reflection_questions ORDER BY RANDOM() LIMIT 1');
+    const result = await db.query(
+      `SELECT id, COALESCE(${isEn ? 'text_en' : 'text_tr'}, text) AS question_text, category
+       FROM reflection_questions
+       WHERE active = true
+       ORDER BY RANDOM() LIMIT 1`
+    );
 
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[checkInController] getRandomQuestion error:', err.message);
     res.status(500).json({ 
-      message: 'Soru getirilemedi.'
-
+      message: isEn ? 'Could not load question.' : 'Soru getirilemedi.'
     });
   }
 };
@@ -73,7 +80,7 @@ exports.getCheckInById = async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM check_ins WHERE id = $1 AND user_id = $2', [id, userId]);
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Kayıt bulunamadı.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Entry not found.' : 'Kayıt bulunamadı.' });
     }
     res.json(result.rows[0]);
   } catch (err) {
@@ -91,18 +98,18 @@ exports.deleteCheckIn = async (req, res) => {
   try {
     const result = await db.query('DELETE FROM check_ins WHERE id = $1 AND user_id = $2 RETURNING *', [id, userId]);
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Kayıt bulunamadı veya yetkiniz yok.' });
+      return res.status(404).json({ message: getLanguage(req) === 'en' ? 'Entry not found, or you don\'t have permission.' : 'Kayıt bulunamadı veya yetkiniz yok.' });
     }
     // Trigger check-in theme extraction asynchronously to clean up
     extractCheckInThemes(userId).catch(err =>
       console.error('[checkInController] Background check-in theme extraction error on delete:', err.message)
     );
 
-    res.json({ message: 'Kayıt başarıyla silindi.' });
+    res.json({ message: getLanguage(req) === 'en' ? 'Entry deleted.' : 'Kayıt başarıyla silindi.' });
   } catch (err) {
     console.error('[checkInController] deleteCheckIn error:', err.message);
     res.status(500).json({ 
-      message: 'Kayıt silinemedi.'
+      message: getLanguage(req) === 'en' ? 'Couldn\'t delete the entry.' : 'Kayıt silinemedi.'
 
     });
   }
@@ -170,7 +177,7 @@ exports.createAdvancedCheckIn = async (req, res) => {
     res.status(201).json({ success: true, checkInId });
   } catch (err) {
     return res.status(500).json({
-      message: "Kaydedilirken bir hata oluştu."
+      message: getLanguage(req) === 'en' ? 'Something went wrong while saving.' : "Kaydedilirken bir hata oluştu."
     });
   }
 };

@@ -28,7 +28,7 @@ function summarizeDimensions(scores) {
  * @param {number} userId - ID of the user requesting context
  * @returns {Promise<string>} - Formatted SELFPLACE LIVE CONTEXT string
  */
-async function getLivingContext(userId) {
+async function getLivingContext(userId, language = 'tr') {
   try {
     // 1. Fetch User details
     const userRes = await db.query(
@@ -274,7 +274,77 @@ async function getLivingContext(userId) {
       ? timelineEvents.map(e => `- [${new Date(e.created_at).toLocaleDateString('tr-TR')}] ${e.title_tr}: ${e.description_tr || ''}`).join('\n')
       : '- İlk bağlantı dışında henüz önemli bir olay kaydedilmedi.';
 
-    // Construct the structured prompt context dossier
+    if (language === 'en') {
+      const enTimelineText = timelineEvents.length > 0
+        ? timelineEvents.map(e => `- [${new Date(e.created_at).toLocaleDateString('en-US')}] ${e.title_tr}: ${e.description_tr || ''}`).join('\n')
+        : '- Aside from the initial connection, no significant events have occurred yet.';
+
+      return `
+========================================
+SELFPLACE LIVE CONTEXT (REAL-TIME SYSTEM STATE)
+========================================
+
+[User Information]
+- Username: ${user.username}
+- Zodiac Sign: ${user.zodiac_sign || 'Not specified'}
+- Subscription Plan: ${planType.toUpperCase()}
+- App Depth Level: ${depthLevel} (Total Interactions)
+- DISC Personality Archetype: ${myArchetype}
+- Love Language: ${myLoveLanguage}
+- Attachment Style: ${myAttachmentStyle}
+- Communication Style: ${userProfile.communication_style || 'gentle'}
+- Known Behavioral Patterns: ${behavioralDossier}
+
+[Partner & Relationship Status]
+- Partner Name: ${hasPartner ? partnerName : 'No Connection'}
+- Relationship Type: ${connectionType || 'No Connection'}
+- Connection Date: ${connectionDate ? new Date(connectionDate).toLocaleDateString('en-US') : 'No Connection'}
+- Relationship Age (Days): ${connectionAgeDays} days
+- Partner DISC Archetype: ${hasPartner ? partnerArchetype : 'Unknown'}
+- Partner Love Language: ${hasPartner ? partnerLoveLanguage : 'Not specified'}
+- Partner Attachment Style: ${hasPartner ? partnerAttachmentStyle : 'Not specified'}
+- Partner Communication Style: ${hasPartner ? partnerProfile.communication_style : 'gentle'}
+
+[Relationship Health Indicators & Atmosphere]
+- ${relationshipHealth}
+
+[Recent Emotions (Last 5 Days)]
+- User: ${myMoods.length > 0 ? (myMoods.map(m => `${new Date(m.created_at).toLocaleDateString('en-US')}: ${m.mood}${m.note ? ` ("${m.note}")` : ''}`).join(' | ')) : 'No emotion records'}
+- Partner: ${hasPartner && partnerMoods.length > 0 ? (partnerMoods.map(m => `${new Date(m.created_at).toLocaleDateString('en-US')}: ${m.mood}${m.note ? ` ("${m.note}")` : ''}`).join(' | ')) : 'No emotion records'}
+
+[Interactive Invitation Card Activity]
+- ${invitationCardsStats}
+
+[Journaling & Themes]
+- Journal Themes: ${journalThemes}
+
+[Relationship Goals]
+${goals.length > 0 ? goals.map(g => `- ${g}`).join('\n') : '- No shared goals set yet.'}
+
+[Emotional Open Loops & Conflicts (Resolved & Unresolved)]
+- Unresolved Tensions: ${openConflicts.length > 0 ? openConflicts.join(', ') : 'None'}
+- Resolved Past Issues: ${resolvedConflicts.length > 0 ? resolvedConflicts.join(', ') : 'None'}
+- Recent Reconciliations: ${reconciliations.length > 0 ? reconciliations.join(', ') : 'None'}
+- Shared Positive Moments: ${positiveMoments.length > 0 ? positiveMoments.join(', ') : 'None'}
+
+[Weekly Analysis & Insights]
+- Latest Report Summary: ${weeklyInsightText}
+
+[Mandatory AI Follow-ups & Pending Promises]
+${pendingFollowUps.length > 0 ? pendingFollowUps.map(f => `- [${f.status === 'pending' ? 'PENDING PROMISE' : 'COMPLETED'}] ${f.promise} (Created: ${new Date(f.created_at).toLocaleDateString('en-US')})`).join('\n') : '- No pending AI follow-ups or promises.'}
+
+[Emotional Continuity (Memory)]
+- Current Emotional Tone: ${recentEmotionalTone}
+- Recurring Personal Concerns: ${recurringConcerns}
+- Comforting Subjects & Activities: ${comfortingSubjects}
+
+[CHRONOLOGICAL RELATIONSHIP TIMELINE]
+${enTimelineText}
+========================================
+`;
+    }
+
+    // Construct the structured prompt context dossier (Turkish)
     let contextStr = `
 ========================================
 SELFPLACE LIVE CONTEXT (GERÇEK ZAMANLI SİTEM DURUMU)

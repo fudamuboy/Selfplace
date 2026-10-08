@@ -1,16 +1,37 @@
-const db = require('../config/db');
-const OpenAI = require('openai');
 const crypto = require('crypto');
+const OpenAI = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const db = require('../config/db');
 const { ZODIAC_PROFILES } = require('../utils/astrologyProfiles');
+const {
+  ZODIAC_NAME_MAP,
+  ZODIAC_PROFILE_EN_MAP,
+  toCanonicalTurkishZodiac,
+  toCanonicalEnglishZodiac,
+  getZodiacFromDate,
+  translateAstrologyEventName,
+  translateAstrologyEvent,
+  translateZodiacProfile
+} = require('../utils/astrologyLocalization');
+const { getLanguage } = require('../utils/languageResolver');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const ZODIAC_EN_MAP = ZODIAC_NAME_MAP;
 
-const EMOTIONAL_WEATHER = [
-  'calm', 'hopeful', 'introspective', 'socially open', 'dreamy',
-  'emotionally protective', 'motivational', 'soft romantic', 'reflective', 'energetic'
-];
+async function resolveUserZodiac(userId) {
+  const userRes = await db.query('SELECT zodiac_sign, birth_date FROM users WHERE id = $1', [userId]);
+  const user = userRes.rows[0];
+  if (!user) return null;
+
+  let zodiacSign = user.zodiac_sign;
+  if (!zodiacSign && user.birth_date) {
+    zodiacSign = getZodiacFromDate(user.birth_date);
+    if (zodiacSign) {
+      db.query('UPDATE users SET zodiac_sign = $1 WHERE id = $2', [zodiacSign, userId]).catch(() => {});
+    }
+  }
+
+  return zodiacSign ? toCanonicalTurkishZodiac(zodiacSign) : null;
+}
 
 function getTimeOfDay() {
   const hour = new Date().getHours();
@@ -20,10 +41,13 @@ function getTimeOfDay() {
   return 'night';
 }
 
-function getLocalFallbackWhisper(zodiacSign, timeOfDay) {
-  const fallbacks = {
+const EMOTIONAL_WEATHER = ['sunny', 'gentle_rain', 'soft_clouds', 'clear_sky', 'starlight'];
+
+function getLocalFallbackWhisper(zodiacSign, timeOfDay, isEn = false) {
+  const signLabel = isEn ? (ZODIAC_EN_MAP[zodiacSign] || zodiacSign) : zodiacSign;
+  const fallbacksTR = {
     morning: [
-      `Güne başlarken ${zodiacSign} enerjisi seni biraz daha kendi merkezine çekiyor olabilir. Sessizliği dinlemek iyi gelebilir.`,
+      `Güne başlarken ${signLabel} enerjisi seni biraz daha kendi merkezine çekiyor olabilir. Sessizliği dinlemek iyi gelebilir.`,
       `Bugün zihnin biraz daha açık ve umutlu hissedebilir. Adımlarını sakince atmaya çalış.`,
       `Sabahın dinginliğinde kendi ritmini bulman, günün geri kalanını değiştirebilir.`
     ],
@@ -43,8 +67,32 @@ function getLocalFallbackWhisper(zodiacSign, timeOfDay) {
       `Gece karanlığında, içinde sadece sana ait olan sessiz umudu hissetmeye odaklan.`
     ]
   };
-  const options = fallbacks[timeOfDay] || fallbacks['afternoon'];
-  return options[Math.floor(Math.random() * options.length)];
+
+  const fallbacksEN = {
+    morning: [
+      `As the day begins, the energy of ${signLabel} might be gently pulling you toward your center. Listening to the quiet feels grounding.`,
+      `Your mind may feel a bit clearer and hopeful today. Try taking your steps gently.`,
+      `Finding your own rhythm in the morning stillness can transform the rest of your day.`
+    ],
+    afternoon: [
+      `As daytime fatigue accumulates, taking a brief moment to breathe will help restore your energy.`,
+      `In the midday rush, notice the value of small connections. Sometimes a smile changes everything.`,
+      `Right now, the clouds of thought in your mind seem ready to gently disperse.`
+    ],
+    evening: [
+      `With the arrival of evening, you might want to extend a little extra softness to yourself. Protecting your boundaries is comforting.`,
+      `As the day slows down, you might long to feel emotionally safe and sheltered.`,
+      `You worked hard today. Now is the time to retreat into a calm space that belongs only to you.`
+    ],
+    night: [
+      `As night sets in, try letting go of today's weight. The stars support your serenity.`,
+      `These are the hours when thoughts run deep. Perhaps it is best to leave certain questions for tomorrow.`,
+      `In the quiet darkness of night, focus on feeling that quiet hope that is uniquely yours.`
+    ]
+  };
+
+  const pool = isEn ? fallbacksEN[timeOfDay] || fallbacksEN['afternoon'] : fallbacksTR[timeOfDay] || fallbacksTR['afternoon'];
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 async function gatherPersonalContext(userId) {
@@ -57,10 +105,9 @@ async function gatherPersonalContext(userId) {
       weeklyInsight: null,
       relationshipReflections: [],
       growthThemes: [],
-      awarenessScore: 50 // Default
+      awarenessScore: 50
     };
 
-    // 1 & 2: Recent moods & dominant themes (Last 7 days)
     const moodRes = await db.query(
       `SELECT emotion, COUNT(*) as count 
        FROM emotional_entries 
@@ -73,11 +120,10 @@ async function gatherPersonalContext(userId) {
       context.recentMoods = moodRes.rows.map(r => `${r.emotion} (${r.count})`);
       context.dominantThemes = moodRes.rows.slice(0, 3).map(r => r.emotion);
       
-      const stressKeywords = ['Yorgun', 'Kaygılı', 'Kızgın', 'Stresli', 'Bunalmış', 'Üzgün', 'Öfkeli', 'Tükenmiş', 'Korkmuş'];
+      const stressKeywords = ['Yorgun', 'Kaygılı', 'Kızgın', 'Stresli', 'Bunalmış', 'Üzgün', 'Öfkeli', 'Tükenmiş', 'Korkmuş', 'Tired', 'Anxious', 'Angry'];
       context.stressIndicators = context.dominantThemes.filter(e => stressKeywords.includes(e));
     }
 
-    // 3: Weekly Insight Summary
     const insightRes = await db.query(
       `SELECT text FROM weekly_insights WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 1`,
       [userId]
@@ -87,7 +133,6 @@ async function gatherPersonalContext(userId) {
       context.growthThemes.push('Genel kişisel analiz çıkarımları aktif');
     }
 
-    // 4 & 8: Recent Journal Themes & Relationship Reflections
     const journalRes = await db.query(
       `SELECT prompt, content, emotion 
        FROM emotional_entries 
@@ -99,7 +144,7 @@ async function gatherPersonalContext(userId) {
     if (journalRes.rows.length > 0) {
       context.journalThemes = journalRes.rows.map(r => r.prompt || r.emotion || 'Günlük Girdisi');
       
-      const relationKeywords = ['partner', 'ilişki', 'sevgili', 'aşk', 'evlilik', 'kavga', 'iletişim'];
+      const relationKeywords = ['partner', 'ilişki', 'sevgili', 'aşk', 'evlilik', 'kavga', 'iletişim', 'relationship', 'friend'];
       const textCorpus = journalRes.rows.map(r => (r.content || '').toLowerCase()).join(' ');
       
       const foundRelations = relationKeywords.filter(k => textCorpus.includes(k));
@@ -108,12 +153,11 @@ async function gatherPersonalContext(userId) {
       }
     }
 
-    // 6: Emotional Awareness Score
     const totalReflections = await db.query(
       `SELECT COUNT(*) FROM emotional_entries WHERE user_id = $1`, [userId]
     );
     const count = parseInt(totalReflections.rows[0].count);
-    context.awarenessScore = Math.min(100, Math.max(10, count * 2)); // Simple scale
+    context.awarenessScore = Math.min(100, Math.max(10, count * 2));
 
     return context;
   } catch (err) {
@@ -125,11 +169,12 @@ async function gatherPersonalContext(userId) {
 /**
  * AI Synthesis Engine for Astrology (Weekly)
  */
-async function generateAstrologySynthesis(zodiacSign, element, activeEvents, recentMood, colorResult, recentHistory = [], personalContext = null) {
+async function generateAstrologySynthesis(zodiacSign, element, activeEvents, recentMood, colorResult, recentHistory = [], personalContext = null, language = 'tr') {
+  const isEn = language === 'en';
   try {
-    const profile = ZODIAC_PROFILES[zodiacSign] || ZODIAC_PROFILES["Ateş"]; // Fallback if missing
+    const profile = ZODIAC_PROFILES[zodiacSign] || ZODIAC_PROFILES["Ateş"];
     
-    let dossier = `[USER CONTEXT]\nZodiac Sign: ${zodiacSign}\n`;
+    let dossier = `[USER CONTEXT]\nZodiac Sign: ${zodiacSign} (${ZODIAC_EN_MAP[zodiacSign] || zodiacSign})\n`;
     dossier += `Element: ${element}\n`;
     
     if (activeEvents && activeEvents.length > 0) {
@@ -162,7 +207,7 @@ async function generateAstrologySynthesis(zodiacSign, element, activeEvents, rec
     }
 
     const systemPrompt = `You are the premium emotional astrology engine of Selfplace.
-Your goal is to write a deeply personal, emotionally intelligent, and psychologically nuanced weekly reflection for the user.
+Your goal is to write a deeply personal, emotionally intelligent, and psychologically nuanced weekly reflection for the user in ${isEn ? 'ENGLISH' : 'TURKISH'}.
 
 ${dossier}
 
@@ -171,17 +216,15 @@ Core Traits: ${profile.core}
 Inner Conflict: ${profile.emotionalConflict}
 Stress Behavior: ${profile.stressBehavior}
 Relational Style: ${profile.relationalTendency}
-Key Vocabulary (use subtly in Turkish): ${profile.vocabulary?.join(', ')}
 Writing Rhythm: ${profile.writingStyle}
 ${historyConstraint}
 CRITICAL RULES:
 1. NO GENERIC ASTROLOGY: You must write specifically in the style and psychological tone of ${zodiacSign}. Do not sound like a generic horoscope.
-2. NO BANNED CLICHES: Never use phrases like "kendine karşı nazik ol", "güvenlik ihtiyacın artabilir", "topraklanma zamanı", "iç sesini dinle", "yeni fırsatlar seni bekliyor", "enerjin yüksek olabilir".
+2. NO BANNED CLICHES: Never use generic horoscope cliches like "be gentle with yourself", "listen to your inner voice", "new opportunities await". Be intimate and observant.
 3. NO FORTUNE TELLING: Do not predict the future. Focus purely on emotional reflection and symbolic guidance based on the current sky and their mood.
-4. PERSONAL DATA USAGE: The personal data context provided MUST subtly influence your interpretation. Do NOT explicitly state "Because you felt anxious..." or "Your data shows...". Instead, naturally adapt the interpretation. If they showed anxiety, emphasize grounding. If they showed motivation, emphasize expansion. The astrology must remain the primary framework.
-5. TONE: Premium, subtle, empathetic, intimate, atmospheric, and human-written. Keep it emotionally intelligent but NOT overwhelming or excessively poetic.
-6. LANGUAGE: Turkish.
-7. OUTPUT FORMAT: You MUST return ONLY a valid JSON object with the following exact keys (no extra text, no markdown blocks). Write 1-2 concise, flowing sentences per category:
+4. TONE: Premium, subtle, empathetic, intimate, atmospheric, and human-written in ${isEn ? 'ENGLISH' : 'TURKISH'}.
+5. LANGUAGE: ${isEn ? 'ENGLISH (en)' : 'TURKISH (tr)'}.
+6. OUTPUT FORMAT: You MUST return ONLY a valid JSON object with the following exact keys (no extra text, no markdown blocks). Write 1-2 concise, flowing sentences per category in ${isEn ? 'ENGLISH' : 'TURKISH'}:
 {
   "GeneralTheme": "...",
   "Love": "...",
@@ -207,9 +250,35 @@ CRITICAL RULES:
     return { text, content_hash };
   } catch (err) {
     console.error('[Astrology AI Error]', err);
-    // Silent fallback if API fails
+    const fallbackSign = isEn ? (ZODIAC_EN_MAP[zodiacSign] || zodiacSign) : (zodiacSign || 'Dostum');
     const text = JSON.stringify({
-      GeneralTheme: `Sevgili ${zodiacSign || 'Dostum'}, gökyüzündeki mevcut enerjiler şu an iç dünyanda önemli dönüşümlere işaret ediyor. Kendi ritminde kalmaya özen göster.`
+      GeneralTheme: isEn 
+        ? `Dear ${fallbackSign}, the current energies in the sky highlight meaningful transformations in your inner world. Take care to stay in your own rhythm.`
+        : `Sevgili ${zodiacSign || 'Dostum'}, gökyüzündeki mevcut enerjiler şu an iç dünyanda önemli dönüşümlere işaret ediyor. Kendi ritminde kalmaya özen göster.`,
+      Love: isEn 
+        ? "Give yourself and your loved ones space to communicate with calm understanding."
+        : "Kendine ve sevdiklerine sakin bir anlayışla iletişim kurma alanı tanı.",
+      Career: isEn 
+        ? "Focus on steady, intentional progress rather than rushing decisions."
+        : "Kararları aceleye getirmek yerine istikrarlı ve bilinçli ilerlemeye odaklan.",
+      Money: isEn 
+        ? "A mindful approach to resources brings inner peace and stability."
+        : "Kaynaklarına özenli yaklaşmak içsel huzur ve denge getirir.",
+      SocialLife: isEn 
+        ? "Meaningful quality matters more than crowded interactions right now."
+        : "Kalabalık etkileşimler yerine derin ve samimi paylaşımlar sana daha iyi gelecektir.",
+      HealthEnergy: isEn 
+        ? "Listen to what your body is asking for: rest, hydration, and gentle movement."
+        : "Bedeninin ihtiyaçlarına kulak ver: dinlenme, su ve nazik hareketler.",
+      AttentionAreas: isEn 
+        ? "Be mindful of reacting impulsively when feeling emotionally fatigued."
+        : "Duygusal olarak yorgun hissettiğinde fevri tepkiler vermemeye dikkat et.",
+      LuckyAreas: isEn 
+        ? "Moments of quiet clarity and honest reflection bring genuine luck."
+        : "Sessiz netlik anları ve kendine dürüstlük gerçek bir şans kapısı aralar.",
+      WeeklyAdvice: isEn 
+        ? "Take things one breath at a time; you do not need to solve everything today."
+        : "Her şeyi adım adım ele al; bugün her şeyi çözmek zorunda değilsin."
     });
     return { text, content_hash: crypto.createHash('sha256').update(text).digest('hex') };
   }
@@ -218,12 +287,13 @@ CRITICAL RULES:
 /**
  * AI Synthesis Engine for Astrology (Daily Whisper)
  */
-async function generateDailyWhisper(zodiacSign, element, activeEvents, recentMood, recentHistory = []) {
+async function generateDailyWhisper(zodiacSign, element, activeEvents, recentMood, recentHistory = [], language = 'tr') {
+  const isEn = language === 'en';
   const timeOfDay = getTimeOfDay();
   const weather = EMOTIONAL_WEATHER[Math.floor(Math.random() * EMOTIONAL_WEATHER.length)];
 
   try {
-    let dossier = `[USER CONTEXT]\nZodiac Sign: ${zodiacSign}\nElement: ${element}\nTime of Day: ${timeOfDay}\nEmotional Weather Target: ${weather}\n`;
+    let dossier = `[USER CONTEXT]\nZodiac Sign: ${zodiacSign} (${ZODIAC_EN_MAP[zodiacSign] || zodiacSign})\nElement: ${element}\nTime of Day: ${timeOfDay}\nEmotional Weather Target: ${weather}\n`;
     
     if (activeEvents && activeEvents.length > 0) {
       dossier += `Current Sky Context: ${activeEvents[0].event_name}\n`;
@@ -242,16 +312,16 @@ async function generateDailyWhisper(zodiacSign, element, activeEvents, recentMoo
     }
 
     const systemPrompt = `You are the daily emotional whisper engine of Selfplace.
-Your goal is to write a highly atmospheric, short, and poetic daily observation for the user.
+Your goal is to write a highly atmospheric, short, and poetic daily observation for the user in ${isEn ? 'ENGLISH' : 'TURKISH'}.
 
 ${dossier}
 ${historyConstraint}
 CRITICAL RULES:
-1. FOCUS ON TIME & WEATHER: Tailor the observation subtly to the "${timeOfDay}" and the "${weather}" emotional weather.
-2. NO GENERIC ASTROLOGY: Do not use horoscope cliches like "yeni fırsatlar", "enerjin yüksek", "duygularını dinle". Be intimate, observant, softly human.
-3. LENGTH: Maximum 2 sentences. Around 30-60 words. Keep it elegant and quickly readable. Do not write paragraphs.
+1. FOCUS ON TIME & WEATHER: Tailor the observation subtly to "${timeOfDay}" and "${weather}".
+2. NO GENERIC ASTROLOGY: Do not use horoscope cliches. Be intimate, observant, softly human.
+3. LENGTH: Maximum 2 sentences. Around 30-60 words. Keep it elegant and quickly readable.
 4. TONE: Atmospheric, calm, poetic, soft. 
-5. LANGUAGE: Turkish.`;
+5. LANGUAGE: ${isEn ? 'ENGLISH (en)' : 'TURKISH (tr)'}.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -265,19 +335,19 @@ CRITICAL RULES:
     return { text, content_hash, weather };
   } catch (err) {
     console.error('[Astrology Daily AI Error]', err);
-    const text = getLocalFallbackWhisper(zodiacSign, timeOfDay);
+    const text = getLocalFallbackWhisper(zodiacSign, timeOfDay, isEn);
     return { text, content_hash: crypto.createHash('sha256').update(text).digest('hex'), weather: 'calm' };
   }
 }
 
-async function ensureDailyWhisper(userId, zodiacSign) {
-  // 1. Check if we already have a valid whisper for today
+async function ensureDailyWhisper(userId, zodiacSign, language = 'tr') {
+  const isEn = language === 'en';
   const whisperRes = await db.query(
-    "SELECT * FROM daily_whisper WHERE user_id = $1 AND expires_at > CURRENT_TIMESTAMP ORDER BY generated_at DESC LIMIT 1",
-    [userId]
+    "SELECT * FROM daily_whisper WHERE user_id = $1 AND language = $2 AND language IS NOT NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY generated_at DESC LIMIT 1",
+    [userId, language]
   );
 
-  if (whisperRes.rows.length > 0) {
+  if (whisperRes.rows.length > 0 && whisperRes.rows[0].language === language) {
     return {
       whisperText: whisperRes.rows[0].whisper_text,
       weather: whisperRes.rows[0].emotional_weather,
@@ -286,8 +356,8 @@ async function ensureDailyWhisper(userId, zodiacSign) {
     };
   }
 
-  // 2. Fetch required context
-  const profileRes = await db.query('SELECT element FROM zodiac_profiles WHERE sign = $1', [zodiacSign]);
+  const canonicalSign = toCanonicalTurkishZodiac(zodiacSign);
+  const profileRes = await db.query('SELECT element FROM zodiac_profiles WHERE sign = $1', [canonicalSign]);
   const element = profileRes.rows[0]?.element || 'Ateş';
 
   const eventsRes = await db.query(
@@ -301,22 +371,19 @@ async function ensureDailyWhisper(userId, zodiacSign) {
   );
   const recentMood = moodRes.rows[0]?.mood || null;
 
-  // 3. Fetch recent history for anti-repetition (last 7 whispers)
   const historyRes = await db.query(
     "SELECT whisper_text FROM daily_whisper WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 7",
     [userId]
   );
   const recentHistory = historyRes.rows.map(r => r.whisper_text);
 
-  // 4. Generate new whisper
-  const { text, content_hash, weather } = await generateDailyWhisper(zodiacSign, element, activeEvents, recentMood, recentHistory);
+  const { text, content_hash, weather } = await generateDailyWhisper(canonicalSign, element, activeEvents, recentMood, recentHistory, language);
 
-  // 5. Save to DB (expires in 24h)
   await db.query(
     `INSERT INTO daily_whisper 
-    (user_id, zodiac_sign, whisper_text, mood_context, emotional_weather, content_hash, expires_at) 
-    VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP + INTERVAL '24 hours')`,
-    [userId, zodiacSign, text, recentMood, weather, content_hash]
+    (user_id, zodiac_sign, whisper_text, mood_context, emotional_weather, content_hash, expires_at, language) 
+    VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP + INTERVAL '24 hours', $7)`,
+    [userId, canonicalSign, text, recentMood, weather, content_hash, language]
   );
 
   return {
@@ -333,10 +400,11 @@ async function ensureDailyWhisper(userId, zodiacSign) {
  */
 exports.getHomeWidget = async (req, res) => {
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   try {
-    const userRes = await db.query('SELECT zodiac_sign FROM users WHERE id = $1', [userId]);
-    const zodiacSign = userRes.rows[0]?.zodiac_sign;
+    const zodiacSign = await resolveUserZodiac(userId);
 
     if (!zodiacSign) {
       return res.json({
@@ -344,23 +412,26 @@ exports.getHomeWidget = async (req, res) => {
         data: {
           zodiacSign: null,
           userZodiac: null,
-          event_name: 'Gökyüzü',
-          preview_text: 'Doğum tarihini eklediğinde gökyüzü yorumların burada görünecek ✨'
+          event_name: isEn ? 'The Sky' : 'Gökyüzü',
+          preview_text: isEn 
+            ? 'Your sky observations will appear here once you add your date of birth ✨'
+            : 'Doğum tarihini eklediğinde gökyüzü yorumların burada görünecek ✨'
         }
       });
     }
 
-    const whisperData = await ensureDailyWhisper(userId, zodiacSign);
+    const whisperData = await ensureDailyWhisper(userId, zodiacSign, lang);
 
     const eventsRes = await db.query(
       "SELECT event_name FROM astrology_events WHERE is_active = true AND CURRENT_TIMESTAMP BETWEEN date_start AND date_end ORDER BY date_start ASC LIMIT 1"
     );
-    const eventName = eventsRes.rows.length > 0 ? eventsRes.rows[0].event_name : 'Gökyüzü Dingin';
+    const rawEventName = eventsRes.rows.length > 0 ? eventsRes.rows[0].event_name : (isEn ? 'Sky Serenity' : 'Gökyüzü Dingin');
+    const eventName = translateAstrologyEventName(rawEventName, isEn);
 
     const responseData = {
       success: true,
       data: {
-        zodiacSign,
+        zodiacSign: isEn ? (toCanonicalEnglishZodiac(zodiacSign) || zodiacSign) : zodiacSign,
         event_name: eventName,
         preview_text: whisperData.whisperText,
         generatedAt: whisperData.generatedAt,
@@ -370,7 +441,7 @@ exports.getHomeWidget = async (req, res) => {
     res.json(responseData);
   } catch (err) {
     console.error('[Astrology Home Error]', err);
-    res.status(500).json({ success: false, message: 'Enerji alınamadı.' });
+    res.status(500).json({ success: false, message: isEn ? 'Could not load energy.' : 'Enerji alınamadı.' });
   }
 };
 
@@ -380,19 +451,24 @@ exports.getHomeWidget = async (req, res) => {
  */
 exports.getDailyWhisper = async (req, res) => {
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   try {
-    const userRes = await db.query('SELECT zodiac_sign FROM users WHERE id = $1', [userId]);
-    const zodiacSign = userRes.rows[0]?.zodiac_sign;
+    const zodiacSign = await resolveUserZodiac(userId);
 
     if (!zodiacSign) {
       return res.json({
         success: true,
-        data: { whisperText: 'Doğum tarihini eklediğinde günlük enerjilerin burada görünecek ✨' }
+        data: { 
+          whisperText: isEn 
+            ? 'Your daily energies will appear here once you add your date of birth ✨'
+            : 'Doğum tarihini eklediğinde günlük enerjilerin burada görünecek ✨' 
+        }
       });
     }
 
-    const whisperData = await ensureDailyWhisper(userId, zodiacSign);
+    const whisperData = await ensureDailyWhisper(userId, zodiacSign, lang);
 
     res.json({
       success: true,
@@ -400,7 +476,7 @@ exports.getDailyWhisper = async (req, res) => {
     });
   } catch (err) {
     console.error('[Astrology Daily Error]', err);
-    res.status(500).json({ success: false, message: 'Günlük enerji alınamadı.' });
+    res.status(500).json({ success: false, message: isEn ? 'Could not load daily energy.' : 'Günlük enerji alınamadı.' });
   }
 };
 
@@ -410,11 +486,11 @@ exports.getDailyWhisper = async (req, res) => {
  */
 exports.getWeeklyGuidance = async (req, res) => {
   const userId = req.user.id;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   try {
-    // 1. Get User Data
-    const userRes = await db.query('SELECT zodiac_sign FROM users WHERE id = $1', [userId]);
-    const zodiacSign = userRes.rows[0]?.zodiac_sign;
+    const zodiacSign = await resolveUserZodiac(userId);
 
     if (!zodiacSign) {
       return res.json({
@@ -422,33 +498,44 @@ exports.getWeeklyGuidance = async (req, res) => {
         data: {
           zodiacProfile: null,
           activeEvents: [],
-          aiGuidance: 'Doğum tarihini eklediğinde gökyüzü yorumların burada görünecek ✨'
+          aiGuidance: isEn 
+            ? 'Your sky observations will appear here once you add your date of birth ✨'
+            : 'Doğum tarihini eklediğinde gökyüzü yorumların burada görünecek ✨'
         }
       });
     }
 
-    // 2. Get Zodiac Profile
     const profileRes = await db.query('SELECT * FROM zodiac_profiles WHERE sign = $1', [zodiacSign]);
-    const profile = profileRes.rows[0];
+    let profile = profileRes.rows[0];
+    if (!profile) {
+      profile = {
+        sign: zodiacSign,
+        element: 'Ateş',
+        modality: 'Öncü',
+        ruling_planet: 'Mars',
+        strengths: ['Cesaret', 'Liderlik'],
+        weaknesses: ['Sabırsızlık'],
+        core_needs: 'Harekete geçmek.',
+        stress_response: 'Stres altında sabırsız olabilir.'
+      };
+    }
 
-    // 3. Get Current Active Events
     const eventsRes = await db.query(
       "SELECT * FROM astrology_events WHERE is_active = true AND CURRENT_TIMESTAMP BETWEEN date_start AND date_end"
     );
-    // If no active events, fake one for MVP so the UI doesn't look empty
     const activeEvents = eventsRes.rows.length > 0 ? eventsRes.rows : [{
-      event_name: 'Ay Yengeç Burcunda',
-      description: 'Duygusal ihtiyaçların ve aidiyet duygun ön planda. Köklenmek ve evine vakit ayırmak sana çok iyi gelecek.'
+      event_name: isEn ? 'Moon in Cancer' : 'Ay Yengeç Burcunda',
+      description: isEn 
+        ? 'Emotional needs and a sense of belonging come into focus. Grounding yourself and dedicating time to home will feel deeply restoring.'
+        : 'Duygusal ihtiyaçların ve aidiyet duygun ön planda. Köklenmek ve evine vakit ayırmak sana çok iyi gelecek.'
     }];
 
-    // 4. Get Latest Mood
     const moodRes = await db.query(
       'SELECT mood FROM check_ins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
       [userId]
     );
     const recentMood = moodRes.rows[0]?.mood || null;
 
-    // 5. Get Latest Personality Test Result (Color)
     const colorRes = await db.query(
       "SELECT result_data, test_type FROM personality_results WHERE user_id = $1 AND test_type IN ('color', 'journey') ORDER BY created_at DESC LIMIT 1",
       [userId]
@@ -467,28 +554,23 @@ exports.getWeeklyGuidance = async (req, res) => {
       }
     }
 
-    // 6. Check if we already generated guidance for this week
     const guidanceRes = await db.query(
-      "SELECT * FROM weekly_guidance WHERE user_id = $1 AND expires_at > CURRENT_TIMESTAMP ORDER BY generated_at DESC LIMIT 1",
-      [userId]
+      "SELECT * FROM weekly_guidance WHERE user_id = $1 AND language = $2 AND language IS NOT NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY generated_at DESC LIMIT 1",
+      [userId, lang]
     );
 
     let finalGuidanceText = '';
 
-    if (guidanceRes.rows.length > 0) {
+    if (guidanceRes.rows.length > 0 && guidanceRes.rows[0].language === lang) {
       finalGuidanceText = guidanceRes.rows[0].guidance_text;
     } else {
-      // 7. Fetch recent history for anti-repetition (last 3 weeks)
       const historyRes = await db.query(
         "SELECT guidance_text FROM weekly_guidance WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 3",
         [userId]
       );
       const recentHistory = historyRes.rows.map(r => r.guidance_text);
-
-      // 8. Gather Deep Personal Context
       const personalContext = await gatherPersonalContext(userId);
 
-      // 9. Generate New Synthesis via OpenAI
       const { text, content_hash } = await generateAstrologySynthesis(
         zodiacSign, 
         profile?.element || 'Ateş', 
@@ -496,22 +578,21 @@ exports.getWeeklyGuidance = async (req, res) => {
         recentMood, 
         colorResult, 
         recentHistory,
-        personalContext
+        personalContext,
+        lang
       );
       finalGuidanceText = text;
       
       const eventSeed = activeEvents.length > 0 ? activeEvents[0].event_name : 'Gökyüzü';
 
-      // Save to database
       await db.query(
         `INSERT INTO weekly_guidance 
-        (user_id, zodiac_sign, guidance_text, event_seed, content_hash, expires_at) 
-        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP + INTERVAL '7 days')`,
-        [userId, zodiacSign, finalGuidanceText, eventSeed, content_hash]
+        (user_id, zodiac_sign, guidance_text, event_seed, content_hash, expires_at, language) 
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP + INTERVAL '7 days', $6)`,
+        [userId, zodiacSign, finalGuidanceText, eventSeed, content_hash, lang]
       );
     }
 
-    // Try to parse JSON. If it fails, return as plain string (legacy support)
     let parsedGuidance = finalGuidanceText;
     try {
       if (finalGuidanceText.trim().startsWith('{')) {
@@ -524,15 +605,15 @@ exports.getWeeklyGuidance = async (req, res) => {
     res.json({
       success: true,
       data: {
-        zodiacProfile: profile,
-        activeEvents,
+        zodiacProfile: translateZodiacProfile(profile, isEn),
+        activeEvents: (activeEvents || []).map(e => translateAstrologyEvent(e, isEn)),
         aiGuidance: parsedGuidance
       }
     });
 
   } catch (err) {
     console.error('[Astrology Weekly Error]', err);
-    res.status(500).json({ success: false, message: 'Haftalık enerji analiz edilemedi.' });
+    res.status(500).json({ success: false, message: isEn ? 'Could not analyze weekly guidance.' : 'Haftalık enerji analiz edilemedi.' });
   }
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,8 +9,7 @@ import client from '../api/client';
 import useThemeStore from '../store/useThemeStore';
 import { logger } from '../utils/logger';
 import { NetworkErrorState } from '../components/NetworkErrorState';
-
-const { width } = Dimensions.get('window');
+import { useT } from '../i18n';
 
 interface TestResult {
   id: number;
@@ -60,10 +59,35 @@ const DimensionBar = ({ label, score, color, delay }: { label: string, score: nu
   );
 };
 
+const COLOR_NAMES_MAP: Record<string, { tr: string; en: string }> = {
+  golden_amber: { tr: 'Altın Kehribar', en: 'Golden Amber' },
+  moon_blue: { tr: 'Ay Mavisi', en: 'Moon Blue' },
+  ember_orange: { tr: 'Kor Turuncusu', en: 'Ember Orange' },
+  sage_green: { tr: 'Adaçayı Yeşili', en: 'Sage Green' },
+  violet_mist: { tr: 'Menekşe Sisi', en: 'Violet Mist' }
+};
+
+const getColorFamilyLabel = (cf: any, isEn: boolean): string => {
+  if (!cf) return '';
+  const id = (cf.id || '').toLowerCase();
+  if (COLOR_NAMES_MAP[id]) {
+    return isEn ? COLOR_NAMES_MAP[id].en : COLOR_NAMES_MAP[id].tr;
+  }
+  const name = cf.name || '';
+  for (const item of Object.values(COLOR_NAMES_MAP)) {
+    if (item.en === name || item.tr === name) {
+      return isEn ? item.en : item.tr;
+    }
+  }
+  return name;
+};
+
 export default function PersonalityResultDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
   
   const [result, setResult] = useState<TestResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +95,7 @@ export default function PersonalityResultDetailScreen() {
 
   useEffect(() => {
     fetchResult();
-  }, [id]);
+  }, [id, language]);
 
   const fetchResult = async () => {
     try {
@@ -81,7 +105,7 @@ export default function PersonalityResultDetailScreen() {
       setResult(res.data.result);
     } catch (err: any) {
       if (err.message !== 'SESSION_EXPIRED' && !err.isSessionExpiry) {
-        setError(err.message || 'Sonuç yüklenirken bir hata oluştu.');
+        setError(err.message || (isEn ? 'Error loading result.' : 'Sonuç yüklenirken bir hata oluştu.'));
       }
       logger.error('[PersonalityResult] Error', err);
     } finally {
@@ -111,7 +135,7 @@ export default function PersonalityResultDetailScreen() {
     return (
       <GradientBackground>
         <View style={styles.centerContainer}>
-          <Text style={{ color: currentTheme.colors.text.primary }}>Sonuç bulunamadı.</Text>
+          <Text style={{ color: currentTheme.colors.text.primary }}>{isEn ? 'Result not found.' : 'Sonuç bulunamadı.'}</Text>
         </View>
       </GradientBackground>
     );
@@ -172,7 +196,7 @@ export default function PersonalityResultDetailScreen() {
           <Animated.View entering={FadeInDown.duration(1200).delay(400)} style={[styles.driftCard, { backgroundColor: currentTheme.colors.card, shadowColor: accentColor }]}>
             <View style={styles.driftHeader}>
               <Ionicons name="sparkles" size={18} color={accentColor} style={{ marginRight: 8 }} />
-              <Text style={[styles.driftTitle, { color: accentColor }]}>Evrimsel Gözlem</Text>
+              <Text style={[styles.driftTitle, { color: accentColor }]}>{t('personality.evolutionaryInsight')}</Text>
             </View>
             <Text style={[styles.driftText, { color: currentTheme.colors.text.primary }]}>
               {drift_insight}
@@ -187,38 +211,48 @@ export default function PersonalityResultDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ fontSize: 24, marginRight: 8 }}>{color_family.symbol}</Text>
               <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary, marginBottom: 0 }]}>
-                Senin Enerji Rengin
+                {t('personality.yourEnergyColor')}
               </Text>
             </View>
             
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: color_family.hex, marginRight: 12, shadowColor: color_family.hex, shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: {width: 0, height: 0} }} />
               <Text style={{ fontSize: 18, fontWeight: '700', color: color_family.hex }}>
-                {color_family.name}
+                {getColorFamilyLabel(color_family, isEn)}
               </Text>
             </View>
             
             <Text style={[styles.cardText, { color: currentTheme.colors.text.secondary }]}>
-              {color_family.description.includes('introspective') ? 'İçsel derinliğin ve sakin ritmin seni bu renge yaklaştırıyor. Duygularını kendi içinde, sessiz bir bağ kurarak yaşıyorsun.' :
-               color_family.description.includes('expressive') ? 'Yoğun duygusal ifade ve yüksek içsel ritmin, seni sıcak ve hareketli bir enerji tonuna yaklaştırıyor.' :
-               color_family.description.includes('grounding') ? 'Sakinleştirici doğan ve duygusal dengen, seni çevrene güven veren toprak ve doğa tonlarına yaklaştırıyor.' :
-               color_family.description.includes('curious') ? 'Zihinsel merakın ve coşkulu enerjin, seni aydınlık ve dışa dönük bir enerji frekansına taşıyor.' :
-               'Soyut ve şiirsel iç dünyan, seni hayal gücünün ve derin düşüncenin renklerine yaklaştırıyor.'}
+              {isEn ? (
+                color_family.description?.includes('introspective') ? 'Your inner depth and calm rhythm bring you close to this hue. You experience your feelings through a quiet, personal bond.' :
+                color_family.description?.includes('expressive') ? 'High emotional expression and inner rhythm bring you to a warm, dynamic energy vibration.' :
+                color_family.description?.includes('grounding') ? 'Your soothing nature and emotional balance align you with grounding earth and nature tones.' :
+                color_family.description?.includes('curious') ? 'Your mental curiosity and vibrant spirit lift you into a bright, outgoing frequency.' :
+                'Your poetic inner world connects you deeply with colors of imagination and reflection.'
+              ) : (
+                color_family.description?.includes('introspective') ? 'İçsel derinliğin ve sakin ritmin seni bu renge yaklaştırıyor. Duygularını kendi içinde, sessiz bir bağ kurarak yaşıyorsun.' :
+                color_family.description?.includes('expressive') ? 'Yoğun duygusal ifade ve yüksek içsel ritmin, seni sıcak ve hareketli bir enerji tonuna yaklaştırıyor.' :
+                color_family.description?.includes('grounding') ? 'Sakinleştirici doğan ve duygusal dengen, seni çevrene güven veren toprak ve doğa tonlarına yaklaştırıyor.' :
+                color_family.description?.includes('curious') ? 'Zihinsel merakın ve coşkulu enerjin, seni aydınlık ve dışa dönük bir enerji frekansına taşıyor.' :
+                'Soyut ve şiirsel iç dünyan, seni hayal gücünün ve derin düşüncenin renklerine yaklaştırıyor.'
+              )}
             </Text>
           </Animated.View>
         )}
 
         {/* Dynamic Dimensions */}
-        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-          <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>Duygusal Enerji Boyutların</Text>
-          <View style={styles.dimensionsList}>
-            <DimensionBar label="Sosyal Enerji" score={scores.social_energy || 0} color={accentColor} delay={300} />
-            <DimensionBar label="Duygusal İfade" score={scores.emotional_expression || 0} color={accentColor} delay={400} />
-            <DimensionBar label="Bağlanma İhtiyacı" score={scores.attachment || 0} color={accentColor} delay={500} />
-            <DimensionBar label="İçsel Ritim" score={scores.energy_rhythm || 0} color={accentColor} delay={600} />
-            <DimensionBar label="Merak ve Keşif" score={scores.curiosity || 0} color={accentColor} delay={700} />
-          </View>
-        </Animated.View>
+        {scores && (
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
+            <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>{t('personality.energyDimensions')}</Text>
+            <View style={styles.dimensionsList}>
+              <DimensionBar label={t('personality.socialEnergy')} score={scores?.social_energy || 0} color={accentColor} delay={300} />
+              <DimensionBar label={t('personality.emotionalExpression')} score={scores?.emotional_expression || 0} color={accentColor} delay={400} />
+              <DimensionBar label={t('personality.attachmentNeed')} score={scores?.attachment || 0} color={accentColor} delay={500} />
+              <DimensionBar label={t('personality.innerRhythm')} score={scores?.energy_rhythm || 0} color={accentColor} delay={600} />
+              <DimensionBar label={t('personality.curiosityExploration')} score={scores?.curiosity || 0} color={accentColor} delay={700} />
+            </View>
+          </Animated.View>
+        )}
 
         {/* Strengths & Blind Spots */}
         <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.splitRow}>
@@ -226,7 +260,7 @@ export default function PersonalityResultDetailScreen() {
             <View style={[styles.iconCircle, { backgroundColor: 'rgba(74, 222, 128, 0.15)' }]}>
               <Ionicons name="leaf" size={24} color="#4ade80" />
             </View>
-            <Text style={[styles.splitTitle, { color: currentTheme.colors.text.primary }]}>Güçlü Yönlerin</Text>
+            <Text style={[styles.splitTitle, { color: currentTheme.colors.text.primary }]}>{t('personality.keyStrengths')}</Text>
             {strengths?.map((s, i) => (
               <Text key={i} style={[styles.bulletPoint, { color: currentTheme.colors.text.secondary }]}>• {s}</Text>
             ))}
@@ -236,7 +270,7 @@ export default function PersonalityResultDetailScreen() {
             <View style={[styles.iconCircle, { backgroundColor: 'rgba(248, 113, 113, 0.15)' }]}>
               <Ionicons name="eye-off" size={24} color="#f87171" />
             </View>
-            <Text style={[styles.splitTitle, { color: currentTheme.colors.text.primary }]}>Görünmez Alanlar</Text>
+            <Text style={[styles.splitTitle, { color: currentTheme.colors.text.primary }]}>{t('personality.blindSpots')}</Text>
             {blind_spots?.map((s, i) => (
               <Text key={i} style={[styles.bulletPoint, { color: currentTheme.colors.text.secondary }]}>• {s}</Text>
             ))}
@@ -245,20 +279,20 @@ export default function PersonalityResultDetailScreen() {
 
         {/* Relational Style */}
         <Animated.View entering={FadeInDown.duration(600).delay(600)} style={[styles.card, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-          <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>İlişki ve İletişim Tarzın</Text>
+          <Text style={[styles.cardTitle, { color: currentTheme.colors.text.primary }]}>{isEn ? 'Relational & Communication Style' : 'İlişki ve İletişim Tarzın'}</Text>
           <Text style={[styles.cardText, { color: currentTheme.colors.text.secondary, marginBottom: 12 }]}>
-            <Text style={{ fontWeight: '700', color: currentTheme.colors.text.primary }}>Bağlanma: </Text>
+            <Text style={{ fontWeight: '700', color: currentTheme.colors.text.primary }}>{isEn ? 'Attachment: ' : 'Bağlanma: '}</Text>
             {relationship_style}
           </Text>
           <Text style={[styles.cardText, { color: currentTheme.colors.text.secondary }]}>
-            <Text style={{ fontWeight: '700', color: currentTheme.colors.text.primary }}>İletişim: </Text>
+            <Text style={{ fontWeight: '700', color: currentTheme.colors.text.primary }}>{isEn ? 'Communication: ' : 'İletişim: '}</Text>
             {communication_energy}
           </Text>
         </Animated.View>
 
         <Animated.View entering={FadeIn.duration(800).delay(800)} style={{ alignItems: 'center', marginVertical: 30 }}>
           <Text style={{ color: currentTheme.colors.text.muted, fontSize: 13, fontStyle: 'italic' }}>
-            Duygusal kimliğin zamanla evrilir. Tekrar keşfetmekten çekinme.
+            {isEn ? 'Your emotional identity evolves over time. Feel free to re-explore.' : 'Duygusal kimliğin zamanla evrilir. Tekrar keşfetmekten çekinme.'}
           </Text>
         </Animated.View>
 

@@ -30,74 +30,11 @@ import useThemeStore from '../store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { CONTENT_MAX_WIDTH, PAGE_PADDING_H, isTablet, screenWidth } from '../constants/Layout';
 
+import { useT } from '../i18n';
+
 const { width } = Dimensions.get('window');
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-const MOODS = [
-  { id: 'happy', emoji: '😊', label: 'Mutlu' },
-  { id: 'upset', emoji: '😔', label: 'Üzgün' },
-  { id: 'angry', emoji: '😡', label: 'Kızgın' },
-  { id: 'anxious', emoji: '😰', label: 'Kaygılı' },
-  { id: 'tired', emoji: '😴', label: 'Yorgun' },
-  { id: 'sensitive', emoji: '🥹', label: 'Hassas' },
-  { id: 'motivated', emoji: '✨', label: 'Motive' },
-  { id: 'calm', emoji: '🤍', label: 'Sakin' },
-];
-
-const QUESTIONS_MAP: Record<string, any[]> = {
-  happy: [
-    { id: 'happy_q1', text: 'Bugün seni ne mutlu etti?', type: 'text' },
-    { id: 'happy_q2', text: 'Bu anı tekrar yaşamak ister misin?', type: 'text' },
-    { id: 'happy_q3', text: 'Bu duygu kimle bağlantılıydı?', type: 'text' },
-  ],
-  anxious: [
-    { id: 'anxious_q1', text: 'Seni ne kaygılandırdı?', type: 'text' },
-    { id: 'anxious_q2', text: 'Bu duygu bugün kaç kez geldi?', type: 'text' },
-    { id: 'anxious_q3', text: 'Bunun sebebi ne olabilir?', type: 'text' },
-  ],
-  upset: [
-    { id: 'upset_q1', text: 'Bugün seni ne üzdü?', type: 'text' },
-    { id: 'upset_q2', text: 'Bu duygu şu an nerede hissediliyor?', type: 'text' },
-    { id: 'upset_q3', text: 'Kendine nasıl bir destek verebilirsin?', type: 'text' },
-  ],
-  angry: [
-    { id: 'angry_q1', text: 'Seni ne kızdırdı?', type: 'text' },
-    { id: 'angry_q2', text: 'Bu öfke sana ne söylemek istiyor?', type: 'text' },
-    { id: 'angry_q3', text: 'Sakinleşmek için neye ihtiyacın var?', type: 'text' },
-  ],
-  tired: [
-    { id: 'tired_q1', text: 'Bugün seni en çok ne yordu?', type: 'text' },
-    { id: 'tired_q2', text: 'Bedeninin hangi bölgesi dinlenmek istiyor?', type: 'text' },
-    { id: 'tired_q3', text: 'Kendine 5 dakika mola verebilir misin?', type: 'text' },
-  ],
-  sensitive: [
-    { id: 'sensitive_q1', text: 'Bugün seni ne hassaslaştırdı?', type: 'text' },
-    { id: 'sensitive_q2', text: 'Bu duyguya biraz alan açmak ister misin?', type: 'text' },
-    { id: 'sensitive_q3', text: 'Şu an sana ne iyi gelirdi?', type: 'text' },
-  ],
-  motivated: [
-    { id: 'motivated_q1', text: 'Seni ne motive etti?', type: 'text' },
-    { id: 'motivated_q2', text: 'Bu enerjiyi nasıl koruyabilirsin?', type: 'text' },
-    { id: 'motivated_q3', text: 'Bir sonraki küçük adımın ne olacak?', type: 'text' },
-  ],
-  calm: [
-    { id: 'calm_q1', text: 'Bu sakinliği neye borçlusun?', type: 'text' },
-    { id: 'calm_q2', text: 'Şu anki sessizliği nasıl tarif edersin?', type: 'text' },
-    { id: 'calm_q3', text: 'Bu huzuru içine çekmek ister misin?', type: 'text' },
-  ],
-};
-
-const DEFAULT_QUESTIONS = [
-  { id: 'grateful', text: 'Bugün neye minnettarsın?', type: 'text' },
-  { id: 'other', text: 'Paylaşmak istediğin başka bir şey var mı?', type: 'text' },
-];
-
 // ─── Stable Mascot Area ───────────────────────────────────────────────────────
-// Lifted OUTSIDE CheckInScreen so it is never recreated on parent re-renders.
-// React.memo ensures it only re-renders when mood or message text actually change.
 const MascotArea = memo(function MascotArea({
   mood,
   message,
@@ -109,7 +46,6 @@ const MascotArea = memo(function MascotArea({
 }) {
   return (
     <Animated.View entering={FadeInDown.delay(200)} style={styles.mascotArea}>
-      {/* MascotBlob stays mounted permanently; mood prop drives config */}
       <MascotBlob mood={mood as any} scale={0.6} />
       <Text style={[styles.mascotText, { color: textColor }]}>
         &quot;{message}&quot;
@@ -119,7 +55,6 @@ const MascotArea = memo(function MascotArea({
 });
 
 // ─── Isolated Reflection Form ─────────────────────────────────────────────────
-// All text input state lives here. Typing never propagates up to the mascot.
 const ReflectionForm = memo(function ReflectionForm({
   questions,
   onSubmit,
@@ -127,6 +62,7 @@ const ReflectionForm = memo(function ReflectionForm({
   onCancel,
   loading,
   theme,
+  isEn,
 }: {
   questions: any[];
   onSubmit: (answers: Record<string, string>) => void;
@@ -134,8 +70,8 @@ const ReflectionForm = memo(function ReflectionForm({
   onCancel: () => void;
   loading: boolean;
   theme: any;
+  isEn: boolean;
 }) {
-  // Local state — changes here NEVER reach MascotArea
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const updateAnswer = useCallback((id: string, text: string) => {
@@ -153,7 +89,7 @@ const ReflectionForm = memo(function ReflectionForm({
           <Ionicons name="arrow-back" size={24} color={theme.colors.text.secondary} />
         </Pressable>
         <Text style={[styles.sectionTitle, { color: theme.colors.text.primary, marginBottom: 0 }]}>
-          Biraz Daha Anlat...
+          {isEn ? 'Tell Me a Bit More...' : 'Biraz Daha Anlat...'}
         </Text>
       </View>
 
@@ -166,7 +102,7 @@ const ReflectionForm = memo(function ReflectionForm({
           <Text style={[styles.questionText, { color: theme.colors.text.primary }]}>{q.text}</Text>
           <TextInput
             style={[styles.input, { color: theme.colors.text.primary, backgroundColor: theme.colors.background }]}
-            placeholder="Buraya yazabilirsin..."
+            placeholder={isEn ? 'You can write here...' : 'Buraya yazabilirsin...'}
             placeholderTextColor={theme.colors.text.secondary}
             multiline
             value={answers[q.id] || ''}
@@ -176,9 +112,9 @@ const ReflectionForm = memo(function ReflectionForm({
       ))}
 
       <View style={styles.actions}>
-        <CustomButton title="Tamamla" onPress={handleSubmit} loading={loading} style={styles.submitButton} />
+        <CustomButton title={isEn ? 'Complete' : 'Tamamla'} onPress={handleSubmit} loading={loading} style={styles.submitButton} />
         <Pressable onPress={onCancel} style={styles.laterButton}>
-          <Text style={[styles.laterText, { color: theme.colors.text.secondary }]}>Vazgeç</Text>
+          <Text style={[styles.laterText, { color: theme.colors.text.secondary }]}>{isEn ? 'Cancel' : 'Vazgeç'}</Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -190,21 +126,81 @@ export default function CheckInScreen() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0); // 0: Mood, 1: Questions
   const [loading, setLoading] = useState(false);
-  const [modal, setModal] = useState({ visible: false, title: '', message: '' });
+  const [modal, setModal] = useState({ visible: false, title: '', message: '', success: false });
   const router = useRouter();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
+  const MOODS = [
+    { id: 'happy', value: 'Mutlu', emoji: '😊', label: isEn ? 'Happy' : 'Mutlu' },
+    { id: 'upset', value: 'Üzgün', emoji: '😔', label: isEn ? 'Sad' : 'Üzgün' },
+    { id: 'angry', value: 'Kızgın', emoji: '😡', label: isEn ? 'Angry' : 'Kızgın' },
+    { id: 'anxious', value: 'Kaygılı', emoji: '😰', label: isEn ? 'Anxious' : 'Kaygılı' },
+    { id: 'tired', value: 'Yorgun', emoji: '😴', label: isEn ? 'Tired' : 'Yorgun' },
+    { id: 'sensitive', value: 'Hassas', emoji: '🥹', label: isEn ? 'Sensitive' : 'Hassas' },
+    { id: 'motivated', value: 'Motive', emoji: '✨', label: isEn ? 'Motivated' : 'Motive' },
+    { id: 'calm', value: 'Sakin', emoji: '🤍', label: isEn ? 'Calm' : 'Sakin' },
+  ];
+
+  const QUESTIONS_MAP: Record<string, any[]> = {
+    happy: [
+      { id: 'happy_q1', text: isEn ? 'What made you happy today?' : 'Bugün seni ne mutlu etti?', type: 'text' },
+      { id: 'happy_q2', text: isEn ? 'Would you like to relive this moment?' : 'Bu anı tekrar yaşamak ister misin?', type: 'text' },
+      { id: 'happy_q3', text: isEn ? 'Who was this feeling connected to?' : 'Bu duygu kimle bağlantılıydı?', type: 'text' },
+    ],
+    anxious: [
+      { id: 'anxious_q1', text: isEn ? 'What brought up anxiety for you?' : 'Seni ne kaygılandırdı?', type: 'text' },
+      { id: 'anxious_q2', text: isEn ? 'How many times did this feeling visit today?' : 'Bu duygu bugün kaç kez geldi?', type: 'text' },
+      { id: 'anxious_q3', text: isEn ? 'What might be underlying it?' : 'Bunun sebebi ne olabilir?', type: 'text' },
+    ],
+    upset: [
+      { id: 'upset_q1', text: isEn ? 'What saddened you today?' : 'Bugün seni ne üzdü?', type: 'text' },
+      { id: 'upset_q2', text: isEn ? 'Where is this emotion felt right now?' : 'Bu duygu şu an nerede hissediliyor?', type: 'text' },
+      { id: 'upset_q3', text: isEn ? 'How can you offer yourself support?' : 'Kendine nasıl bir destek verebilirsin?', type: 'text' },
+    ],
+    angry: [
+      { id: 'angry_q1', text: isEn ? 'What sparked your frustration?' : 'Seni ne kızdırdı?', type: 'text' },
+      { id: 'angry_q2', text: isEn ? 'What is this anger trying to convey?' : 'Bu öfke sana ne söylemek istiyor?', type: 'text' },
+      { id: 'angry_q3', text: isEn ? 'What do you need to find ease?' : 'Sakinleşmek için neye ihtiyacın var?', type: 'text' },
+    ],
+    tired: [
+      { id: 'tired_q1', text: isEn ? 'What drained your energy most today?' : 'Bugün seni en çok ne yordu?', type: 'text' },
+      { id: 'tired_q2', text: isEn ? 'Which part of your body needs rest?' : 'Bedeninin hangi bölgesi dinlenmek istiyor?', type: 'text' },
+      { id: 'tired_q3', text: isEn ? 'Can you give yourself a 5-minute pause?' : 'Kendine 5 dakika mola verebilir misin?', type: 'text' },
+    ],
+    sensitive: [
+      { id: 'sensitive_q1', text: isEn ? 'What touched your sensitivities today?' : 'Bugün seni ne hassaslaştırdı?', type: 'text' },
+      { id: 'sensitive_q2', text: isEn ? 'Would you like to give space to this feeling?' : 'Bu duyguya biraz alan açmak ister misin?', type: 'text' },
+      { id: 'sensitive_q3', text: isEn ? 'What would feel soothing right now?' : 'Şu an sana ne iyi gelirdi?', type: 'text' },
+    ],
+    motivated: [
+      { id: 'motivated_q1', text: isEn ? 'What inspired your motivation?' : 'Seni ne motive etti?', type: 'text' },
+      { id: 'motivated_q2', text: isEn ? 'How can you protect this momentum?' : 'Bu enerjiyi nasıl koruyabilirsin?', type: 'text' },
+      { id: 'motivated_q3', text: isEn ? 'What is your next gentle step?' : 'Bir sonraki küçük adımın ne olacak?', type: 'text' },
+    ],
+    calm: [
+      { id: 'calm_q1', text: isEn ? 'What brought you this sense of calm?' : 'Bu sakinliği neye borçlusun?', type: 'text' },
+      { id: 'calm_q2', text: isEn ? 'How would you describe this quiet moment?' : 'Şu anki sessizliği nasıl tarif edersin?', type: 'text' },
+      { id: 'calm_q3', text: isEn ? 'Would you like to absorb this peace?' : 'Bu huzuru içine çekmek ister misin?', type: 'text' },
+    ],
+  };
+
+  const DEFAULT_QUESTIONS = [
+    { id: 'grateful', text: isEn ? 'What are you grateful for today?' : 'Bugün neye minnettarsın?', type: 'text' },
+    { id: 'other', text: isEn ? 'Is there anything else on your heart?' : 'Paylaşmak istediğin başka bir şey var mı?', type: 'text' },
+  ];
 
   const activeQuestions = useMemo(
     () => selectedMood ? [...QUESTIONS_MAP[selectedMood], ...DEFAULT_QUESTIONS] : DEFAULT_QUESTIONS,
-    [selectedMood]
+    [selectedMood, isEn]
   );
 
-  // Stable mascot message — only recomputes when selectedMood changes
   const mascotMessage = useMemo(() => {
-    if (!selectedMood) return getMascotMessage();
+    if (!selectedMood) return getMascotMessage(new Date().getHours(), undefined, language);
     const label = MOODS.find(m => m.id === selectedMood)?.label;
-    return `Anlıyorum... ${label} bir gün mü?`;
-  }, [selectedMood]);
+    return isEn ? `I see... Is it a ${label?.toLowerCase()} kind of day?` : `Anlıyorum... ${label} bir gün mü?`;
+  }, [selectedMood, language, isEn]);
 
   const handleMoodSelect = useCallback((id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -224,21 +220,27 @@ export default function CheckInScreen() {
       }));
 
       const payload = {
-        emotion: MOODS.find(m => m.id === selectedMood)?.label || selectedMood || 'Sakin',
+        // Canonical mood value (backend stores the Turkish key and localizes at read time), never the display label
+        emotion: MOODS.find(m => m.id === selectedMood)?.value || 'Sakin',
         answers: formattedAnswers,
         created_at: new Date(),
       };
 
       await client.post('/check-ins/advanced', payload);
-      setModal({ visible: true, title: 'Teşekkürler', message: 'Paylaştığın her şey burada güvende. Kendine vakit ayırdığın için teşekkürler.' });
+      setModal({ 
+        visible: true, 
+        title: t('checkIn.successTitle'), 
+        message: t('checkIn.successSubtitle'),
+        success: true
+      });
     } catch (error: any) {
       if (!error?.isSessionExpiry) {
-        setModal({ visible: true, title: 'Hata', message: 'Kaydedilirken bir sorun oluştu.' });
+        setModal({ visible: true, title: t('common.error'), message: t('toasts.errorGeneric'), success: false });
       }
     } finally {
       setLoading(false);
     }
-  }, [activeQuestions, selectedMood]);
+  }, [activeQuestions, selectedMood, isEn, t]);
 
   const handleBack = useCallback(() => {
     setCurrentStep(0);
@@ -263,7 +265,7 @@ export default function CheckInScreen() {
 
           {currentStep === 0 ? (
             <Animated.View entering={FadeInDown} exiting={FadeOut} style={styles.moodSection}>
-              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>Duygunu Seç</Text>
+              <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.primary }]}>{t('checkIn.chooseEmotion')}</Text>
               <View style={styles.moodGrid}>
                 {MOODS.map((mood) => {
                   const isSelected = selectedMood === mood.id;
@@ -302,6 +304,7 @@ export default function CheckInScreen() {
               onCancel={() => router.back()}
               loading={loading}
               theme={currentTheme}
+              isEn={isEn}
             />
           )}
           </View>
@@ -313,7 +316,8 @@ export default function CheckInScreen() {
           message={modal.message}
           onClose={() => {
             setModal({ ...modal, visible: false });
-            if (modal.title === 'Teşekkürler') router.back();
+            // Pop back to the existing (tabs) route and focus Home, without stacking a new (tabs)
+            if (modal.success) router.dismissTo('/(tabs)');
           }}
         />
       </KeyboardAvoidingView>

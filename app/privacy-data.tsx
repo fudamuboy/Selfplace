@@ -8,10 +8,15 @@ import useAuthStore from '../store/useAuthStore';
 import { CustomModal } from '../components/CustomModal';
 import useThemeStore from '../store/useThemeStore';
 
+import { useT } from '../i18n';
+
 export default function PrivacyDataScreen() {
   const router = useRouter();
   const { logout } = useAuthStore();
   const { currentTheme } = useThemeStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
   const [loading, setLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ visible: boolean; type: 'deleteData' | 'deleteAccount' | 'none' }>({
     visible: false,
@@ -27,13 +32,13 @@ export default function PrivacyDataScreen() {
       
       await Share.share({
         message: dataStr,
-        title: 'Selfplace Verilerim',
+        title: isEn ? 'My Selfplace Data' : 'Selfplace Verilerim',
       });
     } catch (_error) {
       setInfoModal({
         visible: true,
-        title: 'Hata',
-        message: 'Veriler dışa aktarılırken bir sorun oluştu.',
+        title: isEn ? 'Error' : 'Hata',
+        message: isEn ? 'An issue occurred while exporting your data.' : 'Veriler dışa aktarılırken bir sorun oluştu.',
       });
     } finally {
       setLoading(false);
@@ -47,14 +52,14 @@ export default function PrivacyDataScreen() {
       setConfirmModal({ visible: false, type: 'none' });
       setInfoModal({
         visible: true,
-        title: 'Başarılı',
-        message: 'Tüm kişisel verileriniz silindi.',
+        title: isEn ? 'Success' : 'Başarılı',
+        message: isEn ? 'All your personal data has been deleted.' : 'Tüm kişisel verileriniz silindi.',
       });
     } catch (_error) {
       setInfoModal({
         visible: true,
-        title: 'Hata',
-        message: 'Veriler silinirken bir sorun oluştu.',
+        title: isEn ? 'Error' : 'Hata',
+        message: isEn ? 'An issue occurred while deleting your data.' : 'Veriler silinirken bir sorun oluştu.',
       });
     } finally {
       setLoading(false);
@@ -71,8 +76,8 @@ export default function PrivacyDataScreen() {
     } catch (_error) {
       setInfoModal({
         visible: true,
-        title: 'Hata',
-        message: 'Hesap silinirken bir sorun oluştu.',
+        title: isEn ? 'Error' : 'Hata',
+        message: isEn ? 'An issue occurred while deleting your account.' : 'Hesap silinirken bir sorun oluştu.',
       });
     } finally {
       setLoading(false);
@@ -86,38 +91,55 @@ export default function PrivacyDataScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={currentTheme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Gizlilik ve Veriler</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('settings.privacyData')}</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Privacy Policy Section */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Gizlilik Politikası</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Privacy Policy Summary' : 'Gizlilik Politikası'}</Text>
             <View style={[styles.policyCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
               <Text style={[styles.policyText, { color: currentTheme.colors.text.primary }]}>
-                Selfplace, kişisel gelişiminize ve içsel huzurunuza odaklanan güvenli bir alandır.
-                {"\n\n"}
-                <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>Hangi verileri topluyoruz?</Text>
-                {"\n"}Kullanıcı adınız, e-posta adresiniz, ruh hali seçimleriniz, günlük notlarınız ve uygulama içindeki etkileşimleriniz.
-                {"\n\n"}
-                <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>Verileriniz nasıl kullanılır?</Text>
-                {"\n"}Verileriniz, size özel günlük yansımalar ve haftalık içgörüler oluşturmak için kullanılır. AI teknolojisi (OpenAI), verilerinizi sadece anlamlı geri bildirimler üretmek için işler.
-                {"\n\n"}
-                <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>Güvenlik ve Sınırlar</Text>
-                {"\n"}Selfplace bir terapi veya tıbbi teşhis aracı değildir. Verileriniz PostgreSQL veritabanımızda güvenli bir şekilde saklanır ve asla üçüncü taraflarla paylaşılmaz.
+                {isEn ? (
+                  <>
+                    Selfplace is a quiet, safe sanctuary focused on your personal growth and inner peace.
+                    {"\n\n"}
+                    <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>What data do we collect?</Text>
+                    {"\n"}Your username, email address, mood check-ins, journal reflections, and app interactions.
+                    {"\n\n"}
+                    <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>How is your data used?</Text>
+                    {"\n"}Your data is used to generate personalized daily reflections and weekly insights. AI models process your data solely to produce meaningful feedback.
+                    {"\n\n"}
+                    <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>Security & Boundaries</Text>
+                    {"\n"}Selfplace is not a medical or therapy tool. Your data is stored securely and never shared with third parties.
+                  </>
+                ) : (
+                  <>
+                    Selfplace, kişisel gelişiminize ve içsel huzurunuza odaklanan güvenli bir alandır.
+                    {"\n\n"}
+                    <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>Hangi verileri topluyoruz?</Text>
+                    {"\n"}Kullanıcı adınız, e-posta adresiniz, ruh hali seçimleriniz, günlük notlarınız ve uygulama içindeki etkileşimleriniz.
+                    {"\n\n"}
+                    <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>Verileriniz nasıl kullanılır?</Text>
+                    {"\n"}Verileriniz, size özel günlük yansımalar ve haftalık içgörüler oluşturmak için kullanılır. AI teknolojisi, verilerinizi sadece anlamlı geri bildirimler üretmek için işler.
+                    {"\n\n"}
+                    <Text style={[styles.bold, { color: currentTheme.colors.primary }]}>Güvenlik ve Sınırlar</Text>
+                    {"\n"}Selfplace bir terapi veya tıbbi teşhis aracı değildir. Verileriniz veritabanımızda güvenli bir şekilde saklanır ve asla üçüncü taraflarla paylaşılmaz.
+                  </>
+                )}
               </Text>
             </View>
           </View>
 
           {/* Data Actions Section */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Veri Yönetimi</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Data Management' : 'Veri Yönetimi'}</Text>
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]} 
               onPress={handleExportData}
             >
               <Ionicons name="download-outline" size={22} color={currentTheme.colors.primary} />
-              <Text style={[styles.actionButtonText, { color: currentTheme.colors.primary }]}>Verilerimi Dışa Aktar</Text>
+              <Text style={[styles.actionButtonText, { color: currentTheme.colors.primary }]}>{isEn ? 'Export My Data' : 'Verilerimi Dışa Aktar'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -125,19 +147,19 @@ export default function PrivacyDataScreen() {
               onPress={() => setConfirmModal({ visible: true, type: 'deleteData' })}
             >
               <Ionicons name="trash-outline" size={22} color="#F87171" />
-              <Text style={[styles.actionButtonText, { color: '#F87171' }]}>Tüm Verilerimi Sil</Text>
+              <Text style={[styles.actionButtonText, { color: '#F87171' }]}>{isEn ? 'Delete All My Data' : 'Tüm Verilerimi Sil'}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Account Actions Section */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>Hesap Yönetimi</Text>
+            <Text style={[styles.sectionTitle, { color: currentTheme.colors.text.secondary }]}>{isEn ? 'Account Management' : 'Hesap Yönetimi'}</Text>
             <TouchableOpacity 
               style={[styles.actionButton, styles.destructiveButton]} 
               onPress={() => setConfirmModal({ visible: true, type: 'deleteAccount' })}
             >
               <Ionicons name="person-remove-outline" size={22} color="#FFF" />
-              <Text style={[styles.actionButtonText, { color: '#FFF' }]}>Hesabımı Sil</Text>
+              <Text style={[styles.actionButtonText, { color: '#FFF' }]}>{isEn ? 'Delete My Account' : 'Hesabımı Sil'}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -146,11 +168,11 @@ export default function PrivacyDataScreen() {
       {/* Confirmation Modal */}
       <CustomModal
         visible={confirmModal.visible}
-        title="Emin misiniz?"
+        title={isEn ? 'Are you sure?' : 'Emin misiniz?'}
         message={confirmModal.type === 'deleteData' 
-          ? "Bu işlem geri alınamaz. Tüm kişisel kayıtların (günlükler, ruh halleri, içgörüler) silinecek."
-          : "Hesabınız ve tüm verileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz."}
-        confirmText="Evet, Sil"
+          ? (isEn ? "This action cannot be undone. All your personal records (journals, mood check-ins, insights) will be deleted." : "Bu işlem geri alınamaz. Tüm kişisel kayıtların (günlükler, ruh halleri, içgörüler) silinecek.")
+          : (isEn ? "Your account and all data will be permanently deleted. This action cannot be undone." : "Hesabınız ve tüm verileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz.")}
+        confirmText={isEn ? "Yes, Delete" : "Evet, Sil"}
         onConfirm={confirmModal.type === 'deleteData' ? handleDeleteData : handleDeleteAccount}
         onClose={() => setConfirmModal({ visible: false, type: 'none' })}
       />

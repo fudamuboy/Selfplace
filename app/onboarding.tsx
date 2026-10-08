@@ -23,24 +23,9 @@ import { MascotBlob } from '../components/MascotBlob';
 import useThemeStore from '../store/useThemeStore';
 import useAuthStore from '../store/useAuthStore';
 import { CONTENT_MAX_WIDTH, isTablet } from '../constants/Layout';
+import { useT } from '../i18n';
 
-const ONBOARDING_GOALS = [
-  { id: 'Self-understanding', label: 'Kendini Anlama 🧠', subtitle: 'Kendini daha derin keşfet' },
-  { id: 'Relationship growth', label: 'İlişkilerde Büyüme 🌱', subtitle: 'Bağlarını ve empatiyi güçlendir' },
-  { id: 'Emotional balance', label: 'Duygusal Denge ⚖️', subtitle: 'Hislerini sakince yönet' },
-  { id: 'Stress reduction', label: 'Stresi Azaltma 🧘', subtitle: 'Zihnini ve bedenini dinlendir' },
-  { id: 'Personal development', label: 'Kişisel Gelişim 🚀', subtitle: 'Adım adım farkındalıkla büyü' }
-];
-
-const MOOD_DATA = [
-  { id: 'Mutlu', label: 'Mutlu', image: require('../assets/images/stickers/mutlu.png'), response: 'Işığın her yeri aydınlatıyor.' },
-  { id: 'Sakin', label: 'Sakin', image: require('../assets/images/stickers/sakin.png'), response: 'Huzurun tadını çıkar.' },
-  { id: 'Yorgun', label: 'Yorgun', image: require('../assets/images/stickers/yorgun.png'), response: 'Dinlenmek en büyük hakkın.' },
-  { id: 'Üzgün', label: 'Üzgün', image: require('../assets/images/stickers/uzgun.png'), response: 'Bu hisle yalnız değilsin.' },
-  { id: 'Kaygılı', label: 'Kaygılı', image: require('../assets/images/stickers/kaygili.png'), response: 'Yavaşla, her şey geçecek.' },
-];
-
-function OnboardingMoodCard({ mood, isSelected, onSelect, theme }: { mood: any, isSelected: boolean, onSelect: () => void, theme: any }) {
+const OnboardingMoodCard = ({ mood, isSelected, onSelect, theme }: { mood: any, isSelected: boolean, onSelect: () => void, theme: any }) => {
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
 
@@ -84,32 +69,34 @@ function OnboardingMoodCard({ mood, isSelected, onSelect, theme }: { mood: any, 
       </Animated.View>
     </Pressable>
   );
-}
+};
 
 export default function OnboardingScreen() {
   const [step, setStep] = useState(1);
-  const [showText1, setShowText1] = useState(false);
-  const [showText2, setShowText2] = useState(false);
-  const [showButton, setShowButton] = useState(false);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   
   const router = useRouter();
   const { currentTheme } = useThemeStore();
   const { setOnboardingCompleted } = useAuthStore();
+  const { t, language } = useT();
+  const isEn = language === 'en';
 
-  useEffect(() => {
-    if (step === 1) {
-      const t1 = setTimeout(() => setShowText1(true), 2000);
-      const t2 = setTimeout(() => setShowText2(true), 4000);
-      const t3 = setTimeout(() => setShowButton(true), 5500);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
-    }
-  }, [step]);
+  const ONBOARDING_GOALS = [
+    { id: 'Self-understanding', label: t('goals.selfUnderstandingTitle'), subtitle: t('goals.selfUnderstandingSub') },
+    { id: 'Relationship growth', label: t('goals.relationshipGrowthTitle'), subtitle: t('goals.relationshipGrowthSub') },
+    { id: 'Emotional balance', label: t('goals.emotionalBalanceTitle'), subtitle: t('goals.emotionalBalanceSub') },
+    { id: 'Stress reduction', label: t('goals.stressReductionTitle'), subtitle: t('goals.stressReductionSub') },
+    { id: 'Personal development', label: t('goals.personalDevelopmentTitle'), subtitle: t('goals.personalDevelopmentSub') }
+  ];
+
+  const MOOD_DATA = [
+    { id: 'Mutlu', label: isEn ? 'Happy' : 'Mutlu', image: require('../assets/images/stickers/mutlu.png'), response: isEn ? 'Your light brightens everything.' : 'Işığın her yeri aydınlatıyor.' },
+    { id: 'Sakin', label: isEn ? 'Calm' : 'Sakin', image: require('../assets/images/stickers/sakin.png'), response: isEn ? 'Enjoy the quiet peace.' : 'Huzurun tadını çıkar.' },
+    { id: 'Yorgun', label: isEn ? 'Tired' : 'Yorgun', image: require('../assets/images/stickers/yorgun.png'), response: isEn ? 'Resting is your fundamental right.' : 'Dinlenmek en büyük hakkın.' },
+    { id: 'Üzgün', label: isEn ? 'Sad' : 'Üzgün', image: require('../assets/images/stickers/uzgun.png'), response: isEn ? 'You are not alone in this feeling.' : 'Bu hisle yalnız değilsin.' },
+    { id: 'Kaygılı', label: isEn ? 'Anxious' : 'Kaygılı', image: require('../assets/images/stickers/kaygili.png'), response: isEn ? 'Slow down, this will pass.' : 'Yavaşla, her şey geçecek.' },
+  ];
 
   const handleFinish = async () => {
     try {
@@ -117,7 +104,7 @@ export default function OnboardingScreen() {
       await setOnboardingCompleted(true);
       router.replace('/(auth)/register');
     } catch (error) {
-      router.replace('/(auth)/register');
+      console.error('Failed to finish onboarding:', error);
     }
   };
 
@@ -131,27 +118,21 @@ export default function OnboardingScreen() {
             </View>
             
             <View style={styles.textContainer}>
-              {showText1 && (
-                <Animated.Text entering={FadeIn.duration(1000)} style={[styles.softText, { color: currentTheme.colors.text.primary }]}>
-                  Buradayım.
-                </Animated.Text>
-              )}
-              {showText2 && (
-                <Animated.Text entering={FadeIn.duration(1000)} style={[styles.softText, { color: currentTheme.colors.text.primary, marginTop: 12 }]}>
-                  Seni dinliyorum.
-                </Animated.Text>
-              )}
+              <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>
+                {t('onboarding.welcomeTitle')}
+              </Text>
+              <Text style={[styles.subtitleText, { color: currentTheme.colors.text.secondary }]}>
+                {t('onboarding.welcomeSubtitle')}
+              </Text>
             </View>
 
-            {showButton && (
-              <Animated.View entering={FadeIn.duration(800)} style={styles.buttonWrapper}>
-                <CustomButton 
-                  title="Devam Et" 
-                  onPress={() => setStep(2)} 
-                  style={styles.button}
-                />
-              </Animated.View>
-            )}
+            <View style={styles.buttonWrapper}>
+              <CustomButton 
+                title={t('onboarding.getStarted')} 
+                onPress={() => setStep(2)} 
+                style={styles.button}
+              />
+            </View>
           </View>
         );
 
@@ -159,7 +140,7 @@ export default function OnboardingScreen() {
         return (
           <Animated.View entering={FadeIn.duration(1000)} style={styles.stepContainer}>
             <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>
-              Bugün nasılsın?
+              {t('checkIn.moodQuestion')}
             </Text>
             
             <View style={styles.gridContainer}>
@@ -195,7 +176,7 @@ export default function OnboardingScreen() {
 
             <View style={[styles.buttonWrapper, { marginTop: 40 }]}>
               <CustomButton 
-                title="Devam Et" 
+                title={t('common.next')} 
                 onPress={() => setStep(3)} 
                 style={styles.button}
                 disabled={!selectedMood}
@@ -208,10 +189,10 @@ export default function OnboardingScreen() {
         return (
           <Animated.View entering={FadeIn.duration(1000)} style={styles.stepContainer}>
             <Text style={[styles.title, { color: currentTheme.colors.text.primary, marginBottom: 12 }]}>
-              Seni Selfplace'e getiren nedir?
+              {t('onboarding.goalsTitle')}
             </Text>
             <Text style={[styles.subtitleText, { color: currentTheme.colors.text.secondary, marginBottom: 24, textAlign: 'center' }]}>
-              Hedeflerini ve niyetlerini seçerek sana özel sakin bir akış oluşturabiliriz.
+              {t('onboarding.goalsSubtitle')}
             </Text>
 
             <View style={styles.goalsContainer}>
@@ -261,7 +242,7 @@ export default function OnboardingScreen() {
 
             <View style={[styles.buttonWrapper, { marginTop: 32 }]}>
               <CustomButton
-                title="Devam Et"
+                title={t('common.next')}
                 onPress={() => setStep(4)}
                 style={styles.button}
                 disabled={selectedGoals.length === 0}
@@ -278,19 +259,19 @@ export default function OnboardingScreen() {
             </View>
             <View style={styles.finalTextContainer}>
               <Text style={[styles.finalText, { color: currentTheme.colors.text.primary }]}>
-                Bu alan senin.
+                {isEn ? "This space is yours." : "Bu alan senin."}
               </Text>
               <Text style={[styles.finalText, { color: currentTheme.colors.text.primary }]}>
-                Zorunda değilsin.
+                {isEn ? "No pressure." : "Zorunda değilsin."}
               </Text>
               <Text style={[styles.finalText, { color: currentTheme.colors.text.primary }]}>
-                Sadece kendin ol.
+                {isEn ? "Just be yourself." : "Sadece kendin ol."}
               </Text>
             </View>
 
             <View style={styles.finalActions}>
               <CustomButton 
-                title="Başla" 
+                title={t('onboarding.getStarted')} 
                 onPress={handleFinish} 
                 style={styles.button}
               />

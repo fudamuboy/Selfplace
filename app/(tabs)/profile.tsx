@@ -16,6 +16,8 @@ import { getSubscription } from '../../api/userApi';
 import { PremiumUpgradeModal } from '../../components/PremiumUpgradeModal';
 import { logger } from '../../utils/logger';
 
+import { useT } from '../../i18n';
+
 interface PlanConfig {
   title: string;
   description: string;
@@ -24,44 +26,43 @@ interface PlanConfig {
   sparkleColorKey?: 'start' | 'primary';
 }
 
-const MEMBERSHIP_CONFIGS: Record<string, PlanConfig> = {
-  free: {
-    title: "Selfplace Ücretsiz Plan",
-    description: "Kendin için sakin ve güvenli bir alan.",
-    buttonLabel: "Planları Gör",
-    isPremium: false,
-    sparkleColorKey: 'primary',
-  },
-  plus: {
-    title: "Selfplace Plus Üyesi 💜",
-    description: "Sizi giderek daha iyi anlayan duygusal yoldaş.",
-    buttonLabel: "Planı Yönet / Yükselt",
-    isPremium: true,
-    sparkleColorKey: 'primary',
-  },
-  signature: {
-    title: "Selfplace Signature Üyesi ✨",
-    description: "Tüm premium özellikler aktif. Duygusal yoldaşınız sizinle birlikte uyum kuruyor.",
-    buttonLabel: "Planı Yönet / Değiştir",
-    isPremium: true,
-    sparkleColorKey: 'start',
-  },
+const getZodiacSign = (day: number, month: number, isEn: boolean): string => {
+  if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return isEn ? 'Aries' : 'Koç';
+  if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return isEn ? 'Taurus' : 'Boğa';
+  if ((month === 5 && day >= 21) || (month === 6 && day <= 20)) return isEn ? 'Gemini' : 'İkizler';
+  if ((month === 6 && day >= 21) || (month === 7 && day <= 22)) return isEn ? 'Cancer' : 'Yengeç';
+  if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return isEn ? 'Leo' : 'Aslan';
+  if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return isEn ? 'Virgo' : 'Başak';
+  if ((month === 9 && day >= 23) || (month === 10 && day <= 22)) return isEn ? 'Libra' : 'Terazi';
+  if ((month === 10 && day >= 23) || (month === 11 && day <= 21)) return isEn ? 'Scorpio' : 'Akrep';
+  if ((month === 11 && day >= 22) || (month === 12 && day <= 21)) return isEn ? 'Sagittarius' : 'Yay';
+  if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return isEn ? 'Capricorn' : 'Oğlak';
+  if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return isEn ? 'Aquarius' : 'Kova';
+  if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return isEn ? 'Pisces' : 'Balık';
+  return isEn ? 'Unknown' : 'Bilinmiyor';
 };
 
-const getZodiacSign = (day: number, month: number): string => {
-  if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
-  if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'Boğa';
-  if ((month === 5 && day >= 21) || (month === 6 && day <= 20)) return 'İkizler';
-  if ((month === 6 && day >= 21) || (month === 7 && day <= 22)) return 'Yengeç';
-  if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return 'Aslan';
-  if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return 'Başak';
-  if ((month === 9 && day >= 23) || (month === 10 && day <= 22)) return 'Terazi';
-  if ((month === 10 && day >= 23) || (month === 11 && day <= 21)) return 'Akrep';
-  if ((month === 11 && day >= 22) || (month === 12 && day <= 21)) return 'Yay';
-  if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return 'Oğlak';
-  if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return 'Kova';
-  if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return 'Balık';
-  return 'Bilinmiyor';
+const getZodiacSignLabel = (sign?: string, isEn: boolean = false): string => {
+  if (!sign) return '';
+  const trToEn: Record<string, string> = {
+    'Koç': 'Aries', 'Boğa': 'Taurus', 'İkizler': 'Gemini', 'Yengeç': 'Cancer',
+    'Aslan': 'Leo', 'Başak': 'Virgo', 'Terazi': 'Libra', 'Akrep': 'Scorpio',
+    'Yay': 'Sagittarius', 'Oğlak': 'Capricorn', 'Kova': 'Aquarius', 'Balık': 'Pisces'
+  };
+  if (isEn) return trToEn[sign] || sign;
+  // Legacy rows may hold the English name; show the Turkish one in Turkish mode
+  return Object.keys(trToEn).find(tr => trToEn[tr] === sign) || sign;
+};
+
+const MOOD_TR_TO_EN: Record<string, string> = {
+  'Mutlu': 'Happy', 'Üzgün': 'Sad', 'Kızgın': 'Angry', 'Kaygılı': 'Anxious',
+  'Yorgun': 'Tired', 'Hassas': 'Sensitive', 'Motive': 'Motivated', 'Sakin': 'Calm'
+};
+
+// Moods are stored as the Turkish key, but legacy rows may hold the English label
+const getMoodLabel = (mood: string, isEn: boolean): string => {
+  if (isEn) return MOOD_TR_TO_EN[mood] || mood;
+  return Object.keys(MOOD_TR_TO_EN).find(tr => MOOD_TR_TO_EN[tr].toLowerCase() === mood.toLowerCase()) || mood;
 };
 
 interface Stats {
@@ -72,6 +73,9 @@ interface Stats {
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const { t, language } = useT();
+  const isEn = language === 'en';
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -84,6 +88,30 @@ export default function ProfileScreen() {
 
   const { planType, setPlanType } = useAuthStore();
   const [isUpgradeModalVisible, setIsUpgradeModalVisible] = useState(false);
+
+  const MEMBERSHIP_CONFIGS: Record<string, PlanConfig> = {
+    free: {
+      title: isEn ? "Selfplace Free Plan" : "Selfplace Ücretsiz Plan",
+      description: isEn ? "A peaceful and safe space for yourself." : "Kendin için sakin ve güvenli bir alan.",
+      buttonLabel: isEn ? "Explore Plans" : "Planları Gör",
+      isPremium: false,
+      sparkleColorKey: 'primary',
+    },
+    plus: {
+      title: isEn ? "Selfplace Plus Member 💜" : "Selfplace Plus Üyesi 💜",
+      description: isEn ? "An emotional companion that understands you deeply." : "Sizi giderek daha iyi anlayan duygusal yoldaş.",
+      buttonLabel: isEn ? "Manage Plan / Upgrade" : "Planı Yönet / Yükselt",
+      isPremium: true,
+      sparkleColorKey: 'primary',
+    },
+    signature: {
+      title: isEn ? "Selfplace Signature Member ✨" : "Selfplace Signature Üyesi ✨",
+      description: isEn ? "All premium features active." : "Tüm premium özellikler aktif. Duygusal yoldaşınız sizinle birlikte uyum kuruyor.",
+      buttonLabel: isEn ? "Manage Plan" : "Planı Yönet / Değiştir",
+      isPremium: true,
+      sparkleColorKey: 'start',
+    },
+  };
 
   useEffect(() => {
     fetchStats();
@@ -105,7 +133,6 @@ export default function ProfileScreen() {
       const res = await client.get('/insights/stats');
       setStats(res.data);
     } catch (error) {
-      // Error is handled silently in production or could be sent to an error reporter
     } finally {
       setLoading(false);
     }
@@ -113,11 +140,10 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     logout();
-    router.replace('/login');
+    router.replace('/(auth)/login');
   };
 
   const handleDateChange = async (event: any, selectedDate?: Date) => {
-    // Hide picker early, especially on Android where it stays open
     setShowDatePicker(false);
     
     if (!selectedDate || event.type === 'dismissed') return;
@@ -125,18 +151,16 @@ export default function ProfileScreen() {
     try {
       setIsUpdatingProfile(true);
       const day = selectedDate.getDate();
-      const month = selectedDate.getMonth() + 1; // 0-indexed
-      const newZodiac = getZodiacSign(day, month);
+      const month = selectedDate.getMonth() + 1;
+      const newZodiac = getZodiacSign(day, month, false);
       
       const isoDate = selectedDate.toISOString();
       
-      // Update backend
       await client.put('/user/profile', {
         birth_date: isoDate,
         zodiac_sign: newZodiac
       });
 
-      // Update local state in Zustand
       useAuthStore.getState().updateUser({
         birth_date: isoDate,
         zodiac_sign: newZodiac
@@ -187,7 +211,7 @@ export default function ProfileScreen() {
     <GradientBackground>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.innerContent}>
-        <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Profil</Text>
+        <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>{t('profile.title')}</Text>
         
         {/* Profile Header Card */}
         <LinearGradient
@@ -211,27 +235,35 @@ export default function ProfileScreen() {
               </LinearGradient>
             </TouchableOpacity>
             <View style={styles.profileInfo}>
-              <Text style={[styles.welcomeText, { color: currentTheme.colors.text.primary }]}>Merhaba, {user?.username} 🌿</Text>
-              <Text style={[styles.subWelcomeText, { color: currentTheme.colors.text.secondary }]}>Kendine ayırdığın küçük anlar burada başlar.</Text>
+              <Text style={[styles.welcomeText, { color: currentTheme.colors.text.primary }]}>
+                {t('home.greeting', { name: user?.username || '' })} 🌿
+              </Text>
+              <Text style={[styles.subWelcomeText, { color: currentTheme.colors.text.secondary }]}>
+                {isEn ? "Your personal space for reflection and balance." : "Kendine ayırdığın küçük anlar burada başlar."}
+              </Text>
             </View>
           </View>
         </LinearGradient>
 
         {/* Kendini Keşfet Card */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.secondary }]}>Kendini Keşfet ✨</Text>
+          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.secondary }]}>
+            {isEn ? "Discover Yourself ✨" : "Kendini Keşfet ✨"}
+          </Text>
           <Text style={[styles.discoverySubtext, { color: currentTheme.colors.text.muted }]}>
-            Kendini yeniden keşfetmek ister misin? İç dünyanda bir değişim olmuş olabilir 🌿
+            {isEn ? "Explore your inner growth and mindset evolution 🌿" : "Kendini yeniden keşfetmek ister misin? İç dünyanda bir değişim olmuş olabilir 🌿"}
           </Text>
           <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-            {renderMenuItem('compass-outline', 'İçsel Kimlik Yolculuğu ✨', 'Duygusal kimliğini keşfet', () => router.push('/personality-test/journey'))}
-            {renderMenuItem('book-outline', 'Duygusal Evrim', 'Zaman içinde değişen içsel ritmin', () => router.push('/personality-results'))}
+            {renderMenuItem('compass-outline', isEn ? 'Inner Identity Journey ✨' : 'İçsel Kimlik Yolculuğu ✨', isEn ? 'Explore your emotional identity' : 'Duygusal kimliğini keşfet', () => router.push('/personality-test/journey'))}
+            {renderMenuItem('book-outline', isEn ? 'Emotional Evolution' : 'Duygusal Evrim', isEn ? 'Your changing inner rhythm over time' : 'Zaman içinde değişen içsel ritmin', () => router.push('/personality-results'))}
           </View>
         </View>
 
         {/* Rhythm Card */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.secondary }]}>Senin Ritmin</Text>
+          <Text style={[styles.sectionLabel, { color: currentTheme.colors.text.secondary }]}>
+            {isEn ? "Your Rhythm" : "Senin Ritmin"}
+          </Text>
           <View style={[styles.rhythmCard, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
             {loading ? (
               <ActivityIndicator color={currentTheme.colors.primary} size="small" />
@@ -240,14 +272,22 @@ export default function ProfileScreen() {
                 <View style={styles.rhythmItem}>
                   <Ionicons name="calendar-outline" size={20} color={currentTheme.colors.primary} style={styles.rhythmIcon} />
                   <Text style={[styles.rhythmText, { color: currentTheme.colors.text.primary }]}>
-                    Son 7 günde <Text style={{ color: currentTheme.colors.primary, fontWeight: 'bold' }}>{stats?.checkInCount || 0}</Text> kez kendine alan açtın.
+                    {isEn ? (
+                      <>You made space for yourself <Text style={{ color: currentTheme.colors.primary, fontWeight: 'bold' }}>{stats?.checkInCount || 0}</Text> times in the last 7 days.</>
+                    ) : (
+                      <>Son 7 günde <Text style={{ color: currentTheme.colors.primary, fontWeight: 'bold' }}>{stats?.checkInCount || 0}</Text> kez kendine alan açtın.</>
+                    )}
                   </Text>
                 </View>
                 {stats?.topMood && (
                   <View style={[styles.rhythmItem, { marginTop: 12 }]}>
                     <Ionicons name="heart-outline" size={20} color={currentTheme.colors.primary} style={styles.rhythmIcon} />
                     <Text style={[styles.rhythmText, { color: currentTheme.colors.text.primary }]}>
-                      Bu hafta en çok <Text style={{ color: currentTheme.colors.primary, fontWeight: 'bold' }}>{stats.topMood}</Text> hissetmiş olabilirsin.
+                      {isEn ? (
+                        <>You felt most <Text style={{ color: currentTheme.colors.primary, fontWeight: 'bold' }}>{getMoodLabel(stats.topMood, true)}</Text> this week.</>
+                      ) : (
+                        <>Bu hafta en çok <Text style={{ color: currentTheme.colors.primary, fontWeight: 'bold' }}>{getMoodLabel(stats.topMood, false)}</Text> hissetmiş olabilirsin.</>
+                      )}
                     </Text>
                   </View>
                 )}
@@ -301,23 +341,25 @@ export default function ProfileScreen() {
 
         {/* Menu */}
         <View style={[styles.menuContainer, { backgroundColor: currentTheme.colors.card, borderColor: currentTheme.colors.cardBorder }]}>
-          {renderMenuItem('calendar-clear-outline', 'Duygusal Arşiv', 'Tüm geçmiş paylaşımlarını gör', () => router.push('/history-full'))}
-          {renderMenuItem('heart-circle-outline', 'İlişki Bağlantısı', 'Birlikte empati ve anlayış kurun', () => router.push('/connections'))}
-          {renderMenuItem('settings-outline', 'Ayarlar', undefined, () => router.push('/settings'))}
+          {renderMenuItem('calendar-clear-outline', t('profile.emotionalArchive'), isEn ? 'View all past entries' : 'Tüm geçmiş paylaşımlarını gör', () => router.push('/history-full'))}
+          {renderMenuItem('heart-circle-outline', isEn ? 'Relationships' : 'İlişki Bağlantısı', isEn ? 'Build empathy and shared spaces' : 'Birlikte empati ve anlayış kurun', () => router.push('/connections'))}
+          {renderMenuItem('settings-outline', t('settings.title'), undefined, () => router.push('/settings'))}
           {renderMenuItem(
             'notifications-outline', 
-            'Günlük Hatırlatıcı', 
-            remindersEnabled ? `Her gün ${reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : 'Kapalı',
+            t('settings.dailyReminder'), 
+            remindersEnabled ? (isEn ? `Daily at ${reminderTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : `Her gün ${reminderTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`) : t('settings.off'),
             () => router.push('/settings')
           )}
-          {renderMenuItem('color-palette-outline', 'Uygulama Hissi', undefined, () => router.push('/theme-selection'))}
-          {renderMenuItem('shield-checkmark-outline', 'Gizlilik ve Veriler', undefined, () => router.push('/privacy-data'))}
+          {renderMenuItem('color-palette-outline', t('profile.themeMode'), undefined, () => router.push('/theme-selection'))}
+          {renderMenuItem('shield-checkmark-outline', t('profile.privacyAndData'), undefined, () => router.push('/privacy-data'))}
           <View style={[styles.logoutSeparator, { backgroundColor: currentTheme.colors.cardBorder }]} />
-          {renderMenuItem('log-out-outline', 'Çıkış Yap', undefined, handleLogout, true)}
+          {renderMenuItem('log-out-outline', t('settings.logout'), undefined, handleLogout, true)}
         </View>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: currentTheme.colors.text.muted }]}>Kendini tanıma yolculuğun küçük adımlarla ilerler ✨</Text>
+          <Text style={[styles.footerText, { color: currentTheme.colors.text.muted }]}>
+            {isEn ? "Your journey of self-discovery progresses with small steps ✨" : "Kendini tanıma yolculuğun küçük adımlarla ilerler ✨"}
+          </Text>
         </View>
         </View>
       </ScrollView>
@@ -332,7 +374,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: currentTheme.colors.background[1], borderColor: currentTheme.colors.glow }]}>
             <View style={styles.modalHeader}>
-               <Text style={[styles.modalTitle, { color: currentTheme.colors.text.primary }]}>Profil Bilgileri</Text>
+               <Text style={[styles.modalTitle, { color: currentTheme.colors.text.primary }]}>{t('profile.infoTitle')}</Text>
                <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                  <Ionicons name="close" size={24} color={currentTheme.colors.text.secondary} />
                </TouchableOpacity>
@@ -353,36 +395,36 @@ export default function ProfileScreen() {
                </View>
 
                <View style={styles.infoGroup}>
-                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>Kullanıcı Adı</Text>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Username' : 'Kullanıcı Adı'}</Text>
                   <Text style={[styles.infoValue, { color: currentTheme.colors.text.primary }]}>{user?.username}</Text>
                </View>
 
                <View style={styles.infoGroup}>
-                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>E-posta</Text>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Email' : 'E-posta'}</Text>
                   <Text style={[styles.infoValue, { color: currentTheme.colors.text.primary }]}>{user?.email}</Text>
                </View>
 
                <View style={styles.infoGroup}>
-                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>Burç</Text>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Zodiac Sign' : 'Burç'}</Text>
                   <View style={[styles.zodiacDisplay, { backgroundColor: currentTheme.colors.glow, borderColor: currentTheme.colors.cardBorder }]}>
                     <Text style={styles.zodiacSymbol}>✨</Text>
                     <Text style={[styles.zodiacValue, { color: currentTheme.colors.text.primary }]}>
-                      {user?.zodiac_sign || 'Henüz belirlenmedi'}
+                      {getZodiacSignLabel(user?.zodiac_sign, isEn) || (isEn ? 'Not determined yet' : 'Henüz belirlenmedi')}
                     </Text>
                   </View>
                   <Text style={[styles.infoSubLabel, { color: currentTheme.colors.text.muted, marginTop: 8 }]}>
-                    Doğum tarihinizi güncelleyerek burcunuzun otomatik hesaplanmasını sağlayabilirsiniz.
+                    {isEn ? 'Your zodiac sign will be calculated automatically when you update your birth date.' : 'Doğum tarihinizi güncelleyerek burcunuzun otomatik hesaplanmasını sağlayabilirsiniz.'}
                   </Text>
                </View>
 
                <View style={styles.infoGroup}>
-                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>Doğum Tarihi</Text>
+                  <Text style={[styles.infoLabel, { color: currentTheme.colors.text.muted }]}>{isEn ? 'Birth Date' : 'Doğum Tarihi'}</Text>
                   <TouchableOpacity 
                     style={[styles.dateInput, { borderColor: currentTheme.colors.cardBorder, backgroundColor: currentTheme.colors.card }]}
                     onPress={() => setShowDatePicker(true)}
                   >
                     <Text style={[styles.dateValue, { color: user?.birth_date ? currentTheme.colors.text.primary : currentTheme.colors.text.muted }]}>
-                      {isUpdatingProfile ? 'Güncelleniyor...' : (user?.birth_date ? new Date(user.birth_date).toLocaleDateString('tr-TR') : 'Tarih Seçin')}
+                      {isUpdatingProfile ? (isEn ? 'Updating...' : 'Güncelleniyor...') : (user?.birth_date ? new Date(user.birth_date).toLocaleDateString(isEn ? 'en-US' : 'tr-TR') : (isEn ? 'Select Date' : 'Tarih Seçin'))}
                     </Text>
                     <Ionicons name="calendar-outline" size={20} color={currentTheme.colors.primary} />
                   </TouchableOpacity>
@@ -401,7 +443,7 @@ export default function ProfileScreen() {
             )}
 
             <CustomButton 
-              title="Kapat" 
+              title={isEn ? 'Close' : 'Kapat'} 
               onPress={() => setIsModalVisible(false)} 
               style={{ marginTop: 24 }}
             />
@@ -411,10 +453,10 @@ export default function ProfileScreen() {
 
       <CustomModal
         visible={isPremiumModalVisible}
-        title="Harika ✨"
-        message="Yeni özellikler hazır olduğunda seni nazikçe bilgilendireceğiz."
+        title={isEn ? 'Wonderful ✨' : 'Harika ✨'}
+        message={isEn ? 'We will gently notify you when new features are ready.' : 'Yeni özellikler hazır olduğunda seni nazikçe bilgilendireceğiz.'}
         onClose={() => setIsPremiumModalVisible(false)}
-        confirmText="Tamam"
+        confirmText={isEn ? 'OK' : 'Tamam'}
       />
 
       <PremiumUpgradeModal

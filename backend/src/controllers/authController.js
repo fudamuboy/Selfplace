@@ -4,19 +4,22 @@ const db = require('../config/db');
 const crypto = require('crypto');
 const { getZodiacSign } = require('../utils/zodiac');
 const { sendEmail } = require('../services/emailService');
+const { getLanguage } = require('../utils/languageResolver');
 
 exports.register = async (req, res) => {
   const { username, email, password, birth_date, accepted_terms, onboarding_goals } = req.body;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   if (!accepted_terms) {
-    return res.status(400).json({ message: 'Kullanım koşullarını ve gizlilik politikasını kabul etmelisiniz.' });
+    return res.status(400).json({ message: isEn ? 'You must accept the terms of service and privacy policy.' : 'Kullanım koşullarını ve gizlilik politikasını kabul etmelisiniz.' });
   }
 
   try {
     const userExist = await db.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
     
     if (userExist.rows.length > 0) {
-      return res.status(400).json({ message: 'Bu e-posta veya kullanıcı adı zaten kullanımda.' });
+      return res.status(400).json({ message: isEn ? 'This email or username is already in use.' : 'Bu e-posta veya kullanıcı adı zaten kullanımda.' });
     }
 
     const saltRounds = 10;
@@ -26,8 +29,8 @@ exports.register = async (req, res) => {
     const termsAcceptedAt = new Date();
     
     const newUser = await db.query(
-      'INSERT INTO users (username, email, password, birth_date, zodiac_sign, accepted_terms, terms_accepted_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, birth_date, zodiac_sign, accepted_terms, created_at',
-      [username, email, hashedPassword, birth_date, zodiacSign, accepted_terms, termsAcceptedAt]
+      'INSERT INTO users (username, email, password, birth_date, zodiac_sign, accepted_terms, terms_accepted_at, preferred_language) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, username, email, birth_date, zodiac_sign, accepted_terms, preferred_language, created_at',
+      [username, email, hashedPassword, birth_date, zodiacSign, accepted_terms, termsAcceptedAt, lang]
     );
 
     const user = newUser.rows[0];
@@ -44,7 +47,7 @@ exports.register = async (req, res) => {
     }
 
     res.status(201).json({
-      message: 'Kayıt başarılı.',
+      message: isEn ? 'Registration successful.' : 'Kayıt başarılı.',
       user: {
         id: user.id,
         username: user.username,
@@ -52,6 +55,7 @@ exports.register = async (req, res) => {
         birth_date: user.birth_date,
         zodiac_sign: user.zodiac_sign,
         accepted_terms: user.accepted_terms,
+        preferred_language: user.preferred_language || lang,
         createdAt: user.created_at,
         onboarding_goals: onboarding_goals || []
       }
@@ -59,7 +63,7 @@ exports.register = async (req, res) => {
   } catch (err) {
     console.error('[authController] register error:', err);
     res.status(500).json({ 
-      message: `Kayıt hatası: ${err.message}`, 
+      message: isEn ? `Registration error: ${err.message}` : `Kayıt hatası: ${err.message}`, 
       error: err.message, 
       stack: err.stack 
     });
@@ -69,12 +73,14 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
 
   try {
     const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
 
     if (userResult.rows.length === 0) {
-      return res.status(400).json({ message: 'E-posta veya şifre hatalı.' });
+      return res.status(400).json({ message: isEn ? 'Invalid email or password.' : 'E-posta veya şifre hatalı.' });
     }
 
     const user = userResult.rows[0];
@@ -86,7 +92,7 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: 'E-posta veya şifre hatalı.' });
+      return res.status(400).json({ message: isEn ? 'Invalid email or password.' : 'E-posta veya şifre hatalı.' });
     }
 
     if (!process.env.JWT_SECRET) {
@@ -111,20 +117,24 @@ exports.login = async (req, res) => {
         email: user.email,
         birth_date: user.birth_date,
         zodiac_sign: user.zodiac_sign,
+        preferred_language: user.preferred_language || 'tr',
         createdAt: user.created_at,
         onboarding_goals
       }
     });
   } catch (err) {
-    res.status(500).json({ message: 'Giriş işlemi sırasında bir hata oluştu.' });
+    const lang = getLanguage(req);
+    res.status(500).json({ message: lang === 'en' ? 'An error occurred during login.' : 'Giriş işlemi sırasında bir hata oluştu.' });
   }
 };
 
 exports.getMe = async (req, res) => {
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
   try {
-    const userResult = await db.query('SELECT id, username, email, birth_date, zodiac_sign, created_at FROM users WHERE id = $1', [req.user.id]);
+    const userResult = await db.query('SELECT id, username, email, birth_date, zodiac_sign, preferred_language, created_at FROM users WHERE id = $1', [req.user.id]);
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+      return res.status(404).json({ message: isEn ? 'User not found.' : 'Kullanıcı bulunamadı.' });
     }
     const user = userResult.rows[0];
 
@@ -134,21 +144,24 @@ exports.getMe = async (req, res) => {
 
     res.json({
       ...user,
+      preferred_language: user.preferred_language || 'tr',
       onboarding_goals
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Sunucu hatası.' });
+    res.status(500).json({ message: isEn ? 'Server error.' : 'Sunucu hatası.' });
   }
 };
 
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
   try {
     const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userRes.rows.length === 0) {
       // Don't reveal user doesn't exist
-      return res.json({ message: 'Şifre sıfırlama bağlantısı e-posta adresine gönderildi.' });
+      return res.json({ message: isEn ? 'Password reset link sent to your email.' : 'Şifre sıfırlama bağlantısı e-posta adresine gönderildi.' });
     }
 
     const user = userRes.rows[0];
@@ -164,27 +177,27 @@ exports.forgotPassword = async (req, res) => {
     const mailOptions = {
       from: process.env.SMTP_FROM || `"Selfplace" <${process.env.SMTP_USER}>`,
       to: user.email,
-      subject: 'Selfplace Şifre Sıfırlama Kodu',
+      subject: isEn ? 'Selfplace Password Reset Code' : 'Selfplace Şifre Sıfırlama Kodu',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f9f9f9; border-radius: 16px;">
           <div style="text-align: center; margin-bottom: 30px;">
              <h1 style="color: #6366f1; margin: 0; font-size: 28px;">Selfplace</h1>
-             <p style="color: #666; font-size: 14px;">Kendine giden yolculuk</p>
+             <p style="color: #666; font-size: 14px;">${isEn ? 'Your inner sanctuary' : 'Kendine giden yolculuk'}</p>
           </div>
           
           <div style="background-color: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            <h2 style="color: #1f2937; margin-top: 0; text-align: center;">Şifre Sıfırlama Kodu</h2>
-            <p style="color: #4b5563; line-height: 1.6; text-align: center;">Merhaba, şifrenizi yenilemek için aşağıdaki 6 haneli kodu uygulamaya girin:</p>
+            <h2 style="color: #1f2937; margin-top: 0; text-align: center;">${isEn ? 'Password Reset Code' : 'Şifre Sıfırlama Kodu'}</h2>
+            <p style="color: #4b5563; line-height: 1.6; text-align: center;">${isEn ? 'Hello, enter the following 6-digit code in the app to reset your password:' : 'Merhaba, şifrenizi yenilemek için aşağıdaki 6 haneli kodu uygulamaya girin:'}</p>
             
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 12px; text-align: center; margin: 30px 0;">
                <code style="font-size: 32px; font-weight: bold; color: #6366f1; letter-spacing: 5px;">${resetCode}</code>
             </div>
             
-            <p style="font-size: 12px; color: #9ca3af; margin-top: 30px; text-align: center;">Bu kod 30 dakika boyunca geçerlidir. Eğer bu talebi siz yapmadıysanız, bu e-postayı güvenle silebilirsiniz.</p>
+            <p style="font-size: 12px; color: #9ca3af; margin-top: 30px; text-align: center;">${isEn ? 'This code is valid for 30 minutes. If you did not make this request, you can safely ignore this email.' : 'Bu kod 30 dakika boyunca geçerlidir. Eğer bu talebi siz yapmadıysanız, bu e-postayı güvenle silebilirsiniz.'}</p>
           </div>
           
           <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
-            © 2026 Selfplace. Tüm hakları saklıdır.
+            © 2026 Selfplace. ${isEn ? 'All rights reserved.' : 'Tüm hakları saklıdır.'}
           </div>
         </div>
       `
@@ -193,19 +206,18 @@ exports.forgotPassword = async (req, res) => {
     try {
       await sendEmail({
         to: user.email,
-        subject: 'Selfplace Şifre Sıfırlama Kodu',
+        subject: isEn ? 'Selfplace Password Reset Code' : 'Selfplace Şifre Sıfırlama Kodu',
         html: mailOptions.html,
-        text: `Merhaba, şifrenizi yenilemek için sıfırlama kodunuz: ${resetCode}`
+        text: isEn ? `Hello, your password reset code is: ${resetCode}` : `Merhaba, şifrenizi yenilemek için sıfırlama kodunuz: ${resetCode}`
       });
     } catch (mailError) {
       console.error('[Email] Delivery failure:', mailError.message);
-
     }
 
-    res.json({ message: 'Şifre sıfırlama bağlantısı e-posta adresine gönderildi.' });
+    res.json({ message: isEn ? 'Password reset link sent to your email.' : 'Şifre sıfırlama bağlantısı e-posta adresine gönderildi.' });
   } catch (err) {
     console.error('[authController] forgotPassword error:', err.message);
-    res.status(500).json({ message: 'Şifre sıfırlama işlemi sırasında bir hata oluştu.' });
+    res.status(500).json({ message: isEn ? 'An error occurred during password reset.' : 'Şifre sıfırlama işlemi sırasında bir hata oluştu.' });
   }
 };
 
@@ -231,6 +243,8 @@ exports.testEmail = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   const { token, newPassword } = req.body;
+  const lang = getLanguage(req);
+  const isEn = lang === 'en';
   try {
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const userRes = await db.query(
@@ -239,7 +253,7 @@ exports.resetPassword = async (req, res) => {
     );
 
     if (userRes.rows.length === 0) {
-      return res.status(400).json({ message: 'Geçersiz veya süresi dolmuş token.' });
+      return res.status(400).json({ message: isEn ? 'Invalid or expired token.' : 'Geçersiz veya süresi dolmuş token.' });
     }
 
     const user = userRes.rows[0];
@@ -250,9 +264,9 @@ exports.resetPassword = async (req, res) => {
       [hashedPassword, user.id]
     );
 
-    res.json({ message: 'Şifreniz başarıyla güncellendi.' });
+    res.json({ message: isEn ? 'Password updated successfully.' : 'Şifreniz başarıyla güncellendi.' });
   } catch (err) {
     console.error('[authController] resetPassword error:', err.message);
-    res.status(500).json({ message: 'Şifre sıfırlanırken bir hata oluştu.' });
+    res.status(500).json({ message: isEn ? 'An error occurred while resetting password.' : 'Şifre sıfırlanırken bir hata oluştu.' });
   }
 };

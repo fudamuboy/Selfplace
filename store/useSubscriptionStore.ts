@@ -18,6 +18,7 @@ import { Platform } from 'react-native';
 import useAuthStore from './useAuthStore';
 import { verifyAppleReceipt, restorePurchases as restoreFromBackend } from '../api/userApi';
 import * as Application from 'expo-application';
+import { t } from '../i18n';
 
 // ─── Apple product IDs — must match App Store Connect exactly ────────────────
 export const IAP_PRODUCT_IDS = {
@@ -133,7 +134,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
           console.error('[StoreKit Debug] Backend verification failed:', err.message);
           // DO NOT finishTransaction on backend failure —
           // Apple will re-deliver the purchase on next launch (user is never charged twice).
-          set({ purchaseError: 'Abonelik doğrulanırken bir hata oluştu. Lütfen tekrar deneyin.' });
+          set({ purchaseError: t('subscription.verifyFailed') });
         } finally {
           set({ purchaseLoading: false });
         }
@@ -148,7 +149,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         console.error('[StoreKit Debug] Purchase error listener caught error:', error.message, (error as any).code, error);
         set({
           purchaseLoading: false,
-          purchaseError: `Satın alma işlemi başarısız oldu: ${error.message} (Code: ${(error as any).code})`,
+          purchaseError: t('subscription.purchaseFailed', { details: `${error.message} (Code: ${(error as any).code})` }),
         });
       });
 
@@ -182,7 +183,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
             productsLoading: false,
             productsLoaded: true,
             storeUnavailable: true,
-            purchaseError: 'Şu an mağazaya erişilemiyor. Lütfen daha sonra tekrar deneyin.'
+            purchaseError: t('subscription.storeUnavailable')
           });
           return;
         }
@@ -202,7 +203,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
             productsLoading: false,
             productsLoaded: true,
             storeUnavailable: true,
-            purchaseError: 'Şu an mağazaya erişilemiyor. Lütfen daha sonra tekrar deneyin.'
+            purchaseError: t('subscription.storeUnavailable')
           });
           return;
         }
@@ -263,7 +264,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       console.warn('[Store Debug] Connection not ready. Rejecting purchase.');
       set({
         purchaseLoading: false,
-        purchaseError: 'Apple Store bağlantısı aktif değil. Satın alma işlemi başlatılamaz.',
+        purchaseError: t('subscription.storeNotConnected'),
       });
       return;
     }
@@ -272,7 +273,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       console.warn('[StoreKit Debug] Available products array is empty. Rejecting purchase.');
       set({
         purchaseLoading: false,
-        purchaseError: 'Abonelik ürünleri yüklenemedi (availableProducts is empty). Check initIAP logs.',
+        purchaseError: t('subscription.productsNotLoaded'),
       });
       return;
     }
@@ -288,7 +289,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         
         if (!offerToken) {
           console.warn('[Store Debug] Missing offerToken for Android subscription.');
-          set({ purchaseLoading: false, purchaseError: 'Ürün teklifi bulunamadı.' });
+          set({ purchaseLoading: false, purchaseError: t('subscription.offerNotFound') });
           return;
         }
         await requestSubscription({ 
@@ -312,7 +313,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       console.error('[StoreKit Debug] requestSubscription caught error:', err.message, (err as any).code, err);
       set({
         purchaseLoading: false,
-        purchaseError: `Satın alma başlatılamadı: ${err?.message || JSON.stringify(err)} (Code: ${(err as any).code})`,
+        purchaseError: t('subscription.purchaseStartFailed', { details: `${err?.message || JSON.stringify(err)} (Code: ${(err as any).code})` }),
       });
     }
   },
@@ -322,7 +323,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     if (!get().iapConnected) {
       set({
         restoreLoading: false,
-        restoreMessage: 'Mağaza bağlantısı aktif değil. Satın alımlar geri yüklenemez.',
+        restoreMessage: t('subscription.restoreNotConnected'),
       });
       return;
     }
@@ -336,7 +337,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       if (!purchases || purchases.length === 0) {
         set({
           restoreLoading: false,
-          restoreMessage: 'Geri yüklenecek aktif abonelik bulunamadı.',
+          restoreMessage: t('subscription.nothingToRestore'),
         });
         return;
       }
@@ -350,7 +351,7 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       if ((isAndroid && !latestPurchase?.purchaseToken) || (!isAndroid && !latestPurchase?.transactionReceipt)) {
         set({
           restoreLoading: false,
-          restoreMessage: 'Geri yüklenecek aktif abonelik bulunamadı.',
+          restoreMessage: t('subscription.nothingToRestore'),
         });
         return;
       }
@@ -371,15 +372,15 @@ const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       set({
         restoreLoading: false,
         restoreMessage: planLabel
-          ? `${planLabel} aboneliğin başarıyla geri yüklendi ✨`
-          : 'Aktif bir abonelik bulunamadı.',
+          ? t('subscription.restored', { plan: planLabel })
+          : t('subscription.noActiveSubscription'),
       });
 
     } catch (err: any) {
       console.error('[IAP] restorePurchases error:', err.message);
       set({
         restoreLoading: false,
-        restoreMessage: 'Geri yükleme başarısız oldu. Lütfen tekrar deneyin.',
+        restoreMessage: t('subscription.restoreFailed'),
       });
     }
   },
