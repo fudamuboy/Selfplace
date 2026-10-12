@@ -14,6 +14,9 @@ const APPLE_VERIFY_URL_SANDBOX = 'https://sandbox.itunes.apple.com/verifyReceipt
 // We retry automatically against sandbox in that case.
 const APPLE_STATUS_SANDBOX_ON_PROD = 21007;
 
+// Expected app bundle — logged (not enforced) so a mismatch is visible in diagnostics
+const EXPECTED_BUNDLE_ID = 'com.silmo.Selfplace';
+
 /**
  * POST body to Apple receipt verification.
  */
@@ -233,6 +236,8 @@ exports.verifyAppleReceipt = async (req, res) => {
     }
 
     const { status, latest_receipt_info, latest_receipt } = appleResponse;
+    // 'Sandbox' (TestFlight / App Review: no money collected) or 'Production'
+    const environment = appleResponse.environment || 'unknown';
 
     // Step 3: Non-zero status = Apple validation failure
     if (status !== 0) {
@@ -285,11 +290,16 @@ exports.verifyAppleReceipt = async (req, res) => {
       latestReceipt: latest_receipt || null,
     });
 
+    // Privacy-safe diagnostics: no receipt, transaction or account data
+    const bundleId = appleResponse.receipt && appleResponse.receipt.bundle_id;
+    console.log(`[Subscription] Apple verified: environment=${environment} bundle=${bundleId === EXPECTED_BUNDLE_ID ? 'ok' : 'MISMATCH'} product=${latestTx.product_id} active=${isActive} plan=${planType}`);
+
     // Step 7: Respond to client
     return res.json({
       plan_type: planType,
       is_active: isActive,
       expires_at: expiresAt,
+      environment,
     });
 
   } catch (err) {
@@ -347,3 +357,6 @@ exports.getSubscriptionStatus = async (req, res) => {
     return res.status(500).json({ message: getLanguage(req) === 'en' ? 'Couldn\'t load your subscription status.' : 'Abonelik durumu alınamadı.' });
   }
 };
+
+// Pure helpers, exported for unit tests only
+exports._internal = { mapProductIdToPlan, extractLatestTransaction };

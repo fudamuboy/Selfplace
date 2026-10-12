@@ -428,6 +428,12 @@ export const tr = {
     restored: '{plan} aboneliğin başarıyla geri yüklendi ✨',
     noActiveSubscription: 'Aktif bir abonelik bulunamadı.',
     restoreFailed: 'Geri yükleme başarısız oldu. Lütfen tekrar deneyin.',
+    activated: '{plan} aboneliğin artık aktif ✨',
+    alreadyActive: 'Aboneliğin zaten aktif. Hesabınla eşitledik ✨',
+    pendingVerification: 'Apple satın alımını onayladı ancak henüz doğrulayamadık. Tekrar ücret ödemezsin; “Satın alımımı doğrula”ya dokun veya uygulamayı yeniden aç.',
+    notActiveYet: 'Apple henüz aktif bir abonelik göstermiyor. Birkaç dakika sonra tekrar doğrulamayı dene.',
+    deferred: 'Satın alımın onay bekliyor. Onaylandığında Premium etkinleşecek.',
+    verifyPurchase: 'Satın alımımı doğrula',
   },
 };
 

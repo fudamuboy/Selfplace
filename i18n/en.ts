@@ -430,5 +430,11 @@ export const en: TranslationKeys = {
     restored: 'Your {plan} subscription has been restored ✨',
     noActiveSubscription: 'No active subscription was found.',
     restoreFailed: 'Restore failed. Please try again.',
+    activated: 'Your {plan} subscription is now active ✨',
+    alreadyActive: 'Your subscription is already active. We’ve synced it with your account ✨',
+    pendingVerification: 'Apple confirmed your purchase, but we couldn’t verify it yet. You won’t be charged again — tap “Verify my purchase” or reopen the app.',
+    notActiveYet: 'Apple doesn’t show an active subscription yet. Try verifying again in a few minutes.',
+    deferred: 'Your purchase is awaiting approval. Premium will activate once it’s approved.',
+    verifyPurchase: 'Verify my purchase',
   },
 };

@@ -64,6 +64,8 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
     productsLoading,
     purchaseLoading,
     purchaseError,
+    purchaseNotice,
+    verificationPending,
     restoreLoading,
     restoreMessage,
     iapConnected,
@@ -130,6 +132,8 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
   const getButtonLabel = () => {
     if (selectedPlan === currentPlan) return t('common.close');
     if (selectedPlan === 'free')      return isEn ? 'Switch to Free Plan' : 'Ücretsiz Plana Dön';
+    // Apple already confirmed a purchase we could not verify: the button verifies it, never buys again
+    if (verificationPending)          return t('subscription.verifyPurchase');
     return Platform.OS === 'android' ? (isEn ? 'Subscribe with Google Play' : 'Google Play ile Abone Ol') : (isEn ? 'Subscribe with Apple' : 'Apple ile Abone Ol');
   };
 
@@ -209,6 +213,22 @@ export const PremiumUpgradeModal: React.FC<Props> = ({
             <View style={[styles.errorBanner, { backgroundColor: 'rgba(248,113,113,0.12)', borderColor: '#f87171' }]}>
               <Ionicons name="warning-outline" size={16} color="#f87171" />
               <Text style={styles.errorText}>{purchaseError}</Text>
+            </View>
+          ) : null}
+
+          {/* ── Purchase verification pending (Apple confirmed, backend not yet) ── */}
+          {verificationPending ? (
+            <View style={[styles.errorBanner, { backgroundColor: 'rgba(234,179,8,0.1)', borderColor: '#eab308' }]}>
+              <Ionicons name="time-outline" size={16} color="#eab308" />
+              <Text style={[styles.errorText, { color: '#eab308' }]}>{t('subscription.pendingVerification')}</Text>
+            </View>
+          ) : null}
+
+          {/* ── Purchase notice (activated, already active, awaiting approval) ── */}
+          {purchaseNotice ? (
+            <View style={[styles.errorBanner, { backgroundColor: currentTheme.colors.secondary, borderColor: currentTheme.colors.primary }]}>
+              <Ionicons name="information-circle-outline" size={16} color={currentTheme.colors.primary} />
+              <Text style={[styles.errorText, { color: currentTheme.colors.text.primary }]}>{purchaseNotice}</Text>
             </View>
           ) : null}
 

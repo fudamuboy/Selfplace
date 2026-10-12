@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test src/tests/auth.test.js src/tests/livingContextEngine.test.js"
+    "test": "node --test src/tests/auth.test.js src/tests/livingContextEngine.test.js src/tests/subscription.test.js"
   },
   "keywords": [],
   "author": "",
