@@ -46,12 +46,12 @@ describe('First-launch language detection', () => {
     expect(await freshLaunch(['en-US'])).toBe('tr');
   });
 
-  test('5. device language changes after a choice → the choice wins', async () => {
+  test('5. manual choice is kept while the device language is unchanged; a device change is followed', async () => {
     await freshLaunch(['tr-TR']);
     await useLanguageStore.getState().setLanguage('en'); // e.g. switched in Settings
-    expect(await freshLaunch(['tr-TR'])).toBe('en');
+    expect(await freshLaunch(['tr-TR'])).toBe('en');      // device unchanged → manual choice kept
     await useLanguageStore.getState().setLanguage('tr');
-    expect(await freshLaunch(['en-GB'])).toBe('tr');
+    expect(await freshLaunch(['en-GB'])).toBe('en');      // device changed to English → app follows
   });
 
   test('6. unsupported device language → English fallback', async () => {
@@ -60,9 +60,10 @@ describe('First-launch language detection', () => {
     expect(await freshLaunch(['es-ES'])).toBe('en');
   });
 
-  test('7. installs from before the language picker keep Turkish', async () => {
+  test('7. installs from before the language picker default to Turkish, then follow a supported device language', async () => {
     await AsyncStorage.setItem('onboardingCompleted', 'true');
-    expect(await freshLaunch(['en-US'])).toBe('tr');
+    expect(await freshLaunch(['fr-FR'])).toBe('tr'); // unsupported device: Turkish default kept
+    expect(await freshLaunch(['en-US'])).toBe('en'); // device language changed to English: followed
   });
 
   test('locale parsing', () => {

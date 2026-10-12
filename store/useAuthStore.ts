@@ -100,9 +100,12 @@ const useAuthStore = create<AuthState>((set, get) => ({
   resetAll: async () => {
     const savedLang = await AsyncStorage.getItem('appLanguage');
     const savedSelected = await AsyncStorage.getItem('hasCompletedLanguageSelection');
+    const savedDeviceLang = await AsyncStorage.getItem('lastDeviceLanguage');
     await AsyncStorage.clear();
     if (savedLang) await AsyncStorage.setItem('appLanguage', savedLang);
     if (savedSelected) await AsyncStorage.setItem('hasCompletedLanguageSelection', savedSelected);
+    // Keeps the device-language observation, so a reset does not override the user's language choice
+    if (savedDeviceLang) await AsyncStorage.setItem('lastDeviceLanguage', savedDeviceLang);
     set({ token: null, user: null, onboardingCompleted: false, postAuthOnboardingCompleted: false, sessionExpired: false, planType: 'free' });
   },
 }));

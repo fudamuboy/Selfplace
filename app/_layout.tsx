@@ -280,9 +280,21 @@ export default function RootLayout() {
     }
   }, [isReady, token]);
 
+  // A language change made without a session (startup device sync, first-launch picker) reaches the backend here
+  useEffect(() => {
+    if (isReady && token) {
+      useLanguageStore.getState().flushBackendLanguageSync();
+    }
+  }, [isReady, token]);
+
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
       if (nextAppState === 'active') {
+        // Follow an iPhone language change (local only, works logged in or not)
+        if (isReady) {
+          await useLanguageStore.getState().syncWithDeviceLanguage();
+        }
+
         // Guard: never fire authenticated requests before startup hydration is complete
         // and never fire if the user is not logged in.
         const currentToken = useAuthStore.getState().token;
